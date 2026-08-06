@@ -4,7 +4,7 @@ import Checkout from "./pages/Checkout";
 import Footer from "./components/Footer";
 import useCart from "./hooks/useCart";
 import Counter from "./components/Counter";
-import BuilderModal from "./components/BuilderModal";
+import BuilderModal from "./components/BuilderModalButton";
 import Cart from "./components/Cart";
 import Logo from "./components/Logo";
 import { products, categories } from "./data/products";
