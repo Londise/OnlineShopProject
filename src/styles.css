@@ -202,6 +202,49 @@ nav button:hover:after {
     transition: transform .2s, background .2s
 }
 
+.toast-success {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+
+    background: #2e8b57;
+    color: white;
+
+    padding: 13px 22px;
+
+    border-radius: 999px;
+
+    font-size: 14px;
+    font-weight: 700;
+
+    box-shadow: 0 10px 30px rgba(0,0,0,.18);
+
+    z-index: 9999;
+
+    animation: toastIn .25s ease;
+}
+
+@keyframes toastIn {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
+}
+
+@media(max-width:700px) {
+    .toast-success {
+        top: 15px;
+        width: calc(100% - 40px);
+        text-align: center;
+    }
+}
+
 .button:hover:not(:disabled) {
     transform: translateY(-2px)
 }
@@ -1318,11 +1361,11 @@ footer small {
         bottom: 17px;
         background: var(--wine);
         color: #fff;
-        padding: 13px 16px;
+        padding: 18px 22px;
         box-shadow: 0 6px 24px #491c3870;
         align-items: center;
         gap: 8px;
-        font-size: 12px;
+        font-size: 16px;
         font-weight: 700;
         border-radius: 3px
     }

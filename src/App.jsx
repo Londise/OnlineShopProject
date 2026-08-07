@@ -311,6 +311,7 @@ function Home({ onBuild, cartProps }) {
 export default function App() {
   const [currentProduct, setCurrentProduct] = useState(null);
   const [page, setPage] = useState("home");
+  const [toast, setToast] = useState(null);
 
   const {
     lines,
@@ -324,10 +325,20 @@ export default function App() {
     totalWeight
   } = useCart();
 
+  // Função para abrir o modal de construção de pedido com o produto selecionado
   const openBuilder = (product) => {
     setCurrentProduct(product);
     setCartOpen(true);
   };
+
+  // Função para exibir uma mensagem temporária (toast) na tela
+  function showToast(message) {
+    setToast(message);
+
+    setTimeout(() => {
+      setToast(null);
+    }, 2500);
+  }
 
   // Função para ir para a página de checkout, fechando o carrinho e limpando o produto atual
   const handleCheckout = () => {
@@ -373,6 +384,7 @@ export default function App() {
         // Modal
           <BuilderModal
             product={currentProduct}
+            showToast={showToast}
 
             onClose={() => {
               setCurrentProduct(null);
@@ -383,6 +395,14 @@ export default function App() {
             cartOpen={cartOpen}
           />
       )}
+
+      {/* Renderiza o toast se houver uma mensagem para ser exibida */}
+      {toast && (
+        <div className="toast-success">
+          {toast}
+        </div>
+      )}
+
     </>
   );
 }

@@ -8,6 +8,11 @@ const money = new Intl.NumberFormat("pt-BR", {
   currency: "BRL",
 });
 
+// Detecta se está em tela mobile
+function isMobile() {
+  return window.matchMedia("(max-width: 700px)").matches;
+}
+
 const colorStyles = {
   Preto: "#171419",
   Vinho: "#6a1831",
@@ -22,7 +27,7 @@ const colorStyles = {
 };
 
 // Modal para montar o pedido, escolhendo cor e distribuindo quantidades por tamanho
-export default function BuilderModal({ product, onClose, onAdd, cartOpen }) {
+export default function BuilderModal({ product, showToast, onClose, onAdd, cartOpen }) {
   const [color, setColor] = useState(product.colors[0]);
 
   // Seta as quantidades em 0 no começo
@@ -48,8 +53,15 @@ export default function BuilderModal({ product, onClose, onAdd, cartOpen }) {
   // Controla a ação de apertar o botão "Adicionar ao Pedido"
   const handleAdd = () => {
     onAdd(product, color, quantities);
+
     resetQuantities();
-  }
+
+    showToast("Produto adicionado ao pedido!");
+
+    if (isMobile()) {
+      onClose();
+    }
+  };
 
   useEffect(() => {
     const listener = (event) => event.key === "Escape" && onClose();
