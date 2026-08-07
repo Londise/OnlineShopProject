@@ -328,7 +328,10 @@ export default function App() {
   // Função para abrir o modal de construção de pedido com o produto selecionado
   const openBuilder = (product) => {
     setCurrentProduct(product);
-    setCartOpen(true);
+
+    if (window.innerWidth > 700) {
+      setCartOpen(true);
+    }
   };
 
   // Função para exibir uma mensagem temporária (toast) na tela
