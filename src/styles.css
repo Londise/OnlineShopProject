@@ -920,34 +920,83 @@ footer small {
 }
 
 .builder {
-    width: min(850px, 100%);
+    width: min(950px, 100%);
     max-height: min(680px, 94dvh);
     overflow: auto;
     position: relative;
     display: grid;
-    grid-template-columns: 38% 1fr;
+    grid-template-columns: 46% 1fr;
     background: #fffdfb;
     box-shadow: var(--shadow)
 }
 
-.builder>img {
-    height: 100%;
+.builder-gallery {
+    display: grid;
+    grid-template-columns: 72px minmax(220px, 1fr);
+    gap: 5px;
+    margin-left: 5px;
     min-height: 580px;
+    height: 100%;
+}
+
+.builder-thumbnails {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+.builder-thumbnail {
+    width: 72px;
+    padding: 0;
+    background: white;
+    overflow: hidden;
+}
+
+.builder-thumbnail:not(:first-child) {
+    padding-top: 10px;
+}
+
+.builder-thumbnail img {
     width: 100%;
-    object-fit: cover
+    height: 100%;
+    object-fit: cover;
+}
+
+.builder-main-image {
+    min-width: 0;
+    height: 100%;
+    overflow: hidden;
+    background: #eee;
+}
+
+.builder-main-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
 .builder-content {
-    padding: 42px 45px
+    padding: 42px 45px;
 }
 
 .icon-close {
     position: absolute;
     right: 14px;
     top: 13px;
-    background: none;
+
+    width: 42px;
+    height: 42px;
+    background: rgba(255, 253, 251, 0.9);
     color: var(--ink);
-    z-index: 1
+    
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    
+    border-radius: 50%;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .12);
+
+    z-index: 10;
 }
 
 .builder h2 {
@@ -1649,12 +1698,40 @@ footer small {
         max-width: 460px
     }
 
-    .builder>img {
-        display: none
+    .builder-gallery {
+        display: flex;
+        flex-direction: column;
+        min-height: auto;
+        height: auto;
+        gap: 8px;
+    }
+
+    .builder-thumbnail {
+        flex: 0 0 65px;
+        aspect-ratio: 3/4;
+        padding-top: 10px;
+    }
+
+    .builder-thumbnails {
+        order: 2;
+        flex-direction: row;
+        gap: 8px;
+        overflow-x: auto;
+    }
+
+    .builder-main-image img {
+        width: 100%;
+        aspect-ratio: 0.86;
+        height: auto;
+        object-fit: cover;
+    }
+
+    .builder-main-image img {
+        object-fit: cover;
     }
 
     .builder-content {
-        padding: 38px 24px 25px
+        padding: 25px 24px 25px
     }
 
     .builder h2 {

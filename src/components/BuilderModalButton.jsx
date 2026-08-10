@@ -24,11 +24,19 @@ const colorStyles = {
   Caramelo: "#b47b4b",
   Oliva: "#788047",
   Pink: "#e45d91",
+  Claras: "#ffffff",
+  Escuras: "black",
+  Misturadas: "grey"
 };
 
 // Modal para montar o pedido, escolhendo cor e distribuindo quantidades por tamanho
 export default function BuilderModal({ product, showToast, onClose, onAdd, cartOpen }) {
   const [color, setColor] = useState(product.variants[0]);
+  const [selectedImage, setSelectedImage] = useState(product.image);
+
+  useEffect(() => {
+    setSelectedImage(product.image);
+  }, [product]);
 
   // Seta as quantidades em 0 no começo
   const [quantities, setQuantities] = useState({
@@ -85,7 +93,49 @@ export default function BuilderModal({ product, showToast, onClose, onAdd, cartO
         <button className="icon-close" onClick={onClose} aria-label="Fechar">
           <X />
         </button>
-        <img src={product.image} alt="" />
+
+        {/* Galeria de fotos do produto */}
+        <div className="builder-gallery">
+          <div className="builder-thumbnails">
+            {product.images?.map((image, index) => {
+              console.log(selectedImage, image);
+              return (
+                <button
+                  key={image || index}
+                  type="button"
+                  className={`builder-thumbnail ${
+                    selectedImage === image ? "selected" : ""}`}
+                    
+                  onClick={() => {
+                      setSelectedImage(image);
+                  }}
+
+                  onMouseEnter={() => {
+                      setSelectedImage(image);
+                  }}
+
+                  onMouseLeave={() => {
+                      setSelectedImage(product.image);
+                  }}
+
+                  aria-label={`Visualizar foto ${index + 1}`}
+                >
+                  <img
+                    src={image}
+                    alt={`${product.name} - foto ${index + 1}`}
+                  />
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="builder-main-image">
+            <img
+              src={selectedImage}
+              alt={`${product.name} feminina`}
+            />
+          </div>
+        </div>
         <div className="builder-content">
           <span className="eyebrow">{product.material} · atacado</span>
           <h2 id="builder-title">{product.name}</h2>
