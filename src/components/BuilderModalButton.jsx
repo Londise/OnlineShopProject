@@ -28,7 +28,7 @@ const colorStyles = {
 
 // Modal para montar o pedido, escolhendo cor e distribuindo quantidades por tamanho
 export default function BuilderModal({ product, showToast, onClose, onAdd, cartOpen }) {
-  const [color, setColor] = useState(product.colors[0]);
+  const [color, setColor] = useState(product.variants[0]);
 
   // Seta as quantidades em 0 no começo
   const [quantities, setQuantities] = useState({
@@ -52,7 +52,7 @@ export default function BuilderModal({ product, showToast, onClose, onAdd, cartO
 
   // Controla a ação de apertar o botão "Adicionar ao Pedido"
   const handleAdd = () => {
-    onAdd(product, color, quantities);
+    onAdd(product, color.name, quantities);
 
     resetQuantities();
 
@@ -95,19 +95,19 @@ export default function BuilderModal({ product, showToast, onClose, onAdd, cartO
           <div className="color-row">
             <span>Escolha a cor</span>
             <div>
-              {product.colors.map((item) => (
+              {product.variants.map((item) => (
                 <button
-                  key={item}
+                  key={item.name}
                   type="button"
-                  className={`color-dot ${color === item ? "selected" : ""}`}
-                  style={{ background: colorStyles[item] }}
+                  className={`color-dot ${color.name === item.name ? "selected" : ""}`}
+                  style={{ background: colorStyles[item.name] }}
                   onClick={() => setColor(item)}
-                  aria-label={item}
-                  title={item}
+                  aria-label={item.name}
+                  title={item.name}
                 />
               ))}
             </div>
-            <b>{color}</b>
+            <b>{color.name}</b>
           </div>
           <div className="sizes">
             <div>

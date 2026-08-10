@@ -456,8 +456,13 @@ nav button:hover:after {
     gap: 23px
 }
 
-.product-card {
-    min-width: 0
+.product-card-catalog {
+    max-height: 540px;
+}
+
+.product-card-catalog > .product-copy .button {
+
+  margin-top: 10px;
 }
 
 .photo {
@@ -503,7 +508,9 @@ nav button:hover:after {
 }
 
 .product-copy {
-    padding: 15px 1px
+    display: flex;
+    flex-direction: column;
+    padding: 15px 1px;
 }
 
 .product-copy p {
@@ -519,6 +526,13 @@ nav button:hover:after {
     font-size: 24px;
     line-height: 1.2;
     margin: 0 0 10px
+}
+
+@media (max-width: 1016px) {
+    .product-copy h3 {
+        min-height: 52px;
+        font-size: 22px;
+    }
 }
 
 .product-copy>strong {
@@ -593,7 +607,7 @@ nav button:hover:after {
 }
 
 .catalog-grid .product-copy h3 {
-    font-size: 21px
+    font-size: 20px
 }
 
 .nothing {

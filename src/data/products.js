@@ -3,12 +3,61 @@ import fotoCalcaViscolycra from "../assets/products/fotomodelocalcaviscolycra.jp
 import fotoPantacourtLinho from "../assets/products/fotopantacurcapa.jpeg";
 import fotoShort from "../assets/products/shortviscolycra.png";
 
+const productImages = import.meta.glob(
+  "../assets/products/**/*.{png,jpg,jpeg,webp}",
+  {
+    eager: true,
+    import: "default",
+  }
+);
+
+function getImage(path) {
+  const imagePath = `../assets/products/${path}`;
+  return productImages[imagePath];
+}
 
 const IMAGES = {
-  calca: fotoCalcaViscolycra,
-  pantacourt: fotoPantacourtLinho,
-  bermuda: fotoBermudaLinho,
-  short: fotoShort,
+  calcaViscolycraLisa: [
+    getImage("calca_viscolycra_lisa/calcaviscolycrafotomodelo1.jpeg"),
+    getImage("calca_viscolycra_lisa/calcaviscolycrafotomodelo2.jpeg"),
+    getImage("calca_viscolycra_lisa/calcaviscolycrafotomodelo3.jpeg"),
+  ],
+
+  calcaViscolycraEstampada: [
+    getImage("calca_viscolycra_estampada/calcaestampadamodelo1.jpeg"),
+    getImage("calca_viscolycra_estampada/calcaestampadamodelo2.jpeg"),
+    getImage("calca_viscolycra_estampada/calcaestampadamodelo3.jpeg"),
+  ],
+
+  calcaLinho: [
+    getImage("calca_linho/calcalinhomodelo1.jpeg"),
+    getImage("calca_linho/calcalinhomodelo2.jpeg"),
+    getImage("calca_linho/calcalinhomodelo3.jpeg"),
+  ],
+
+  pantacourtLinho: [
+    getImage("pantacourt_linho/pantacourtlinhomodelo1.jpeg"),
+    getImage("pantacourt_linho/pantacourtlinhomodelo2.jpeg"),
+    getImage("pantacourt_linho/pantacourtlinhomodelo3.jpeg"),
+  ],
+
+  bermudaLinho: [
+    getImage("bermuda_linho/bermudalinhomodelo1.jpeg"),
+    getImage("bermuda_linho/bermudalinhomodelo2.jpeg"),
+    getImage("bermuda_linho/bermudalinhomodelo3.jpeg"),
+  ],
+
+  capriViscolycraEstampada: [
+    getImage("capri_estampada/capriestampadamodelo1.jpeg"),
+    getImage("capri_estampada/capriestampadamodelo2.jpeg"),
+    getImage("capri_estampada/capriestampadamodelo3.jpeg"),
+  ],
+
+  short: [
+    fotoShort,
+    null,
+    null,
+  ],
 };
 
 const products = [
@@ -19,9 +68,62 @@ const products = [
     material: "Viscolycra",
     price: 34.9,
     weight: 0.4,
-    image: IMAGES.calca,
-    colors: ["Preto", "Vinho", "Azul-marinho", "Estampada"],
+
+    // Imagem principal do produto
+    image: IMAGES.calcaViscolycraLisa[0],
+
+    // Fotos do modelo
+    images: IMAGES.calcaViscolycraLisa,
+
+    // Cores disponíveis e futuras imagens de cada cor
+    variants: [
+      {
+        name: "Preto",
+        image: null,
+      },
+      {
+        name: "Vinho",
+        image: null,
+      },
+      {
+        name: "Azul-marinho",
+        image: null,
+      },
+      {
+        name: "Estampada",
+        image: null,
+      },
+    ],
   },
+
+  {
+    id: "calca-visco-estampada",
+    name: "Calça Viscolycra Estampada",
+    category: "Calças",
+    material: "Viscolycra",
+    price: 34.9,
+    weight: 0.4,
+
+    image: IMAGES.calcaViscolycraEstampada[0],
+    images: IMAGES.calcaViscolycraEstampada,
+
+    // Variantes de cores disponíveis para o produto
+    variants: [
+      {
+        name: "Mais escuras",
+        image: null,
+      },
+      {
+        name: "Mais claras",
+        image: null,
+      },
+      {
+        name: "Misturado",
+        image: null,
+      }
+    ]
+  },
+
   {
     id: "calca-linho",
     name: "Calça Linho",
@@ -29,49 +131,55 @@ const products = [
     material: "Linho",
     price: 42.9,
     weight: 0.5,
-    image: IMAGES.calca,
-    colors: ["Areia", "Preto", "Terracota"],
+
+    image: IMAGES.calcaLinho[0],
+
+    images: IMAGES.calcaLinho,
+
+    variants: [
+      {
+        name: "Areia",
+        image: null,
+      },
+      {
+        name: "Preto",
+        image: null,
+      },
+      {
+        name: "Terracota",
+        image: null,
+      },
+    ],
   },
+
   {
-    id: "calca-suplex",
-    name: "Calça Suplex",
-    category: "Calças",
-    material: "Suplex",
-    price: 39.9,
-    weight: 0.6,
-    image: IMAGES.calca,
-    colors: ["Preto", "Chumbo", "Azul-marinho"],
-  },
-  {
-    id: "panta-visco",
-    name: "Pantacourt Viscolycra",
-    category: "Pantacourts",
-    material: "Viscolycra",
-    price: 31.9,
-    weight: 0.32,
-    image: IMAGES.pantacourt,
-    colors: ["Preto", "Caramelo", "Estampada"],
-  },
-  {
-    id: "panta-linho",
+    id: "pantacourt-linho",
     name: "Pantacourt Linho",
     category: "Pantacourts",
     material: "Linho",
     price: 39.9,
     weight: 0.4,
-    image: IMAGES.pantacourt,
-    colors: ["Areia", "Preto", "Oliva"],
+
+    image: IMAGES.pantacourtLinho[0],
+
+    images: IMAGES.pantacourtLinho,
+
+    variants: [
+      {
+        name: "Preto",
+        image: null,
+      },
+      {
+        name: "Chumbo",
+        image: null,
+      },
+      {
+        name: "Azul-marinho",
+        image: null,
+      },
+    ],
   },
-  {
-    id: "bermuda-visco",
-    name: "Bermuda Viscolycra",
-    category: "Bermudas",
-    material: "Viscolycra",
-    price: 25.9,
-    weight: 0.24,
-    image: IMAGES.bermuda,
-    colors: ["Preto", "Vinho", "Estampada"],
-  },
+
   {
     id: "bermuda-linho",
     name: "Bermuda Linho",
@@ -79,9 +187,56 @@ const products = [
     material: "Linho",
     price: 32.9,
     weight: 0.32,
-    image: IMAGES.bermuda,
-    colors: ["Areia", "Preto", "Terracota"],
+
+    image: IMAGES.bermudaLinho[0],
+
+    images: IMAGES.bermudaLinho,
+
+    variants: [
+      {
+        name: "Preto",
+        image: null,
+      },
+      {
+        name: "Caramelo",
+        image: null,
+      },
+      {
+        name: "Estampada",
+        image: null,
+      },
+    ],
   },
+
+  {
+    id: "capri-visco-estampada",
+    name: "Capri Viscolycra Estampada",
+    category: "Capris",
+    material: "Viscolycra",
+    price: 29.9,
+    weight: 0.3,
+
+
+    image: IMAGES.capriViscolycraEstampada[0],
+
+    images: IMAGES.capriViscolycraEstampada,
+
+    variants: [
+      {
+        name: "Areia",
+        image: null,
+      },
+      {
+        name: "Preto",
+        image: null,
+      },
+      {
+        name: "Oliva",
+        image: null,
+      },
+    ],
+  },
+
   {
     id: "short-visco",
     name: "Short Viscolycra",
@@ -89,16 +244,45 @@ const products = [
     material: "Viscolycra",
     price: 19.9,
     weight: 0.1,
-    image: IMAGES.short,
-    colors: ["Preto", "Pink", "Estampada"],
+
+    image: IMAGES.short[0],
+
+    images: IMAGES.short,
+
+    variants: [
+      {
+        name: "Preto",
+        image: null,
+      },
+      {
+        name: "Pink",
+        image: null,
+      },
+      {
+        name: "Estampada",
+        image: null,
+      },
+    ],
   },
 ];
 
 const categories = [
-  { name: "Calças", image: IMAGES.calca },
-  { name: "Pantacourts", image: IMAGES.pantacourt },
-  { name: "Bermudas", image: IMAGES.bermuda },
-  { name: "Shorts", image: IMAGES.short },
+  {
+    name: "Calças",
+    image: IMAGES.calcaViscolycraLisa[0],
+  },
+  {
+    name: "Pantacourts",
+    image: IMAGES.pantacourtLinho[0],
+  },
+  {
+    name: "Bermudas",
+    image: IMAGES.bermudaLinho[1],
+  },
+  {
+    name: "Shorts",
+    image: IMAGES.short[0],
+  },
 ];
 
 export { products, categories };

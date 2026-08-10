@@ -1,4 +1,8 @@
 import React, { useEffect, useState } from "react";
+
+// Importando script de utilidades
+import "./utils/script.js";
+
 import { z } from "zod";
 import Checkout from "./pages/Checkout";
 import Footer from "./components/Footer";
@@ -51,9 +55,10 @@ const colorStyles = {
   Pink: "#e45d91",
 };
 
-function ProductCard({ product, onBuild }) {
+function ProductCard({ product, onBuild, className = "" }) {
+
   return (
-    <article className="product-card">
+    <article className={`product-card ${className}`}>
       <div className="photo">
         <img src={product.image} alt={`${product.name} feminina`} />
         <span>Atacado</span>
@@ -86,6 +91,7 @@ function Home({ onBuild, cartProps }) {
         .toLocaleLowerCase("pt-BR")
         .includes(search.toLocaleLowerCase("pt-BR")),
   );
+
   const allFilters = ["Todos", ...categories.map(({ name }) => name)];
   const scrollProducts = () =>
     document.querySelector("#produtos")?.scrollIntoView({ behavior: "smooth" });
@@ -273,7 +279,7 @@ function Home({ onBuild, cartProps }) {
           </div>
           <div className="catalog-grid">
             {displayed.map((product) => (
-              <ProductCard
+              <ProductCard className="product-card-catalog"
                 product={product}
                 onBuild={onBuild}
                 key={product.id}
@@ -309,6 +315,7 @@ function Home({ onBuild, cartProps }) {
 }
 
 export default function App() {
+
   const [currentProduct, setCurrentProduct] = useState(null);
   const [page, setPage] = useState("home");
   const [toast, setToast] = useState(null);
