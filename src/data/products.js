@@ -55,18 +55,20 @@ const IMAGES = {
 
   short: [
     fotoShort,
-    null,
-    null,
+  ],
+
+  bermudaViscolycraLisa: [
+    getImage("bermuda_viscolycra_lisa/bermudaviscolycralisapeca1.jpeg"),
   ],
 };
 
 const products = [
   {
     id: "calca-visco",
-    name: "Calça Viscolycra",
+    name: "Calça de Malha Viscolycra",
     category: "Calças",
     material: "Viscolycra",
-    price: 34.9,
+    price: 25.0,
     weight: 0.4,
 
     // Imagem principal do produto
@@ -82,15 +84,31 @@ const products = [
         image: null,
       },
       {
+        name: "Grafite",
+        image: null,
+      },
+      {
+        name: "Cinza claro",
+        image: null,
+      },
+      {
+        name: "Verde militar",
+        image: null,
+      },
+      {
+        name: "Azul marinho",
+        image: null,
+      },
+      {
         name: "Vinho",
         image: null,
       },
       {
-        name: "Azul-marinho",
+        name: "Marrom",
         image: null,
       },
       {
-        name: "Estampada",
+        name: "Marrom claro",
         image: null,
       },
     ],
@@ -101,7 +119,7 @@ const products = [
     name: "Calça Viscolycra Estampada",
     category: "Calças",
     material: "Viscolycra",
-    price: 34.9,
+    price: 27.0,
     weight: 0.4,
 
     image: IMAGES.calcaViscolycraEstampada[0],
@@ -118,7 +136,7 @@ const products = [
         image: null,
       },
       {
-        name: "Misturado",
+        name: "Misturadas",
         image: null,
       }
     ]
@@ -129,7 +147,7 @@ const products = [
     name: "Calça Linho",
     category: "Calças",
     material: "Linho",
-    price: 42.9,
+    price: 36.0,
     weight: 0.5,
 
     image: IMAGES.calcaLinho[0],
@@ -138,16 +156,36 @@ const products = [
 
     variants: [
       {
-        name: "Areia",
-        image: null,
-      },
-      {
         name: "Preto",
-        image: null,
+        image: null
       },
       {
-        name: "Terracota",
-        image: null,
+        name: "Creme",
+        image: null
+      },
+      {
+        name: "Verde escuro",
+        image: null
+      },
+      {
+        name: "Verde claro",
+        image: null
+      },
+      {
+        name: "Vinho",
+        image: null
+      },
+      {
+        name: "Azul escuro",
+        image: null
+      },
+      {
+        name: "Azul claro",
+        image: null
+      },
+      {
+        name: "Rose",
+        image: null
       },
     ],
   },
@@ -157,7 +195,7 @@ const products = [
     name: "Pantacourt Linho",
     category: "Pantacourts",
     material: "Linho",
-    price: 39.9,
+    price: 35.0,
     weight: 0.4,
 
     image: IMAGES.pantacourtLinho[0],
@@ -167,15 +205,35 @@ const products = [
     variants: [
       {
         name: "Preto",
-        image: null,
+        image: null
       },
       {
-        name: "Chumbo",
-        image: null,
+        name: "Creme",
+        image: null
       },
       {
-        name: "Azul-marinho",
-        image: null,
+        name: "Verde escuro",
+        image: null
+      },
+      {
+        name: "Verde claro",
+        image: null
+      },
+      {
+        name: "Vinho",
+        image: null
+      },
+      {
+        name: "Azul escuro",
+        image: null
+      },
+      {
+        name: "Azul claro",
+        image: null
+      },
+      {
+        name: "Rose",
+        image: null
       },
     ],
   },
@@ -185,7 +243,7 @@ const products = [
     name: "Bermuda Linho",
     category: "Bermudas",
     material: "Linho",
-    price: 32.9,
+    price: 25.0,
     weight: 0.32,
 
     image: IMAGES.bermudaLinho[0],
@@ -195,15 +253,35 @@ const products = [
     variants: [
       {
         name: "Preto",
-        image: null,
+        image: null
       },
       {
-        name: "Caramelo",
-        image: null,
+        name: "Creme",
+        image: null
       },
       {
-        name: "Estampada",
-        image: null,
+        name: "Verde escuro",
+        image: null
+      },
+      {
+        name: "Verde claro",
+        image: null
+      },
+      {
+        name: "Vinho",
+        image: null
+      },
+      {
+        name: "Azul escuro",
+        image: null
+      },
+      {
+        name: "Azul claro",
+        image: null
+      },
+      {
+        name: "Rose",
+        image: null
       },
     ],
   },
@@ -213,7 +291,7 @@ const products = [
     name: "Capri Viscolycra Estampada",
     category: "Capris",
     material: "Viscolycra",
-    price: 29.9,
+    price: 20.0,
     weight: 0.3,
 
 
@@ -223,15 +301,15 @@ const products = [
 
     variants: [
       {
-        name: "Areia",
+        name: "Mais escuras",
         image: null,
       },
       {
-        name: "Preto",
+        name: "Mais claras",
         image: null,
       },
       {
-        name: "Oliva",
+        name: "Misturadas",
         image: null,
       },
     ],
@@ -242,7 +320,7 @@ const products = [
     name: "Short Viscolycra",
     category: "Shorts",
     material: "Viscolycra",
-    price: 19.9,
+    price: 15.0,
     weight: 0.1,
 
     image: IMAGES.short[0],
@@ -255,11 +333,79 @@ const products = [
         image: null,
       },
       {
-        name: "Pink",
+        name: "Grafite",
         image: null,
       },
       {
-        name: "Estampada",
+        name: "Cinza claro",
+        image: null,
+      },
+      {
+        name: "Verde militar",
+        image: null,
+      },
+      {
+        name: "Azul marinho",
+        image: null,
+      },
+      {
+        name: "Vinho",
+        image: null,
+      },
+      {
+        name: "Marrom",
+        image: null,
+      },
+      {
+        name: "Marrom claro",
+        image: null,
+      },
+    ],
+  },
+
+  {
+    id: "bermuda-visco-lisa",
+    name: "Bermuda Viscolycra Lisa",
+    category: "Bermuda",
+    material: "Viscolycra",
+    price: 18.0,
+    weight: 0.1,
+
+    image: IMAGES.bermudaViscolycraLisa[0],
+
+    images: IMAGES.bermudaViscolycraLisa,
+
+    variants: [
+      {
+        name: "Preto",
+        image: null,
+      },
+      {
+        name: "Grafite",
+        image: null,
+      },
+      {
+        name: "Cinza claro",
+        image: null,
+      },
+      {
+        name: "Verde militar",
+        image: null,
+      },
+      {
+        name: "Azul marinho",
+        image: null,
+      },
+      {
+        name: "Vinho",
+        image: null,
+      },
+      {
+        name: "Marrom",
+        image: null,
+      },
+      {
+        name: "Marrom claro",
         image: null,
       },
     ],

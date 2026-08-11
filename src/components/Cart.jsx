@@ -50,10 +50,6 @@ export default function Cart({
   return (
     <>
       {/* Verifica se o botão flutuante deve ser exibido */}
-      {console.log("showFloatingButton:", showFloatingButton)}
-        {console.log("pieces:", pieces)}
-        {console.log("open:", open)}
-
       {showFloatingButton && pieces > 0 && !open && (
         <button className="mobile-cart" onClick={() => setOpen(true)}>
           <ShoppingBag size={19} />

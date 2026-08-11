@@ -9,24 +9,25 @@ const money = new Intl.NumberFormat("pt-BR", {
 });
 
 // Detecta se está em tela mobile
-function isMobile() {
-  return window.matchMedia("(max-width: 700px)").matches;
-}
-
 const colorStyles = {
-  Preto: "#171419",
-  Vinho: "#6a1831",
-  "Azul-marinho": "#1d3152",
-  Estampada: "linear-gradient(135deg,#ef9d86,#7d385e,#d9bc53)",
+  Preto: "#1A1A1A",
+  Vinho: "#9C1A39",
+  Grafite: "#4A4A4A",
+  "Cinza claro": "#D9D9D9",
+  "Verde militar": "#21482C",
+  Marrom: "#5A3C3B",
+  "Marrom claro": "#BD6D5A",
+  "Azul marinho": "#1d3152",
   Areia: "#d9c4a4",
-  Terracota: "#b75c45",
-  Chumbo: "#4c5054",
-  Caramelo: "#b47b4b",
-  Oliva: "#788047",
-  Pink: "#e45d91",
-  Claras: "#ffffff",
-  Escuras: "black",
-  Misturadas: "grey"
+  Creme: "#EAD7C5",
+  "Verde escuro": "#58593A",
+  "Verde claro": "#98D3B3",
+  "Azul escuro": "#252949",
+  "Azul claro": "#538DE4",
+  Rose: "#D97E7B",
+  "Mais escuras": "#000000",
+  "Mais claras": "#e9e9e9",
+  "Misturadas": "grey",
 };
 
 // Modal para montar o pedido, escolhendo cor e distribuindo quantidades por tamanho
@@ -60,15 +61,12 @@ export default function BuilderModal({ product, showToast, onClose, onAdd, cartO
 
   // Controla a ação de apertar o botão "Adicionar ao Pedido"
   const handleAdd = () => {
-    onAdd(product, color.name, quantities);
+    onAdd(product, color, quantities);
 
     resetQuantities();
 
     showToast("Produto adicionado ao pedido!");
 
-    if (isMobile()) {
-      onClose();
-    }
   };
 
   useEffect(() => {
@@ -98,7 +96,6 @@ export default function BuilderModal({ product, showToast, onClose, onAdd, cartO
         <div className="builder-gallery">
           <div className="builder-thumbnails">
             {product.images?.map((image, index) => {
-              console.log(selectedImage, image);
               return (
                 <button
                   key={image || index}
@@ -151,7 +148,10 @@ export default function BuilderModal({ product, showToast, onClose, onAdd, cartO
                   type="button"
                   className={`color-dot ${color.name === item.name ? "selected" : ""}`}
                   style={{ background: colorStyles[item.name] }}
-                  onClick={() => setColor(item)}
+                  onClick={() => {
+                    setColor(item);
+                    setSelectedImage(item.image || product.image);
+                  }}
                   aria-label={item.name}
                   title={item.name}
                 />

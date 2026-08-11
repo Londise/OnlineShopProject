@@ -10,6 +10,7 @@ import {
   buildOrderMessage,
   sendToWhatsApp,
 } from "../utils/whatsapp";
+import { api } from "../services/api";
 
 // Formata valores monetários no padrão brasileiro
 const money = new Intl.NumberFormat("pt-BR", {
@@ -46,12 +47,14 @@ function estimateShipping(cep, weight) {
   };
 }
 
-export default function Checkout({ lines, onBack, qtyTotal, orderTotal, totalWeight }) {
+export default function Checkout({ lines, onBack, qtyTotal, orderTotal, totalWeight, user }) {
   const [cep, setCep] = useState("");
   const [shipping, setShipping] = useState(null);
   const [shippingError, setShippingError] = useState("");
   const [chosen, setChosen] = useState(null);
   const [sending, setSending] = useState(false);
+  const [orderError, setOrderError] = useState("");
+  const [customer, setCustomer] = useState({ name: user?.name ?? "", whatsapp: "", email: user?.email ?? "" });
 
   const total = orderTotal;
 
@@ -65,22 +68,26 @@ export default function Checkout({ lines, onBack, qtyTotal, orderTotal, totalWei
         
   
   // Função para lidar com o envio do pedido via WhatsApp
-  const handleWhatsApp = () => {
+  const handleWhatsApp = async () => {
     if (sending) return;
-
-    setSending(true);
-
-    const message = buildOrderMessage({
-      lines,
-      qtyTotal,
-      selectedDelivery,
-    });
-
-    sendToWhatsApp(message);
-
-    setTimeout(() => {
+    setOrderError("");
+    try {
+      if (customer.name.trim().length < 2) throw new Error("Informe seu nome para enviar o pedido.");
+      if (customer.whatsapp.replace(/\D/g, "").length < 10) throw new Error("Informe um WhatsApp vÃ¡lido com DDD.");
+      if (customer.email && !z.string().email().safeParse(customer.email).success) throw new Error("Informe um e-mail vÃ¡lido ou deixe o campo em branco.");
+      setSending(true);
+      if (lines.some((line) => !line.variantId)) throw new Error("O catálogo ainda está sendo atualizado. Reabra o pedido e tente novamente.");
+      const { order } = await api.orders.create({
+        customer: { ...customer, email: customer.email || undefined },
+        delivery: { method: chosen === "correios" ? "CORREIOS" : "EXCURSAO", postalCode: chosen === "correios" ? cep : undefined },
+        items: lines.map((line) => ({ variantId: line.variantId, quantity: line.quantity })),
+      });
+      sendToWhatsApp(buildOrderMessage({ lines, qtyTotal, selectedDelivery, orderNumber: order.publicNumber }));
+    } catch (error) {
+      setOrderError(error.message);
+    } finally {
       setSending(false);
-    }, 3000);
+    }
   };
 
   const calculate = () => {
@@ -224,6 +231,11 @@ export default function Checkout({ lines, onBack, qtyTotal, orderTotal, totalWei
           </section>
         </div>
         <section className="confirm-box">
+          <div className="customer-fields">
+            <label>Seu nome<input required value={customer.name} maxLength="120" onChange={(event) => setCustomer({ ...customer, name: event.target.value })} /></label>
+            <label>WhatsApp<input required inputMode="tel" value={customer.whatsapp} maxLength="30" onChange={(event) => setCustomer({ ...customer, whatsapp: event.target.value })} /></label>
+            <label>E-mail <small>(opcional)</small><input type="email" value={customer.email} maxLength="191" onChange={(event) => setCustomer({ ...customer, email: event.target.value })} /></label>
+          </div>
           <div>
             <span>
               {selectedDelivery?.pending
@@ -248,6 +260,7 @@ export default function Checkout({ lines, onBack, qtyTotal, orderTotal, totalWei
           >
             Enviar pedido pelo WhatsApp<Send size={18} />
           </button>
+          {orderError && <p className="form-error checkout-error" role="alert">{orderError}</p>}
         </section>
       </main>
       <Footer onHome={onBack} />

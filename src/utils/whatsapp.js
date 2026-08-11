@@ -2,6 +2,7 @@ export function buildOrderMessage({
   lines,
   qtyTotal,
   selectedDelivery,
+  orderNumber,
 }) {
 
   // Se não houver linhas de pedido, retorna uma string vazia
@@ -13,6 +14,7 @@ export function buildOrderMessage({
   });
 
   let message = "Olá! Gostaria de fazer o seguinte pedido:\n";
+  if (orderNumber) message += `Pedido: ${orderNumber}\n`;
   message += "━━━━━━━━━━━━━━━━━━━━\n\n";
 
   // Agrupa por produto
@@ -51,8 +53,6 @@ export function buildOrderMessage({
   if (selectedDelivery) {
     message += `🚚 Entrega: ${selectedDelivery.label}\n`;
   }
-  console.log(message);
-  console.log(encodeURIComponent("📦"));
   return message;
 }
 
@@ -60,7 +60,7 @@ export function sendToWhatsApp(message) {
 
   if (!message) return
 
-  const PHONE = import.meta.env.VITE_WHATSAPP_NUMBER;;
+  const PHONE = import.meta.env.VITE_WHATSAPP_NUMBER;
 
   const params = new URLSearchParams({
     phone: PHONE,

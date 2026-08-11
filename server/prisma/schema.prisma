@@ -1,0 +1,313 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  CUSTOMER
+  STAFF
+  ADMIN
+}
+
+enum OptionType {
+  COLOR
+  PRINT
+}
+
+enum ProductImageType {
+  PRIMARY
+  SECONDARY
+}
+
+enum OrderStatus {
+  NOVO
+  CONFIRMADO
+  CANCELADO
+  CONCLUIDO
+}
+
+enum DeliveryMethod {
+  CORREIOS
+  EXCURSAO
+}
+
+enum InventoryMovementType {
+  INITIAL
+  ADJUSTMENT
+  ORDER_RESERVE
+  ORDER_RELEASE
+  ORDER_CONSUME
+  ORDER_RESTORE
+}
+
+model User {
+  id                 String              @id @default(cuid())
+  name               String              @db.VarChar(120)
+  email              String              @unique @db.VarChar(191)
+  passwordHash       String              @map("password_hash") @db.VarChar(255)
+  role               UserRole            @default(CUSTOMER)
+  active             Boolean             @default(true)
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @updatedAt @map("updated_at")
+  sessions           AuthSession[]
+  customerOrders     Order[]             @relation("CustomerOrders")
+  archivedOrders     Order[]             @relation("ArchivedBy")
+  inventoryMovements InventoryMovement[]
+  auditLogs          AuditLog[]
+
+  @@map("users")
+}
+
+model AuthSession {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique @map("token_hash") @db.Char(64)
+  userId    String   @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@map("auth_sessions")
+}
+
+model MediaAsset {
+  id                String         @id @default(cuid())
+  url               String         @db.VarChar(2048)
+  publicId          String?        @unique @map("public_id") @db.VarChar(255)
+  altText           String?        @map("alt_text") @db.VarChar(255)
+  width             Int?
+  height            Int?
+  createdAt         DateTime       @default(now()) @map("created_at")
+  productImages     ProductImage[]
+  banners           SiteBanner[]
+  categoryImages    Category[]     @relation("CategoryImage")
+  productOptionImages ProductOption[] @relation("ProductOptionImage")
+
+  @@map("media_assets")
+}
+
+model Category {
+  id           String       @id @default(cuid())
+  name         String       @db.VarChar(100)
+  slug         String       @unique @db.VarChar(120)
+  sortOrder    Int          @default(0) @map("sort_order")
+  imageAssetId String?      @map("image_asset_id")
+  active       Boolean      @default(true)
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+  imageAsset   MediaAsset?  @relation("CategoryImage", fields: [imageAssetId], references: [id], onDelete: SetNull)
+  products     Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id          String          @id @default(cuid())
+  categoryId  String          @map("category_id")
+  name        String          @db.VarChar(160)
+  slug        String          @unique @db.VarChar(180)
+  description String?         @db.Text
+  material    String          @db.VarChar(100)
+  priceCents  Int             @map("price_cents")
+  weightGrams Int             @map("weight_grams")
+  active      Boolean         @default(true)
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+  category    Category        @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  options     ProductOption[]
+  images      ProductImage[]
+
+  @@index([categoryId, active])
+  @@map("products")
+}
+
+model VariantOption {
+  id             String          @id @default(cuid())
+  type           OptionType
+  name           String          @db.VarChar(100)
+  slug           String          @unique @db.VarChar(120)
+  swatchHex      String?         @map("swatch_hex") @db.VarChar(32)
+  active         Boolean         @default(true)
+  productOptions ProductOption[]
+
+  @@map("variant_options")
+}
+
+model ProductOption {
+  id              String          @id @default(cuid())
+  productId       String          @map("product_id")
+  variantOptionId String          @map("variant_option_id")
+  imageAssetId    String?         @map("image_asset_id")
+  sortOrder       Int             @default(0) @map("sort_order")
+  active          Boolean         @default(true)
+  product         Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variantOption   VariantOption   @relation(fields: [variantOptionId], references: [id], onDelete: Restrict)
+  imageAsset      MediaAsset?     @relation("ProductOptionImage", fields: [imageAssetId], references: [id], onDelete: SetNull)
+  variants        ProductVariant[]
+  images          ProductImage[]  @relation("OptionImages")
+
+  @@unique([productId, variantOptionId])
+  @@index([productId, active])
+  @@map("product_options")
+}
+
+model Size {
+  id        String           @id @default(cuid())
+  code      String           @unique @db.VarChar(20)
+  sortOrder Int              @default(0) @map("sort_order")
+  active    Boolean          @default(true)
+  variants  ProductVariant[]
+
+  @@map("sizes")
+}
+
+model ProductVariant {
+  id              String        @id @default(cuid())
+  productOptionId String        @map("product_option_id")
+  sizeId          String        @map("size_id")
+  sku             String        @unique @db.VarChar(100)
+  priceCents      Int?          @map("price_cents")
+  active          Boolean       @default(true)
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+  productOption   ProductOption @relation(fields: [productOptionId], references: [id], onDelete: Restrict)
+  size            Size          @relation(fields: [sizeId], references: [id], onDelete: Restrict)
+  inventory       InventoryLevel?
+  orderItems      OrderItem[]
+
+  @@unique([productOptionId, sizeId])
+  @@map("product_variants")
+}
+
+model InventoryLevel {
+  variantId       String          @id @map("variant_id")
+  onHand          Int             @default(0) @map("on_hand")
+  reserved        Int             @default(0)
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+  variant         ProductVariant  @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  movements       InventoryMovement[]
+
+  @@map("inventory_levels")
+}
+
+model Order {
+  id                    String          @id @default(cuid())
+  publicNumber          String          @unique @map("public_number") @db.VarChar(32)
+  userId                String?         @map("user_id")
+  customerName          String          @map("customer_name") @db.VarChar(120)
+  customerEmail         String?         @map("customer_email") @db.VarChar(191)
+  customerWhatsApp      String          @map("customer_whatsapp") @db.VarChar(30)
+  status                OrderStatus     @default(NOVO)
+  deliveryMethod        DeliveryMethod  @map("delivery_method")
+  postalCode            String?         @map("postal_code") @db.VarChar(9)
+  shippingAmountCents   Int?            @map("shipping_amount_cents")
+  shippingDetail        String?         @map("shipping_detail") @db.VarChar(255)
+  subtotalCents         Int             @map("subtotal_cents")
+  totalCents            Int             @map("total_cents")
+  paidAmountCents       Int             @default(0) @map("paid_amount_cents")
+  note                  String?         @db.Text
+  archivedAt            DateTime?       @map("archived_at")
+  archivedById          String?         @map("archived_by_id")
+  createdAt             DateTime        @default(now()) @map("created_at")
+  updatedAt             DateTime        @updatedAt @map("updated_at")
+  user                  User?           @relation("CustomerOrders", fields: [userId], references: [id], onDelete: SetNull)
+  archivedBy            User?           @relation("ArchivedBy", fields: [archivedById], references: [id], onDelete: SetNull)
+  items                 OrderItem[]
+  inventoryMovements    InventoryMovement[]
+  auditLogs             AuditLog[]
+
+  @@index([status, archivedAt, createdAt])
+  @@index([userId, createdAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id                       String          @id @default(cuid())
+  orderId                  String          @map("order_id")
+  productVariantId         String          @map("product_variant_id")
+  productNameSnapshot      String          @map("product_name_snapshot") @db.VarChar(160)
+  optionNameSnapshot       String          @map("option_name_snapshot") @db.VarChar(100)
+  sizeSnapshot             String          @map("size_snapshot") @db.VarChar(20)
+  imageUrlSnapshot         String?         @map("image_url_snapshot") @db.VarChar(2048)
+  unitPriceCentsSnapshot   Int             @map("unit_price_cents_snapshot")
+  unitWeightGramsSnapshot  Int             @map("unit_weight_grams_snapshot")
+  quantity                 Int
+  lineTotalCentsSnapshot   Int             @map("line_total_cents_snapshot")
+  order                    Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productVariant           ProductVariant  @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+  @@map("order_items")
+}
+
+model InventoryMovement {
+  id             String                @id @default(cuid())
+  variantId      String                @map("variant_id")
+  orderId        String?               @map("order_id")
+  actorId        String?               @map("actor_id")
+  type           InventoryMovementType
+  onHandDelta    Int                   @default(0) @map("on_hand_delta")
+  reservedDelta  Int                   @default(0) @map("reserved_delta")
+  reason         String?               @db.VarChar(255)
+  createdAt      DateTime              @default(now()) @map("created_at")
+  inventory      InventoryLevel        @relation(fields: [variantId], references: [variantId], onDelete: Restrict)
+  order          Order?                @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  actor          User?                 @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([variantId, createdAt])
+  @@index([orderId])
+  @@map("inventory_movements")
+}
+
+model ProductImage {
+  id              String           @id @default(cuid())
+  productId       String           @map("product_id")
+  productOptionId String?          @map("product_option_id")
+  assetId         String           @map("asset_id")
+  type            ProductImageType
+  sortOrder       Int              @default(0) @map("sort_order")
+  product         Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productOption   ProductOption?   @relation("OptionImages", fields: [productOptionId], references: [id], onDelete: SetNull)
+  asset           MediaAsset       @relation(fields: [assetId], references: [id], onDelete: Restrict)
+
+  @@index([productId, sortOrder])
+  @@map("product_images")
+}
+
+model SiteBanner {
+  id        String      @id @default(cuid())
+  assetId   String      @map("asset_id")
+  title     String?     @db.VarChar(160)
+  subtitle  String?     @db.VarChar(255)
+  linkUrl   String?     @map("link_url") @db.VarChar(2048)
+  sortOrder Int         @default(0) @map("sort_order")
+  active    Boolean     @default(true)
+  startsAt  DateTime?   @map("starts_at")
+  endsAt    DateTime?   @map("ends_at")
+  asset     MediaAsset  @relation(fields: [assetId], references: [id], onDelete: Restrict)
+
+  @@index([active, sortOrder])
+  @@map("site_banners")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?  @map("actor_id")
+  orderId    String?  @map("order_id")
+  entityType String   @map("entity_type") @db.VarChar(80)
+  entityId   String   @map("entity_id") @db.VarChar(191)
+  action     String   @db.VarChar(80)
+  beforeJson Json?    @map("before_json")
+  afterJson  Json?    @map("after_json")
+  createdAt  DateTime @default(now()) @map("created_at")
+  actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  order      Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId, createdAt])
+  @@map("audit_logs")
+}

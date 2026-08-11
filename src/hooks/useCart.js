@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 
 // Para evitar infinitos loops de pedidos, limitamos o valor máximo do pedido a R$ 5.000,00
-const MAX_ORDER_VALUE = 5000;
 
 export default function useCart() {
 
@@ -37,7 +36,9 @@ export default function useCart() {
         if (!quantity) return;
 
         // cria uma chave única para cada combinação de (produto, cor e tamanho)
-        const keyOfProductToBeAdded = `${product.id}-${color}-${size}`;
+        const colorName = typeof color === "string" ? color : color.name;
+        const selectedVariant = typeof color === "string" ? null : color.stockVariants?.find((variant) => variant.size === size);
+        const keyOfProductToBeAdded = selectedVariant?.id ?? `${product.id}-${colorName}-${size}`;
 
         // verifica se já existe uma linha com o mesmo produto, cor e tamanho
         const existing = next.find((line) => line.key === keyOfProductToBeAdded);
@@ -45,7 +46,6 @@ export default function useCart() {
         // Se o produto existir, a quantidade é aumentada no carrinho
         if (existing) {
           existing.quantity += quantity;
-          console.log(`Adicionando ${quantity} unidades de ${product.name} (${color}, ${size}) ao carrinho. Quantidade a ser adicionada: ${existing.quantity}`);
         }
 
         // Se o produto não existir, adiciona uma nova linha ao carrinho
@@ -53,8 +53,9 @@ export default function useCart() {
           next.push({
             key: keyOfProductToBeAdded,
             productId: product.id,
+            variantId: selectedVariant?.id ?? null,
             name: product.name,
-            color,
+            color: colorName,
             size,
             quantity,
             price: product.price,
@@ -62,26 +63,9 @@ export default function useCart() {
             image: product.image,
           });
 
-          console.log(`Adicionando ${quantity} unidades de ${product.name} (${color}, ${size}) ao carrinho.`);
         }
       });
 
-      // VERIFICAÇÃO PARA EVITAR ULTRAPASSAR O LIMITE DE ESTOQUE
-
-      // Calcula o total geral da nova lista após a adição do produto.
-      const newTotal = next.reduce(
-        (sum, line) => sum + line.quantity * line.price,
-        0
-      );
-
-      // Se o total da nova lista estourar R$ 5.000, aborta tudo e devolve o 'old'
-      if (newTotal > MAX_ORDER_VALUE) {
-        alert("Você ultrapassou o limite de Estoque.");
-        return old;
-      }
-      
-      console.log(`Novo total do carrinho: R$ ${newTotal.toFixed(2)}`);
-      // Se tudo estiver ok, devolve a nova lista com o produto já adicionado
       return next;
     });
   };
@@ -91,35 +75,8 @@ export default function useCart() {
   setLines((old) => {
     const quantity = Number(rawQuantity) || 0;
 
-    // Descobre quanto esse item tinha antes de mudar
-    const currentLine = old.find((line) => line.key === key);
-    const currentQty = currentLine ? currentLine.quantity : 0;
-
-    // Prepara o próximo estado
-    const next = old
-      .map((line) => (line.key === key ? { ...line, quantity } : line))
+    return old.map((line) => (line.key === key ? { ...line, quantity } : line))
       .filter((line) => line.quantity > 0);
-
-    // Se a pessoa está DIMINUINDO ou mantendo a quantidade,
-    // aprova a alteração imediatamente sem checar limite
-    if (quantity <= currentQty) {
-      return next;
-    }
-
-    // Se a pessoa está AUMENTANDO, aí sim valida o limite total
-    const newTotal = next.reduce(
-      (sum, line) => sum + line.quantity * line.price,
-      0
-    );
-
-    if (newTotal > MAX_ORDER_VALUE) {
-      alert("Você ultrapassou o limite de Estoque.");
-      return old;
-    }
-
-    console.log(`Alterando quantidade do item ${key} de ${currentQty} para ${quantity}. Novo total: R$ ${newTotal.toFixed(2)}`);
-
-    return next;
   });
 
   // Remove produtos do carrinho

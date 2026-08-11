@@ -1,0 +1,38 @@
+import { Router } from 'express';
+import { addProductImage, addProductOption, createProduct, listAdminProducts, updateProduct, updateProductOption, updateProductVariant } from '../controllers/catalog.controller.js';
+import { adjustInventory, catalogMetadata, createBanner, createCategory, createMediaAsset, createStaff, createVariantOption, listAdminBanners, listInventory, listStaff, signedUpload, updateBanner, updateCategory, updateVariantOption } from '../controllers/admin.controller.js';
+import { archive, getAdmin, listAdmin, update } from '../controllers/order.controller.js';
+import { requireRoles } from '../middlewares/auth.js';
+import { validate } from '../middlewares/validate.js';
+import { bannerSchema, categorySchema, createStaffSchema, inventoryAdjustmentSchema, mediaAssetSchema, productImageSchema, productOptionPatchSchema, productOptionSchema, productPatchSchema, productSchema, productVariantPatchSchema, variantOptionSchema } from '../schemas/admin.schemas.js';
+import { updateOrderSchema } from '../schemas/order.schemas.js';
+
+export const adminRouter = Router();
+adminRouter.use(requireRoles('ADMIN', 'STAFF'));
+adminRouter.get('/orders', listAdmin);
+adminRouter.get('/orders/:id', getAdmin);
+adminRouter.patch('/orders/:id', validate(updateOrderSchema), update);
+adminRouter.delete('/orders/:id', archive);
+adminRouter.get('/inventory', listInventory);
+adminRouter.post('/inventory/:variantId/adjust', validate(inventoryAdjustmentSchema), adjustInventory);
+
+adminRouter.use(requireRoles('ADMIN'));
+adminRouter.get('/catalog-metadata', catalogMetadata);
+adminRouter.post('/categories', validate(categorySchema), createCategory);
+adminRouter.patch('/categories/:id', validate(categorySchema.partial()), updateCategory);
+adminRouter.post('/variant-options', validate(variantOptionSchema), createVariantOption);
+adminRouter.patch('/variant-options/:id', validate(variantOptionSchema.partial()), updateVariantOption);
+adminRouter.get('/products', listAdminProducts);
+adminRouter.post('/products', validate(productSchema), createProduct);
+adminRouter.patch('/products/:id', validate(productPatchSchema), updateProduct);
+adminRouter.post('/products/:id/options', validate(productOptionSchema), addProductOption);
+adminRouter.patch('/products/:id/options/:optionId', validate(productOptionPatchSchema), updateProductOption);
+adminRouter.patch('/products/:id/variants/:variantId', validate(productVariantPatchSchema), updateProductVariant);
+adminRouter.post('/products/:id/images', validate(productImageSchema), addProductImage);
+adminRouter.get('/users/staff', listStaff);
+adminRouter.post('/users/staff', validate(createStaffSchema), createStaff);
+adminRouter.post('/uploads/signature', signedUpload);
+adminRouter.post('/media-assets', validate(mediaAssetSchema), createMediaAsset);
+adminRouter.get('/banners', listAdminBanners);
+adminRouter.post('/banners', validate(bannerSchema), createBanner);
+adminRouter.patch('/banners/:id', validate(bannerSchema.partial()), updateBanner);

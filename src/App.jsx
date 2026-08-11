@@ -11,7 +11,11 @@ import Counter from "./components/Counter";
 import BuilderModal from "./components/BuilderModalButton";
 import Cart from "./components/Cart";
 import Logo from "./components/Logo";
-import { products, categories } from "./data/products";
+import useCatalog from "./hooks/useCatalog";
+import useAuth from "./hooks/useAuth";
+import AuthDialog from "./components/AuthDialog";
+import Account from "./pages/Account";
+import Management from "./pages/Management";
 import HERO_IMAGE from "./assets/hero.jpeg";
 
 
@@ -80,7 +84,7 @@ function ProductCard({ product, onBuild, className = "" }) {
   );
 }
 
-function Home({ onBuild, cartProps }) {
+function Home({ onBuild, cartProps, products, categories, user, onOpenAuth, onOpenAccount }) {
   const [slide, setSlide] = useState(0);
   const [filter, setFilter] = useState("Todos");
   const [search, setSearch] = useState("");
@@ -115,6 +119,7 @@ function Home({ onBuild, cartProps }) {
           <span>Pedido</span>
           <b>{cartProps.qtyTotal}</b>
         </a>
+        {user ? <button className="header-account" onClick={onOpenAccount}>Olá, {user.name.split(" ")[0]}</button> : <button className="header-account" onClick={onOpenAuth}>Entrar</button>}
       </header>
 
       <main id="inicio">
@@ -319,6 +324,9 @@ export default function App() {
   const [currentProduct, setCurrentProduct] = useState(null);
   const [page, setPage] = useState("home");
   const [toast, setToast] = useState(null);
+  const [authOpen, setAuthOpen] = useState(false);
+  const { products, categories } = useCatalog();
+  const auth = useAuth();
 
   const {
     lines,
@@ -335,10 +343,7 @@ export default function App() {
   // Função para abrir o modal de construção de pedido com o produto selecionado
   const openBuilder = (product) => {
     setCurrentProduct(product);
-
-    if (window.innerWidth > 700) {
-      setCartOpen(true);
-    }
+    setCartOpen(true);
   };
 
   // Função para exibir uma mensagem temporária (toast) na tela
@@ -365,6 +370,11 @@ export default function App() {
     setPage("home");
   };
 
+  const handleAuthenticated = (user) => {
+    setAuthOpen(false);
+    setPage(user.role === "ADMIN" || user.role === "STAFF" ? "management" : "account");
+  };
+
   const cartProps = {
     lines,
     open: cartOpen,
@@ -385,11 +395,14 @@ export default function App() {
         qtyTotal={qtyTotal}
         orderTotal={orderTotal}
         totalWeight={totalWeight}
+        user={auth.user}
       />
     );
+  if (page === "account" && auth.user) return <Account user={auth.user} onBack={onBack} onLogout={async () => { await auth.logout(); onBack(); }} />;
+  if (page === "management" && auth.user && (auth.user.role === "ADMIN" || auth.user.role === "STAFF")) return <Management user={auth.user} onBack={onBack} onLogout={async () => { await auth.logout(); onBack(); }} />;
   return (
     <>
-      <Home onBuild={openBuilder} cartProps={cartProps} />
+      <Home onBuild={openBuilder} cartProps={cartProps} products={products} categories={categories} user={auth.user} onOpenAuth={() => setAuthOpen(true)} onOpenAccount={() => setPage("account")} />
       {currentProduct && (
         // Modal
           <BuilderModal
@@ -412,6 +425,7 @@ export default function App() {
           {toast}
         </div>
       )}
+      {authOpen && <AuthDialog auth={auth} onClose={() => setAuthOpen(false)} onAuthenticated={handleAuthenticated} />}
 
     </>
   );

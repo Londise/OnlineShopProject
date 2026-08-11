@@ -475,6 +475,7 @@ nav button:hover:after {
     width: 100%;
     aspect-ratio: .86;
     object-fit: cover;
+    object-position: center 75%;
     transition: .4s
 }
 
@@ -999,6 +1000,8 @@ footer small {
     z-index: 10;
 }
 
+
+
 .builder h2 {
     font-family: 'Playfair Display';
     font-size: 33px;
@@ -1025,7 +1028,7 @@ footer small {
     grid-template-columns: 1fr auto;
     gap: 10px;
     align-items: center;
-    font-size: 12px
+    font-size: 14px
 }
 
 .color-row>div {
@@ -1036,13 +1039,13 @@ footer small {
 .color-row b {
     grid-column: 1/-1;
     color: var(--muted);
-    font-size: 10px;
+    font-size: 14px;
     font-weight: 500
 }
 
 .color-dot {
-    width: 22px;
-    height: 22px;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
     border: 2px solid transparent;
     outline: 1px solid transparent
@@ -1726,10 +1729,6 @@ footer small {
         object-fit: cover;
     }
 
-    .builder-main-image img {
-        object-fit: cover;
-    }
-
     .builder-content {
         padding: 25px 24px 25px
     }
@@ -1918,4 +1917,101 @@ footer small {
 
 @media(max-width:700px) {
     .delivery-methods { grid-template-columns: 1fr; }
+}
+
+.header-account {
+    color: var(--wine);
+    background: transparent;
+    font-weight: 700;
+    font-size: 13px;
+}
+
+.auth-dialog {
+    width: min(420px, 100%);
+    position: relative;
+    padding: 42px;
+    background: var(--white);
+    box-shadow: var(--shadow);
+}
+
+.auth-dialog h2,
+.account-main h1,
+.management-heading h1 {
+    margin: 9px 0;
+    font-family: 'Playfair Display', serif;
+    font-size: 34px;
+}
+
+.auth-dialog > p { margin: 0 0 22px; color: var(--muted); font-size: 13px; }
+.auth-dialog form { display: grid; gap: 14px; }
+.auth-dialog label,
+.customer-fields label { display: grid; gap: 6px; color: var(--ink); font-size: 12px; font-weight: 700; }
+.auth-dialog input,
+.customer-fields input { height: 43px; padding: 0 11px; border: 1px solid #cfc3c3; background: #fff; color: var(--ink); outline-color: var(--wine); }
+.auth-switch { margin: 18px auto 0; }
+
+.account-page,
+.management-page { min-height: 100dvh; background: #faf7f3; }
+.account-main,
+.management-main { max-width: 1015px; margin: 0 auto; padding: 62px 20px; }
+.account-main > h2 { margin: 42px 0 15px; font-family: 'Playfair Display', serif; font-size: 29px; }
+.account-empty { display: flex; align-items: center; gap: 9px; padding: 24px; background: #fff; color: var(--muted); }
+.account-orders,
+.management-list { display: grid; gap: 10px; }
+.account-orders article,
+.management-order,
+.inventory-row { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 18px; border: 1px solid var(--line); background: #fff; }
+.account-orders b,
+.account-orders small,
+.management-order b,
+.management-order small,
+.inventory-row b,
+.inventory-row small { display: block; }
+.account-orders small,
+.management-order small,
+.inventory-row small { margin-top: 4px; color: var(--muted); font-size: 11px; }
+.order-status { padding: 5px 8px; font-size: 10px; font-weight: 700; background: #f2e8e8; color: var(--wine); }
+.status-confirmado { background: #e2f0e4; color: #32643c; }
+.status-cancelado { background: #f9e0e2; color: #963746; }
+.status-concluido { background: #e6edf7; color: #315c91; }
+
+.management-user { display: flex; align-items: center; gap: 16px; font-size: 11px; font-weight: 700; color: var(--rose); }
+.management-heading { display: flex; justify-content: space-between; align-items: end; gap: 15px; }
+.management-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 28px 0 18px; border-bottom: 1px solid var(--line); padding-bottom: 13px; }
+.management-tabs button { display: flex; align-items: center; gap: 7px; padding: 9px 12px; background: transparent; color: var(--muted); font-size: 13px; }
+.management-tabs button.active { background: #f2e8e8; color: var(--wine); font-weight: 700; }
+.management-panel { min-height: 270px; }
+.management-loading { color: var(--muted); padding: 36px 0; }
+.management-order select { padding: 8px; border: 1px solid var(--line); background: #fff; color: var(--ink); }
+.management-order { flex-wrap: wrap; }
+.order-actions { display: flex; gap: 12px; align-items: center; }
+.text-button.danger { color: #a23346; }
+.order-editor { width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding-top: 13px; border-top: 1px solid var(--line); }
+.order-editor label { display: grid; gap: 5px; font-size: 11px; font-weight: 700; color: var(--muted); }
+.order-editor input { min-height: 36px; padding: 0 8px; border: 1px solid var(--line); color: var(--ink); background: #fff; }
+.order-editor .button { justify-self: start; min-height: 36px; padding: 0 13px; font-size: 11px; }
+.stock-numbers { display: flex; gap: 14px; font-size: 11px; color: var(--muted); }
+.stock-numbers b { display: inline; margin-left: 3px; color: var(--ink); }
+.stock-adjust { display: flex; gap: 7px; }
+.stock-adjust input { width: 72px; border: 1px solid var(--line); padding: 0 8px; }
+.stock-adjust .button { min-height: 34px; padding: 0 10px; font-size: 11px; }
+.management-back { margin-top: 35px; }
+
+.confirm-box { flex-wrap: wrap; }
+.customer-fields { width: 100%; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; padding-bottom: 18px; border-bottom: 1px solid #ffffff40; }
+.customer-fields label { color: #f4dbe1; }
+.customer-fields label small { color: #f4dbe1; font-weight: 400; }
+.checkout-error { width: 100%; margin: 0; color: #ffe1e4; }
+
+@media(max-width:700px) {
+    .auth-dialog { padding: 31px 24px; }
+    .account-main,
+    .management-main { padding: 42px 17px; }
+    .account-orders article,
+    .management-order,
+    .inventory-row { align-items: flex-start; flex-direction: column; }
+    .stock-numbers { flex-wrap: wrap; }
+    .order-editor { grid-template-columns: 1fr; }
+    .customer-fields { grid-template-columns: 1fr; }
+    .management-heading { align-items: flex-start; flex-direction: column; }
 }
