@@ -1,9 +1,9 @@
 import React from "react";
 import { Minus, Plus } from "lucide-react";
 
-export default function Counter({ value, onChange, label }) {
+export default function Counter({ value, disabled, onChange, label, max=999 }) {
   const change = (next) =>
-    onChange(Math.max(0, Math.min(999, Number.isFinite(next) ? next : 0)));
+    onChange(Math.max(0, Math.min(max, Number.isFinite(next) ? next : 0)));
   return (
     <div className="counter" aria-label={label}>
       <button

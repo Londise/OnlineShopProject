@@ -164,19 +164,32 @@ export default function BuilderModal({ product, showToast, onClose, onAdd, cartO
               <span>Distribua por tamanho</span>
               <small>Digite a quantidade diretamente, se preferir.</small>
             </div>
-            {Object.entries(quantities).map(([size, amount]) => (
+            {Object.entries(quantities).map(([size, amount]) => {
+              const stockVariant = color.stockVariants?.find(
+                (variant) => variant.size === size
+              );
+
+              const available = stockVariant?.available ?? 0;
+
+              return (
               <div className="size-row" key={size}>
                 <strong>{size}</strong>
 
                 <Counter
                   value={amount}
+                  max={available}
+                  disabled={available === 0}
                   label={`tamanho ${size}`}
                   onChange={(value) =>
-                    setQuantities((old) => ({ ...old, [size]: value }))
+                    setQuantities((old) => ({
+                      ...old,
+                      [size]: value,
+                    }))
                   }
                 />
               </div>
-            ))}
+            );
+            })}
           </div>
           <button
             className="button primary full"
