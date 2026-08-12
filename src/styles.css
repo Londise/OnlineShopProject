@@ -77,11 +77,16 @@ header {
 }
 
 nav {
+    position: absolute;
+    left: 50%;
+    transform: translate(-50%);
+
     display: flex;
     align-items: center;
     gap: 34px;
+    
     font-size: 16px;
-    font-weight: 600
+    font-weight: 600;
 }
 
 nav a,
@@ -109,12 +114,28 @@ nav button:hover:after {
     width: 100%
 }
 
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+}
+
 .header-order {
     display: flex;
     align-items: center;
     gap: 7px;
     font-size: 16px;
     font-weight: 600
+}
+
+.header-account {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--wine);
+    background: transparent;
+    font-weight: 700;
+    font-size: 16px;
 }
 
 .header-order b {
@@ -1474,6 +1495,14 @@ footer small {
         padding: 0 19px
     }
 
+    .header-actions {
+        gap: 12px;
+    }
+
+    .header-account {
+        font-size: 12px;
+    }
+
     .logo {
         font-size: 25px
     }
@@ -1917,13 +1946,6 @@ footer small {
 
 @media(max-width:700px) {
     .delivery-methods { grid-template-columns: 1fr; }
-}
-
-.header-account {
-    color: var(--wine);
-    background: transparent;
-    font-weight: 700;
-    font-size: 13px;
 }
 
 .auth-dialog {

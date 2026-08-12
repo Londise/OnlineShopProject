@@ -18,7 +18,6 @@ import Account from "./pages/Account";
 import Management from "./pages/Management";
 import HERO_IMAGE from "./assets/hero.jpeg";
 
-
 import {
   ArrowLeft,
   ArrowRight,
@@ -34,6 +33,7 @@ import {
   Plus,
   Search,
   Send,
+  User,
   ShoppingBag,
   Trash2,
   Truck,
@@ -60,7 +60,6 @@ const colorStyles = {
 };
 
 function ProductCard({ product, onBuild, className = "" }) {
-
   return (
     <article className={`product-card ${className}`}>
       <div className="photo">
@@ -84,7 +83,15 @@ function ProductCard({ product, onBuild, className = "" }) {
   );
 }
 
-function Home({ onBuild, cartProps, products, categories, user, onOpenAuth, onOpenAccount }) {
+function Home({
+  onBuild,
+  cartProps,
+  products,
+  categories,
+  user,
+  onOpenAuth,
+  onOpenAccount,
+}) {
   const [slide, setSlide] = useState(0);
   const [filter, setFilter] = useState("Todos");
   const [search, setSearch] = useState("");
@@ -107,19 +114,34 @@ function Home({ onBuild, cartProps, products, categories, user, onOpenAuth, onOp
           <a href="#inicio">Início</a>
           <button onClick={scrollProducts}>Produtos</button>
         </nav>
-        <a
+
+        <div className="header-actions">
+          <a
           className="header-order"
           href="#pedido"
           onClick={(e) => {
             e.preventDefault();
             cartProps.setOpen(true);
           }}
-        >
+          >
           <ShoppingBag size={18} />
           <span>Pedido</span>
           <b>{cartProps.qtyTotal}</b>
-        </a>
-        {user ? <button className="header-account" onClick={onOpenAccount}>Olá, {user.name.split(" ")[0]}</button> : <button className="header-account" onClick={onOpenAuth}>Entrar</button>}
+          </a>
+
+          {user ? (
+          <button className="header-account" onClick={onOpenAccount}>
+            Olá, {user.name.split(" ")[0]}
+          </button>
+          ) : (
+          <button className="header-account" onClick={onOpenAuth}>
+            Entrar
+            <User size={20} color="black" />
+          </button>
+
+          )}
+
+        </div>
       </header>
 
       <main id="inicio">
@@ -143,9 +165,7 @@ function Home({ onBuild, cartProps, products, categories, user, onOpenAuth, onOp
                     <br />
                     <em>Modas</em>
                   </h1>
-                  <p>
-                    Peças confortáveis e modelos variados para revender.
-                  </p>
+                  <p>Peças confortáveis e modelos variados para revender.</p>
                   <button className="button cream" onClick={scrollProducts}>
                     Ver produtos <ArrowRight size={18} />
                   </button>
@@ -284,7 +304,8 @@ function Home({ onBuild, cartProps, products, categories, user, onOpenAuth, onOp
           </div>
           <div className="catalog-grid">
             {displayed.map((product) => (
-              <ProductCard className="product-card-catalog"
+              <ProductCard
+                className="product-card-catalog"
                 product={product}
                 onBuild={onBuild}
                 key={product.id}
@@ -320,7 +341,6 @@ function Home({ onBuild, cartProps, products, categories, user, onOpenAuth, onOp
 }
 
 export default function App() {
-
   const [currentProduct, setCurrentProduct] = useState(null);
   const [page, setPage] = useState("home");
   const [toast, setToast] = useState(null);
@@ -337,7 +357,7 @@ export default function App() {
     removeLine,
     qtyTotal,
     orderTotal,
-    totalWeight
+    totalWeight,
   } = useCart();
 
   // Função para abrir o modal de construção de pedido com o produto selecionado
@@ -372,7 +392,9 @@ export default function App() {
 
   const handleAuthenticated = (user) => {
     setAuthOpen(false);
-    setPage(user.role === "ADMIN" || user.role === "STAFF" ? "management" : "account");
+    setPage(
+      user.role === "ADMIN" || user.role === "STAFF" ? "management" : "account",
+    );
   };
 
   const cartProps = {
@@ -398,35 +420,66 @@ export default function App() {
         user={auth.user}
       />
     );
-  if (page === "account" && auth.user) return <Account user={auth.user} onBack={onBack} onLogout={async () => { await auth.logout(); onBack(); }} />;
-  if (page === "management" && auth.user && (auth.user.role === "ADMIN" || auth.user.role === "STAFF")) return <Management user={auth.user} onBack={onBack} onLogout={async () => { await auth.logout(); onBack(); }} />;
+  if (page === "account" && auth.user)
+    return (
+      <Account
+        user={auth.user}
+        onBack={onBack}
+        onLogout={async () => {
+          await auth.logout();
+          onBack();
+        }}
+      />
+    );
+  if (
+    page === "management" &&
+    auth.user &&
+    (auth.user.role === "ADMIN" || auth.user.role === "STAFF")
+  )
+    return (
+      <Management
+        user={auth.user}
+        onBack={onBack}
+        onLogout={async () => {
+          await auth.logout();
+          onBack();
+        }}
+      />
+    );
   return (
     <>
-      <Home onBuild={openBuilder} cartProps={cartProps} products={products} categories={categories} user={auth.user} onOpenAuth={() => setAuthOpen(true)} onOpenAccount={() => setPage("account")} />
+      <Home
+        onBuild={openBuilder}
+        cartProps={cartProps}
+        products={products}
+        categories={categories}
+        user={auth.user}
+        onOpenAuth={() => setAuthOpen(true)}
+        onOpenAccount={() => setPage("account")}
+      />
       {currentProduct && (
         // Modal
-          <BuilderModal
-            product={currentProduct}
-            showToast={showToast}
-
-            onClose={() => {
-              setCurrentProduct(null);
-              setCartOpen(false);
-            }}
-            
-            onAdd={addToCart}
-            cartOpen={cartOpen}
-          />
+        <BuilderModal
+          product={currentProduct}
+          showToast={showToast}
+          onClose={() => {
+            setCurrentProduct(null);
+            setCartOpen(false);
+          }}
+          onAdd={addToCart}
+          cartOpen={cartOpen}
+        />
       )}
 
       {/* Renderiza o toast se houver uma mensagem para ser exibida */}
-      {toast && (
-        <div className="toast-success">
-          {toast}
-        </div>
+      {toast && <div className="toast-success">{toast}</div>}
+      {authOpen && (
+        <AuthDialog
+          auth={auth}
+          onClose={() => setAuthOpen(false)}
+          onAuthenticated={handleAuthenticated}
+        />
       )}
-      {authOpen && <AuthDialog auth={auth} onClose={() => setAuthOpen(false)} onAuthenticated={handleAuthenticated} />}
-
     </>
   );
 }

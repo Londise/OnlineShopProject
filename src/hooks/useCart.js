@@ -25,6 +25,14 @@ export default function useCart() {
     [lines],
   );
 
+  const getAvailableToAdd = (available, currentQuantity) => {
+    if (!Number.isFinite(available)) {
+      return Infinity;
+    }
+
+    return Math.max(0, available - currentQuantity);
+  };
+
   // Adiciona produtos ao carrinho,
   // agrupando por produto, cor e tamanho
   const addToCart = (product, color, quantities) => {
@@ -64,10 +72,7 @@ export default function useCart() {
           const currentQuantity = existing.quantity;
 
           // Quanto ainda pode ser adicionado
-          const remainingStock = Math.max(
-            0,
-            available - currentQuantity,
-          );
+          const remainingStock = getAvailableToAdd(available, existing.quantity);
 
           // Não deixa ultrapassar o estoque
           const quantityToAdd = Math.min(

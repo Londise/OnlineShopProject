@@ -165,10 +165,13 @@ export default function BuilderModal({ product, showToast, onClose, onAdd, cartO
               <small>Digite a quantidade diretamente, se preferir.</small>
             </div>
             {Object.entries(quantities).map(([size, amount]) => {
+              
+              // Procura dentro das cores a variante (tamanho) requerida pelo cliente e armazena seu estoque
               const stockVariant = color.stockVariants?.find(
                 (variant) => variant.size === size
               );
-
+              
+              // Verifica se esse tamanho está disponível
               const available = stockVariant?.available ?? 0;
 
               return (
