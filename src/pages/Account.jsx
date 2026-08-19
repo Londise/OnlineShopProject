@@ -1,12 +1,26 @@
 import React, { useEffect, useState } from "react";
 import { ArrowLeft, PackageCheck } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useAuthContext } from "../contexts/AuthContext";
 import { api } from "../services/api";
+import useAuth from "../hooks/useAuth";
+
+
+
 
 const money = new Intl.NumberFormat("pt-BR", {
   style: "currency",
   currency: "BRL",
 });
-export default function Account({ user, onBack, onLogout }) {
+export default function Account() {
+  const navigate = useNavigate();
+  const { user, logout } = useAuthContext();  
+
+  async function handleLogout() {
+    await logout();
+    navigate("/")
+  }
+
   const [orders, setOrders] = useState([]);
   const [error, setError] = useState("");
   useEffect(() => {
@@ -29,36 +43,12 @@ export default function Account({ user, onBack, onLogout }) {
       <main className="account-main">
         <span className="eyebrow">MINHA CONTA</span>
         <h1>Olá, {user.name.split(" ")[0]}.</h1>
-        <button className="text-button" onClick={onLogout}>
+        <button className="text-button" onClick={handleLogout}>
           Sair da conta
         </button>
-        <h2>Meus pedidos</h2>
-        {error && <p className="form-error">{error}</p>}
-        {!orders.length ? (
-          <p className="account-empty">
-            <PackageCheck /> Ainda não há pedidos vinculados à sua conta.
-          </p>
-        ) : (
-          <div className="account-orders">
-            {orders.map((order) => (
-              <article key={order.id}>
-                <div>
-                  <b>{order.publicNumber}</b>
-                  <small>
-                    {new Date(order.createdAt).toLocaleDateString("pt-BR")} ·{" "}
-                    {order.items.length} itens
-                  </small>
-                </div>
-                <span
-                  className={`order-status status-${order.status.toLowerCase()}`}
-                >
-                  {order.status}
-                </span>
-                <strong>{money.format(order.totalCents / 100)}</strong>
-              </article>
-            ))}
-          </div>
-        )}
+        <button onClick={setPage}>Ir para o Gestor de Estoque</button>
+        
+        
       </main>
     </div>
   );
