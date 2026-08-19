@@ -99,6 +99,14 @@ const mergeInventoryResult = (variant, result, delta) => {
   };
 };
 
+const getOrderItems = (order) => {
+  if (Array.isArray(order?.items)) {
+    return order.items;
+  }
+
+  return [];
+};
+
 /*
  * ============================================================
  * COMPONENTE
@@ -175,6 +183,27 @@ export default function Management() {
     (item) => !item.adminOnly || user?.role === "ADMIN",
   );
 
+  // Verifica se há usuário, se não, volta para o home (dupla camada de segurança)
+  useEffect(() => {
+    if (!user) {
+      navigate("/", { replace: true });
+      return;
+    }
+
+    if (user.role !== "ADMIN") {
+      navigate("/", { replace: true });
+    }
+  }, [user, navigate]);
+
+    // Lida com o logout
+    const handleLogout = async () => {
+    try {
+      await logout();
+    } finally {
+      navigate("/", { replace: true });
+    }
+  };
+
   /*
    * ============================================================
    * CARREGAMENTO
@@ -224,13 +253,15 @@ export default function Management() {
   };
 
   const beginOrderEdit = (order) => {
+    const items = getOrderItems(order);
+
     setEditingOrder({
       id: order.id,
 
-      paidAmount: (order.paidAmountCents / 100).toFixed(2),
+      paidAmount: (Number(order.paidAmountCents ?? 0) / 100).toFixed(2),
 
       quantities: Object.fromEntries(
-        order.items.map((item) => [item.productVariantId, item.quantity]),
+        items.map((item) => [item.productVariantId, item.quantity]),
       ),
     });
   };
@@ -240,17 +271,18 @@ export default function Management() {
       return;
     }
 
-    const paidAmount = Number(editingOrder.paidAmount.replace(",", "."));
+    const paidAmount = Number(
+      String(editingOrder.paidAmount).replace(",", "."),
+    );
 
     if (!Number.isFinite(paidAmount) || paidAmount < 0) {
       setError("Informe um valor pago válido.");
       return;
     }
 
-    const items = order.items
+    const items = getOrderItems(order)
       .map((item) => ({
         variantId: item.productVariantId,
-
         quantity: Number(editingOrder.quantities[item.productVariantId]) || 0,
       }))
       .filter((item) => item.quantity > 0);
@@ -650,7 +682,7 @@ export default function Management() {
         <div className="management-user">
           <span>{user?.role}</span>
 
-          <button className="text-button" onClick={logout}>
+          <button className="text-button" onClick={handleLogout}>
             Sair
           </button>
         </div>
@@ -713,113 +745,116 @@ export default function Management() {
 
             {tab === "orders" && (
               <div className="management-list">
-                {data.map((order) => (
-                  <article className="management-order" key={order.id}>
-                    <div>
-                      <b>{order.publicNumber}</b>
+                {data.map((order) => {
+                  const orderItems = getOrderItems(order);
 
-                      <small>
-                        {order.customerName} · {order.customerWhatsApp}
-                      </small>
+                  return (
+                    <article className="management-order" key={order.id}>
+                      <div>
+                        <b>{order.publicNumber}</b>
 
-                      <small>
-                        {order.items.reduce(
-                          (sum, item) => sum + item.quantity,
-                          0,
-                        )}{" "}
-                        peças · {money.format(order.totalCents / 100)}
-                      </small>
-                    </div>
+                        <small>
+                          {order.customerName} · {order.customerWhatsApp}
+                        </small>
 
-                    <select
-                      value={order.status}
-                      onChange={(event) =>
-                        changeStatus(order, event.target.value)
-                      }
-                    >
-                      <option value="NOVO">NOVO</option>
+                        <small>
+                          {orderItems.reduce(
+                            (sum, item) => sum + Number(item.quantity ?? 0),
+                            0,
+                          )}{" "}
+                          peças ·{" "}
+                          {money.format(Number(order.totalCents ?? 0) / 100)}
+                        </small>
+                      </div>
 
-                      <option value="CONFIRMADO">CONFIRMADO</option>
-
-                      <option value="CANCELADO">CANCELADO</option>
-
-                      <option value="CONCLUIDO">CONCLUÍDO</option>
-                    </select>
-
-                    <div className="order-actions">
-                      <button
-                        className="text-button"
-                        onClick={() =>
-                          editingOrder?.id === order.id
-                            ? setEditingOrder(null)
-                            : beginOrderEdit(order)
+                      <select
+                        value={order.status}
+                        onChange={(event) =>
+                          changeStatus(order, event.target.value)
                         }
                       >
-                        {editingOrder?.id === order.id
-                          ? "Fechar edição"
-                          : "Editar pedido"}
-                      </button>
+                        <option value="NOVO">NOVO</option>
+                        <option value="CONFIRMADO">CONFIRMADO</option>
+                        <option value="CANCELADO">CANCELADO</option>
+                        <option value="CONCLUIDO">CONCLUÍDO</option>
+                      </select>
 
-                      <button
-                        className="text-button danger"
-                        onClick={() => archiveOrder(order)}
-                      >
-                        Arquivar
-                      </button>
-                    </div>
+                      <div className="order-actions">
+                        <button
+                          className="text-button"
+                          onClick={() =>
+                            editingOrder?.id === order.id
+                              ? setEditingOrder(null)
+                              : beginOrderEdit(order)
+                          }
+                        >
+                          {editingOrder?.id === order.id
+                            ? "Fechar edição"
+                            : "Editar pedido"}
+                        </button>
 
-                    {editingOrder?.id === order.id && (
-                      <div className="order-editor">
-                        <label>
-                          Valor pago (R$)
-                          <input
-                            inputMode="decimal"
-                            value={editingOrder.paidAmount}
-                            onChange={(event) =>
-                              setEditingOrder({
-                                ...editingOrder,
-                                paidAmount: event.target.value,
-                              })
-                            }
-                          />
-                        </label>
+                        <button
+                          className="text-button danger"
+                          onClick={() => archiveOrder(order)}
+                        >
+                          Arquivar
+                        </button>
+                      </div>
 
-                        {order.items.map((item) => (
-                          <label key={item.id}>
-                            {item.productNameSnapshot} –{" "}
-                            {item.optionNameSnapshot} / {item.sizeSnapshot}
+                      {editingOrder?.id === order.id && (
+                        <div className="order-editor">
+                          <label>
+                            Valor pago (R$)
                             <input
-                              type="number"
-                              min="0"
-                              max="999"
-                              value={
-                                editingOrder.quantities[
-                                  item.productVariantId
-                                ] ?? 0
-                              }
+                              inputMode="decimal"
+                              value={editingOrder.paidAmount}
                               onChange={(event) =>
                                 setEditingOrder({
                                   ...editingOrder,
-                                  quantities: {
-                                    ...editingOrder.quantities,
-                                    [item.productVariantId]: event.target.value,
-                                  },
+                                  paidAmount: event.target.value,
                                 })
                               }
                             />
                           </label>
-                        ))}
 
-                        <button
-                          className="button dark"
-                          onClick={() => saveOrderEdit(order)}
-                        >
-                          Salvar alterações
-                        </button>
-                      </div>
-                    )}
-                  </article>
-                ))}
+                          {orderItems.map((item) => (
+                            <label key={item.id}>
+                              {item.productNameSnapshot} –{" "}
+                              {item.optionNameSnapshot} / {item.sizeSnapshot}
+                              <input
+                                type="number"
+                                min="0"
+                                max="999"
+                                value={
+                                  editingOrder.quantities[
+                                    item.productVariantId
+                                  ] ?? 0
+                                }
+                                onChange={(event) =>
+                                  setEditingOrder({
+                                    ...editingOrder,
+                                    quantities: {
+                                      ...editingOrder.quantities,
+                                      [item.productVariantId]:
+                                        event.target.value,
+                                    },
+                                  })
+                                }
+                              />
+                            </label>
+                          ))}
+
+                          <button
+                            className="button dark"
+                            onClick={() => saveOrderEdit(order)}
+                          >
+                            Salvar alterações
+                          </button>
+                        </div>
+                      )}
+                    </article>
+                  );
+                })}
 
                 {!data.length && <p>Nenhum pedido ativo.</p>}
               </div>
