@@ -164,8 +164,7 @@ export default function Home() {
    * CHECKOUT
    * ============================================================
    *
-   * O App antigo fazia isso com setPage().
-   * Agora a navegação pertence ao Router.
+   * A navegação pertence ao Router.
    */
 
   const handleCheckout = () => {
@@ -220,32 +219,6 @@ export default function Home() {
       ({ name }) => name,
     ),
   ];
-
-  /*
-   * ============================================================
-   * PROPS DO CARRINHO
-   * ============================================================
-   *
-   * O estado do carrinho vem do CartContext.
-   *
-   * Ainda passamos essas props para Cart porque o componente
-   * Cart atualmente foi construído para recebê-las.
-   *
-   * Mais adiante podemos refatorar o próprio Cart para usar
-   * useCartContext() diretamente.
-   */
-
-  const cartProps = {
-    lines,
-    open: cartOpen,
-    setOpen: setCartOpen,
-    changeLine,
-    removeLine,
-    onProceed: handleCheckout,
-    qtyTotal,
-    orderTotal,
-    totalWeight,
-  };
 
   /*
    * ============================================================
@@ -712,7 +685,7 @@ export default function Home() {
           CARRINHO
       ========================================================= */}
 
-      <Cart {...cartProps} />
+      <Cart onProceed={handleCheckout} />
 
       {/* ========================================================
           BUILDER MODAL

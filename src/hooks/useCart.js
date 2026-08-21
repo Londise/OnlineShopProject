@@ -1,29 +1,78 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-// Para evitar pedidos excessivamente grandes,
-// limitamos o valor máximo do pedido a R$ 5.000,00
+const CART_STORAGE_KEY = "ferchu-cart";
 
 export default function useCart() {
-  const [lines, setLines] = useState([]);
+  const [lines, setLines] = useState(() => {
+    try {
+      const stored = localStorage.getItem(CART_STORAGE_KEY);
+
+      if (!stored) {
+        return [];
+      }
+
+      const parsed = JSON.parse(stored);
+
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+      console.error("Não foi possível carregar o carrinho:", error);
+
+      return [];
+    }
+  });
+
   const [cartOpen, setCartOpen] = useState(false);
 
-  // Calcula a quantidade total de produtos no carrinho
+  /*
+   * ============================================================
+   * PERSISTÊNCIA DO CARRINHO
+   * ============================================================
+   *
+   * Sempre que lines mudar, salvamos o carrinho.
+   *
+   * Isso permite:
+   * - navegar para /checkout
+   * - acessar /checkout diretamente
+   * - atualizar a página
+   * - fechar e abrir novamente a aplicação
+   *
+   * sem perder o carrinho.
+   */
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(lines));
+    } catch (error) {
+      console.error("Não foi possível salvar o carrinho:", error);
+    }
+  }, [lines]);
+
+  /*
+   * ============================================================
+   * TOTAIS
+   * ============================================================
+   */
+
   const qtyTotal = useMemo(
     () => lines.reduce((sum, line) => sum + line.quantity, 0),
     [lines],
   );
 
-  // Calcula o valor total do carrinho
   const orderTotal = useMemo(
     () => lines.reduce((sum, line) => sum + line.quantity * line.price, 0),
     [lines],
   );
 
-  // Calcula o peso total do carrinho
   const totalWeight = useMemo(
     () => lines.reduce((sum, line) => sum + line.quantity * line.weight, 0),
     [lines],
   );
+
+  /*
+   * ============================================================
+   * ESTOQUE
+   * ============================================================
+   */
 
   const getAvailableToAdd = (available, currentQuantity) => {
     if (!Number.isFinite(available)) {
@@ -33,109 +82,112 @@ export default function useCart() {
     return Math.max(0, available - currentQuantity);
   };
 
-  // Adiciona produtos ao carrinho,
-  // agrupando por produto, cor e tamanho
+  /*
+   * ============================================================
+   * ADICIONAR AO CARRINHO
+   * ============================================================
+   */
+
   const addToCart = (product, color, quantities) => {
     setLines((old) => {
-      // Clona as linhas existentes
-      const next = old.map((line) => ({ ...line }));
+      const next = old.map((line) => ({
+        ...line,
+      }));
 
       Object.entries(quantities).forEach(([size, quantity]) => {
-        if (!quantity || quantity <= 0) return;
+        if (!quantity || quantity <= 0) {
+          return;
+        }
+        
+        /* Aceita cores que são strings ou objetos cuja cor está inserida
+           como propiedade dentro deles */
+        const colorName = typeof color === "string" ? color : color.name;
+        console.log(color);
 
-        const colorName =
-          typeof color === "string" ? color : color.name;
 
-        // Encontra a variante correspondente à cor + tamanho
+        /* Se a cor da variante for uma string, a variante é nula, se for um objeto, procura
+           por essa variante dentro das propiedades desse objeto, ou seja, no estoque */
         const selectedVariant =
           typeof color === "string"
             ? null
-            : color.stockVariants?.find(
-                (variant) => variant.size === size,
-              );
+            : color.stockVariants?.find((variant) => variant.size === size);
 
-        // ID da variante é a melhor chave quando existe
+        /* Se a variante não possuir ID, uma chave artificial é criada, se a variante selecionada
+           (selectedVariant) for nula, a chave do produto a ser adicionado também será
+            uma chave artificial */
         const keyOfProductToBeAdded =
-          selectedVariant?.id ??
-          `${product.id}-${colorName}-${size}`;
+          selectedVariant?.id ?? `${product.id}-${colorName}-${size}`;
 
-        // Estoque disponível dessa variante
         const available = selectedVariant?.available ?? Infinity;
 
-        // Procura uma linha já existente
         const existing = next.find(
           (line) => line.key === keyOfProductToBeAdded,
         );
 
         if (existing) {
-          // Quanto já existe no carrinho
-          const currentQuantity = existing.quantity;
-
-          // Quanto ainda pode ser adicionado
-          const remainingStock = getAvailableToAdd(available, existing.quantity);
-
-          // Não deixa ultrapassar o estoque
-          const quantityToAdd = Math.min(
-            quantity,
-            remainingStock,
+          const remainingStock = getAvailableToAdd(
+            available,
+            existing.quantity,
           );
+
+          const quantityToAdd = Math.min(quantity, remainingStock);
 
           if (quantityToAdd > 0) {
             existing.quantity += quantityToAdd;
           }
-        } else {
-          // Se não existe estoque disponível, não cria a linha
-          if (available <= 0) return;
 
-          // Também limita a quantidade inicial ao estoque
-          const quantityToAdd = Math.min(
-            quantity,
-            available,
-          );
-
-          next.push({
-            key: keyOfProductToBeAdded,
-
-            productId: product.id,
-
-            variantId: selectedVariant?.id ?? null,
-
-            name: product.name,
-
-            color: colorName,
-
-            size,
-
-            quantity: quantityToAdd,
-
-            price: product.price,
-
-            weight: product.weight,
-
-            image: product.image,
-
-            // Guarda o estoque disponível dessa variante
-            // no momento em que ela foi adicionada.
-            available,
-          });
+          return;
         }
+
+        if (available <= 0) {
+          return;
+        }
+
+        const quantityToAdd = Math.min(quantity, available);
+
+        next.push({
+          key: keyOfProductToBeAdded,
+
+          productId: product.id,
+
+          variantId: selectedVariant?.id ?? null,
+
+          name: product.name,
+
+          color: colorName,
+
+          size,
+
+          quantity: quantityToAdd,
+
+          price: product.price,
+
+          weight: product.weight,
+
+          image: product.image,
+
+          available,
+        });
       });
 
       return next;
     });
   };
 
-  // Altera a quantidade de uma linha do carrinho
+  /*
+   * ============================================================
+   * ALTERAR QUANTIDADE
+   * ============================================================
+   */
+
   const changeLine = (key, rawQuantity) =>
     setLines((old) => {
       let quantity = Number(rawQuantity);
 
-      // Impede valores inválidos
       if (!Number.isFinite(quantity)) {
         quantity = 0;
       }
 
-      // Impede números negativos
       quantity = Math.max(0, quantity);
 
       return old
@@ -144,13 +196,8 @@ export default function useCart() {
             return line;
           }
 
-          // Se a linha possui informação de estoque,
-          // limita a quantidade ao estoque disponível.
           if (Number.isFinite(line.available)) {
-            quantity = Math.min(
-              quantity,
-              line.available,
-            );
+            quantity = Math.min(quantity, line.available);
           }
 
           return {
@@ -161,17 +208,38 @@ export default function useCart() {
         .filter((line) => line.quantity > 0);
     });
 
-  // Remove produtos do carrinho
-  const removeLine = (key) => changeLine(key, 0);
+  /*
+   * ============================================================
+   * REMOVER
+   * ============================================================
+   */
+
+  const removeLine = (key) => {
+    changeLine(key, 0);
+  };
+
+  /*
+   * ============================================================
+   * LIMPAR CARRINHO
+   * ============================================================
+   */
+
+  const clearCart = () => {
+    setLines([]);
+  };
 
   return {
     lines,
     setLines,
+
     cartOpen,
     setCartOpen,
+
     addToCart,
     changeLine,
     removeLine,
+    clearCart,
+
     qtyTotal,
     orderTotal,
     totalWeight,

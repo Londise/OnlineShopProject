@@ -1,4 +1,11 @@
-import React, { useState } from "react";
+/* O carrinho fica salvo em localStorage, o estado responsável por gerenciar o carrinho
+tenta recuperar o carrinho armazenado no localStorage antes de carregar o Checkout, se
+tiver um carrinho em localStorage, ele é armazenado no estado controlador do carrinho
+que é "lines", a cada mudança do carrinho */
+
+import React, { useEffect, useState } from "react";
+
+import { useNavigate } from "react-router-dom";
 
 import Footer from "../components/Footer";
 import Logo from "../components/Logo";
@@ -15,6 +22,7 @@ import {
 import { z } from "zod";
 
 import { useCartContext } from "../contexts/CartContext";
+import { useAuthContext } from "../contexts/AuthContext";
 
 import {
   buildOrderMessage,
@@ -23,20 +31,31 @@ import {
 
 import { api } from "../services/api";
 
-// Formata valores monetários no padrão brasileiro
+/*
+ * ============================================================
+ * CONFIGURAÇÕES
+ * ============================================================
+ */
+
+const MIN_ORDER_QUANTITY = 15;
+
 const money = new Intl.NumberFormat("pt-BR", {
   style: "currency",
   currency: "BRL",
 });
 
-// Função para formatar o CEP no padrão brasileiro (XXXXX-XXX)
+/*
+ * ============================================================
+ * HELPERS
+ * ============================================================
+ */
+
 function formatCep(value) {
   const digits = value.replace(/\D/g, "").slice(0, 8);
 
   return digits.replace(/(\d{5})(\d)/, "$1-$2");
 }
 
-// Função para estimar o frete com base no CEP e peso do pedido
 function estimateShipping(cep, weight) {
   const digits = cep.replace(/\D/g, "");
   const firstDigit = digits[0];
@@ -56,19 +75,22 @@ function estimateShipping(cep, weight) {
 
   const rounded = Math.max(
     0.5,
-    Math.ceil(weight * 2) / 2
+    Math.ceil(weight * 2) / 2,
   );
 
   return {
     correios: {
       label: "Correios",
+
       detail: `PAC estimado · ${rounded
         .toFixed(1)
         .replace(".", ",")} kg`,
+
       price:
         Math.round(
-          (17.5 + rounded * 8.8) * zone * 100
+          (17.5 + rounded * 8.8) * zone * 100,
         ) / 100,
+
       days:
         zone === 1
           ? "4–7 dias úteis"
@@ -77,28 +99,33 @@ function estimateShipping(cep, weight) {
 
     excursion: {
       label: "Excursão",
-      detail: "Disponibilidade confirmada após o pedido",
+
+      detail:
+        "Disponibilidade confirmada após o pedido",
+
       price:
         Math.round(
-          (12 + rounded * 5.2) * zone * 100
+          (12 + rounded * 5.2) * zone * 100,
         ) / 100,
+
       days: "2–6 dias úteis",
     },
   };
 }
 
-export default function Checkout({ onBack, user }) {
+/*
+ * ============================================================
+ * COMPONENTE
+ * ============================================================
+ */
+
+export default function Checkout() {
+  const navigate = useNavigate();
+
   /*
-   * IMPORTANTE:
-   * Hooks precisam estar dentro do componente.
-   *
-   * Antes estava assim:
-   *
-   * const navigate = useNavigate();
-   * const { ... } = useCartContext();
-   *
-   * fora do Checkout, causando:
-   * "Invalid hook call"
+   * ==========================================================
+   * CONTEXTOS
+   * ==========================================================
    */
 
   const {
@@ -108,12 +135,54 @@ export default function Checkout({ onBack, user }) {
     totalWeight,
   } = useCartContext();
 
+  console.log("Checkout qtyTotal:", qtyTotal);
+
+  const { user } = useAuthContext();
+
+  /*
+   * ==========================================================
+   * PROTEÇÃO DO CHECKOUT
+   * ==========================================================
+   *
+   * O Checkout nunca deve permanecer acessível com menos
+   * de 15 peças.
+   *
+   * Essa proteção é do FRONTEND.
+   *
+   * A API também terá sua própria validação.
+   */
+
+  useEffect(() => {
+    if (qtyTotal < MIN_ORDER_QUANTITY) {
+      navigate("/", { replace: true });
+    }
+  }, [qtyTotal, navigate]);
+
+  /*
+   * Enquanto o redirecionamento acontece, não renderiza
+   * o Checkout.
+   */
+
+  if (qtyTotal < MIN_ORDER_QUANTITY) {
+    return null;
+  }
+
+  /*
+   * ==========================================================
+   * ESTADO
+   * ==========================================================
+   */
+
   const [cep, setCep] = useState("");
+
   const [shipping, setShipping] = useState(null);
+
   const [shippingError, setShippingError] = useState("");
+
   const [chosen, setChosen] = useState(null);
 
   const [sending, setSending] = useState(false);
+
   const [orderError, setOrderError] = useState("");
 
   const [customer, setCustomer] = useState({
@@ -121,6 +190,12 @@ export default function Checkout({ onBack, user }) {
     whatsapp: "",
     email: user?.email ?? "",
   });
+
+  /*
+   * ==========================================================
+   * ENTREGA SELECIONADA
+   * ==========================================================
+   */
 
   const total = orderTotal;
 
@@ -135,7 +210,12 @@ export default function Checkout({ onBack, user }) {
         ? shipping?.correios
         : null;
 
-  // Função para lidar com o envio do pedido via WhatsApp
+  /*
+   * ==========================================================
+   * WHATSAPP / PEDIDO
+   * ==========================================================
+   */
+
   const handleWhatsApp = async () => {
     if (sending) {
       return;
@@ -144,23 +224,45 @@ export default function Checkout({ onBack, user }) {
     setOrderError("");
 
     try {
-      // Validação do nome
-      if (customer.name.trim().length < 2) {
+      /*
+       * Defesa adicional no frontend.
+       *
+       * Mesmo que alguém consiga chegar aqui de alguma forma,
+       * não permitimos criar o pedido.
+       */
+
+      if (qtyTotal < MIN_ORDER_QUANTITY) {
         throw new Error(
-          "Informe seu nome para enviar o pedido."
+          `O pedido mínimo é de ${MIN_ORDER_QUANTITY} peças.`,
         );
       }
 
-      // Validação do WhatsApp
+      /*
+       * Nome
+       */
+
+      if (customer.name.trim().length < 2) {
+        throw new Error(
+          "Informe seu nome para enviar o pedido.",
+        );
+      }
+
+      /*
+       * WhatsApp
+       */
+
       if (
         customer.whatsapp.replace(/\D/g, "").length < 10
       ) {
         throw new Error(
-          "Informe um WhatsApp válido com DDD."
+          "Informe um WhatsApp válido com DDD.",
         );
       }
 
-      // Validação do e-mail
+      /*
+       * E-mail
+       */
+
       if (
         customer.email &&
         !z
@@ -169,20 +271,28 @@ export default function Checkout({ onBack, user }) {
           .safeParse(customer.email).success
       ) {
         throw new Error(
-          "Informe um e-mail válido ou deixe o campo em branco."
+          "Informe um e-mail válido ou deixe o campo em branco.",
         );
       }
 
       setSending(true);
 
-      // Garante que todas as linhas possuem variantId
+      /*
+       * Garante que todas as linhas possuem variantId.
+       */
+
       if (lines.some((line) => !line.variantId)) {
         throw new Error(
-          "O catálogo ainda está sendo atualizado. Reabra o pedido e tente novamente."
+          "O catálogo ainda está sendo atualizado. Reabra o pedido e tente novamente.",
         );
       }
 
-      // Criação do pedido na API
+      /*
+       * Criação do pedido.
+       *
+       * O BACKEND também precisa validar o mínimo.
+       */
+
       const { order } = await api.orders.create({
         customer: {
           ...customer,
@@ -207,27 +317,36 @@ export default function Checkout({ onBack, user }) {
         })),
       });
 
-      // Envia pedido pelo WhatsApp
+      /*
+       * Só abre o WhatsApp depois que a API confirmou
+       * a criação do pedido.
+       */
+
       sendToWhatsApp(
         buildOrderMessage({
           lines,
           qtyTotal,
           selectedDelivery,
           orderNumber: order.publicNumber,
-        })
+        }),
       );
     } catch (error) {
       setOrderError(
         error instanceof Error
           ? error.message
-          : "Não foi possível enviar o pedido."
+          : "Não foi possível enviar o pedido.",
       );
     } finally {
       setSending(false);
     }
   };
 
-  // Calcula estimativa do frete
+  /*
+   * ==========================================================
+   * FRETE
+   * ==========================================================
+   */
+
   const calculate = () => {
     const parsed = z
       .string()
@@ -236,7 +355,7 @@ export default function Checkout({ onBack, user }) {
 
     if (!parsed.success) {
       setShippingError(
-        "Digite um CEP válido com 8 números."
+        "Digite um CEP válido com 8 números.",
       );
 
       setShipping(null);
@@ -248,20 +367,27 @@ export default function Checkout({ onBack, user }) {
 
     const estimated = estimateShipping(
       cep,
-      totalWeight
+      totalWeight,
     );
 
     setShipping(estimated);
   };
 
+  /*
+   * ==========================================================
+   * RENDER
+   * ==========================================================
+   */
+
   return (
     <div className="checkout">
       <header>
-        <Logo onHome={onBack} />
+        <Logo onHome={() => navigate("/")} />
 
         <button
           className="back-link"
-          onClick={onBack}
+          type="button"
+          onClick={() => navigate("/")}
         >
           <ArrowLeft size={18} />
           Voltar e editar
@@ -283,9 +409,9 @@ export default function Checkout({ onBack, user }) {
         </div>
 
         <div className="checkout-layout">
-          {/* =========================
+          {/* ==================================================
               RESUMO DO PEDIDO
-          ========================== */}
+          ================================================== */}
 
           <section className="review">
             <div className="checkout-section-title">
@@ -326,24 +452,25 @@ export default function Checkout({ onBack, user }) {
 
                 <strong>
                   {money.format(
-                    line.price * line.quantity
+                    line.price * line.quantity,
                   )}
                 </strong>
               </div>
             ))}
 
             <button
+              type="button"
               className="text-button"
-              onClick={onBack}
+              onClick={() => navigate("/")}
             >
               <ArrowLeft size={16} />
               Ajustar pedido
             </button>
           </section>
 
-          {/* =========================
+          {/* ==================================================
               ENTREGA
-          ========================== */}
+          ================================================== */}
 
           <section className="shipping">
             <span className="eyebrow">
@@ -417,9 +544,9 @@ export default function Checkout({ onBack, user }) {
               </button>
             </div>
 
-            {/* =========================
+            {/* ==================================================
                 CALCULADORA DOS CORREIOS
-            ========================== */}
+            ================================================== */}
 
             {chosen === "correios" && (
               <div className="correios-calculator">
@@ -436,8 +563,8 @@ export default function Checkout({ onBack, user }) {
                       onChange={(event) =>
                         setCep(
                           formatCep(
-                            event.target.value
-                          )
+                            event.target.value,
+                          ),
                         )
                       }
                       placeholder="00000-000"
@@ -485,7 +612,7 @@ export default function Checkout({ onBack, user }) {
 
                       <strong>
                         {money.format(
-                          shipping.correios.price
+                          shipping.correios.price,
                         )}
                       </strong>
                     </div>
@@ -494,9 +621,9 @@ export default function Checkout({ onBack, user }) {
               </div>
             )}
 
-            {/* =========================
+            {/* ==================================================
                 EXCURSÃO
-            ========================== */}
+            ================================================== */}
 
             {chosen === "excursion" && (
               <div className="excursion-note">
@@ -521,9 +648,9 @@ export default function Checkout({ onBack, user }) {
           </section>
         </div>
 
-        {/* =========================
+        {/* ==================================================
             CONFIRMAÇÃO
-        ========================== */}
+        ================================================== */}
 
         <section className="confirm-box">
           <div className="customer-fields">
@@ -589,7 +716,7 @@ export default function Checkout({ onBack, user }) {
             <strong>
               {money.format(
                 total +
-                  (selectedDelivery?.price || 0)
+                  (selectedDelivery?.price || 0),
               )}
             </strong>
 
@@ -607,7 +734,7 @@ export default function Checkout({ onBack, user }) {
             className="button primary"
             disabled={
               !selectedDelivery ||
-              qtyTotal < 20 ||
+              qtyTotal < MIN_ORDER_QUANTITY ||
               sending
             }
             onClick={handleWhatsApp}
@@ -630,7 +757,7 @@ export default function Checkout({ onBack, user }) {
         </section>
       </main>
 
-      <Footer onHome={onBack} />
+      <Footer onHome={() => navigate("/")} />
     </div>
   );
 }

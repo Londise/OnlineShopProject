@@ -39,6 +39,7 @@ function mapProduct(product) {
 export default function useCatalog() {
   const [products, setProducts] = useState(localProducts);
   const [usingApi, setUsingApi] = useState(false);
+  
   useEffect(() => {
     api.catalog
       .products()

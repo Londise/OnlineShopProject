@@ -2023,6 +2023,10 @@ footer small {
     font-weight: 700;
 }
 
+.customer-fields label:last-of-type {
+    transform: translateY(-10px);
+}
+
 .auth-dialog input,
 .customer-fields input {
     height: 43px;

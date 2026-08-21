@@ -1,5 +1,4 @@
-import React from "react";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 
 import {
   Trash2,
@@ -12,23 +11,28 @@ import {
 
 import Counter from "./Counter";
 
+import { useCartContext } from "../contexts/CartContext";
+
 const money = new Intl.NumberFormat("pt-BR", {
   style: "currency",
   currency: "BRL",
 });
 
-export default function Cart({ 
+const MIN_ORDER_QUANTITY = 15;
+
+export default function Cart({ onProceed }) {
+  const {
     lines,
-    open,
-    setOpen,
-    onProceed,
+    cartOpen,
+    setCartOpen,
     qtyTotal,
     orderTotal,
     changeLine,
-    removeLine
- }) {
+    removeLine,
+  } = useCartContext();
 
-  const [showFloatingButton, setShowFloatingButton] = useState(false);
+  const [showFloatingButton, setShowFloatingButton] =
+    useState(false);
 
   const total = orderTotal;
   const pieces = qtyTotal;
@@ -38,7 +42,7 @@ export default function Cart({
       setShowFloatingButton(window.scrollY > 100);
     };
 
-    handleScroll(); // Verifica a posição inicial do scroll ao montar o componente
+    handleScroll();
 
     window.addEventListener("scroll", handleScroll);
 
@@ -49,56 +53,80 @@ export default function Cart({
 
   return (
     <>
-      {/* Verifica se o botão flutuante deve ser exibido */}
-      {showFloatingButton && pieces > 0 && !open && (
-        <button className="mobile-cart" onClick={() => setOpen(true)}>
+      {showFloatingButton && pieces > 0 && !cartOpen && (
+        <button
+          className="mobile-cart"
+          onClick={() => setCartOpen(true)}
+        >
           <ShoppingBag size={19} />
-          <span>{pieces}</span> Ver pedido <b>{money.format(total)}</b>
+          <span>{pieces}</span>
+          {" "}Ver pedido <b>{money.format(total)}</b>
         </button>
       )}
 
-      <aside className={`cart ${open ? "open" : ""}`} aria-label="Seu pedido">
+      <aside
+        className={`cart ${cartOpen ? "open" : ""}`}
+        aria-label="Seu pedido"
+      >
         <div className="cart-head">
           <div>
             <span className="eyebrow">SEU PEDIDO</span>
+
             <h2>
-              <ShoppingBag size={20} /> {pieces || 0}{" "}
+              <ShoppingBag size={20} /> {pieces}{" "}
               {pieces === 1 ? "peça" : "peças"}
             </h2>
           </div>
+
           <button
             className="cart-close"
-            onClick={() => setOpen(false)}
+            onClick={() => setCartOpen(false)}
             aria-label="Fechar carrinho"
           >
             <X />
           </button>
         </div>
+
         <div className="cart-lines">
-          {/* Se o pedido estiver vazio, mostra a seção de carrinho vazio*/}
           {!lines.length ? (
             <div className="empty-cart">
               <PackageCheck />
+
               <h3>Seu pedido começa aqui</h3>
-              <p>Escolha um modelo e distribua as peças por tamanho.</p>
+
+              <p>
+                Escolha um modelo e distribua as peças
+                por tamanho.
+              </p>
             </div>
-            /* Se o pedido estiver com itens, os exibe*/
           ) : (
             lines.map((line) => (
-              <div className="cart-line" key={line.key}>
+              <div
+                className="cart-line"
+                key={line.key}
+              >
                 <img src={line.image} alt="" />
+
                 <div>
                   <strong>{line.name}</strong>
+
                   <small>
                     {line.color} · {line.size}
                   </small>
-                  <b>{money.format(line.price)}</b>
+
+                  <b>
+                    {money.format(line.price)}
+                  </b>
                 </div>
+
                 <Counter
                   value={line.quantity}
                   label={`${line.name} ${line.size}`}
-                  onChange={(amount) => changeLine(line.key, amount)}
+                  onChange={(amount) =>
+                    changeLine(line.key, amount)
+                  }
                 />
+
                 <button
                   className="remove"
                   onClick={() =>
@@ -112,27 +140,46 @@ export default function Cart({
             ))
           )}
         </div>
+
         <div className="cart-footer">
           <div className="subtotal">
             <span>
-              Subtotal <small>frete calculado depois</small>
+              Subtotal{" "}
+              <small>frete calculado depois</small>
             </span>
-            <strong>{money.format(total)}</strong>
+
+            <strong>
+              {money.format(total)}
+            </strong>
           </div>
+
           <button
             className="button primary full"
-            disabled={pieces < 20}
+            disabled={pieces < MIN_ORDER_QUANTITY}
             onClick={onProceed}
           >
-            {pieces >= 20 ? "Continuar pedido" : `Faltam ${20 - pieces} peças`}{" "}
+            {pieces >= MIN_ORDER_QUANTITY
+              ? "Continuar pedido"
+              : `Faltam ${
+                  MIN_ORDER_QUANTITY - pieces
+                } peças`}
+
             <ArrowRight size={18} />
           </button>
+
           <p className="cart-note">
-            <CircleHelp size={14} /> Mínimo de 20 peças para atacado.
+            <CircleHelp size={14} /> Mínimo de{" "}
+            {MIN_ORDER_QUANTITY} peças para atacado.
           </p>
         </div>
       </aside>
-      {open && <div className="cart-backdrop" onClick={() => setOpen(false)} />}
+
+      {cartOpen && (
+        <div
+          className="cart-backdrop"
+          onClick={() => setCartOpen(false)}
+        />
+      )}
     </>
   );
 }
