@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 
+// Funções utilitárias para o tratamento do estoque
+import { getVariant, getAvailableToAdd } from "../utils/domainFunctions";
+
 const CART_STORAGE_KEY = "ferchu-cart";
 
 export default function useCart() {
@@ -70,20 +73,6 @@ export default function useCart() {
 
   /*
    * ============================================================
-   * ESTOQUE
-   * ============================================================
-   */
-
-  const getAvailableToAdd = (available, currentQuantity) => {
-    if (!Number.isFinite(available)) {
-      return Infinity;
-    }
-
-    return Math.max(0, available - currentQuantity);
-  };
-
-  /*
-   * ============================================================
    * ADICIONAR AO CARRINHO
    * ============================================================
    */
@@ -99,26 +88,22 @@ export default function useCart() {
           return;
         }
         
-        /* Aceita cores que são strings ou objetos cuja cor está inserida
-           como propiedade dentro deles */
-        const colorName = typeof color === "string" ? color : color.name;
-        console.log(color);
+        // Coleta o nome do objeto
+        const colorName = color.name;
 
+        // Procura e coleta a variante selecionada do banco de dados
+        const selectedVariant = getVariant(color, size);
 
-        /* Se a cor da variante for uma string, a variante é nula, se for um objeto, procura
-           por essa variante dentro das propiedades desse objeto, ou seja, no estoque */
-        const selectedVariant =
-          typeof color === "string"
-            ? null
-            : color.stockVariants?.find((variant) => variant.size === size);
+        // Se a variante não existir, não adiciona no carrinho e sai da função
+        if (!selectedVariant) {
+          return
+        }
 
-        /* Se a variante não possuir ID, uma chave artificial é criada, se a variante selecionada
-           (selectedVariant) for nula, a chave do produto a ser adicionado também será
-            uma chave artificial */
-        const keyOfProductToBeAdded =
-          selectedVariant?.id ?? `${product.id}-${colorName}-${size}`;
+        // a chave do produto a ser adicionado será a ID da variante
+        const keyOfProductToBeAdded = selectedVariant.id;
 
-        const available = selectedVariant?.available ?? Infinity;
+        // A disponibilidade da variante será a da variante selecionada
+        const available = selectedVariant.available;
 
         const existing = next.find(
           (line) => line.key === keyOfProductToBeAdded,
@@ -150,7 +135,7 @@ export default function useCart() {
 
           productId: product.id,
 
-          variantId: selectedVariant?.id ?? null,
+          variantId: selectedVariant.id,
 
           name: product.name,
 

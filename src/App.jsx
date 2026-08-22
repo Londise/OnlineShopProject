@@ -1,7 +1,7 @@
 import React from "react";
 
 // Importando script de utilidades
-import "./utils/script.js";
+import "./utils/domainFunctions.js";
 
 import AppRoutes from "./routes/AppRoutes";
 

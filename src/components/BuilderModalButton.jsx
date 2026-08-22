@@ -2,6 +2,10 @@ import React from "react";
 import { useEffect, useState } from "react";
 import { X, ShoppingBag } from "lucide-react";
 import Counter from "./Counter";
+import { getVariant } from "../utils/domainFunctions";
+import { optional } from "zod/v4";
+
+import { useCartContext } from "../contexts/CartContext";
 
 const money = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -31,8 +35,17 @@ const colorStyles = {
 };
 
 // Modal para montar o pedido, escolhendo cor e distribuindo quantidades por tamanho
-export default function BuilderModal({ product, showToast, onClose, onAdd, cartOpen }) {
-  const [color, setColor] = useState(product.variants[0]);
+export default function BuilderModal({ product, showToast, onClose }) {
+
+  const {
+      addToCart,
+      cartOpen,
+    } = useCartContext();
+
+
+  // Estado que inicializa com a primeira cor disponível, para que ela seja selecionada ao abrir o modal
+  const [color, setColor] = useState(product.options[0]);
+
   const [selectedImage, setSelectedImage] = useState(product.image);
 
   useEffect(() => {
@@ -61,7 +74,7 @@ export default function BuilderModal({ product, showToast, onClose, onAdd, cartO
 
   // Controla a ação de apertar o botão "Adicionar ao Pedido"
   const handleAdd = () => {
-    onAdd(product, color, quantities);
+    addToCart(product, color, quantities);
 
     resetQuantities();
 
@@ -142,15 +155,18 @@ export default function BuilderModal({ product, showToast, onClose, onAdd, cartO
           <div className="color-row">
             <span>Escolha a cor</span>
             <div>
-              {product.variants.map((item) => (
+              {/* Percorre a lista de cores */}
+              {product.options.map((item) => (
                 <button
                   key={item.name}
                   type="button"
+                  // Na primeira iteração, a primeira cor é selecionada pois ela é product.options[0]
                   className={`color-dot ${color.name === item.name ? "selected" : ""}`}
                   style={{ background: colorStyles[item.name] }}
                   onClick={() => {
                     setColor(item);
                     setSelectedImage(item.image || product.image);
+                    // resetQuantities(); para zerar as quantidades ao trocar de cor
                   }}
                   aria-label={item.name}
                   title={item.name}
@@ -166,13 +182,11 @@ export default function BuilderModal({ product, showToast, onClose, onAdd, cartO
             </div>
             {Object.entries(quantities).map(([size, amount]) => {
               
-              // Procura dentro das cores a variante (tamanho) requerida pelo cliente e armazena seu estoque
-              const stockVariant = color.stockVariants?.find(
-                (variant) => variant.size === size
-              );
+              // Procura dentro das cores (option) o tamanho (variant) requerido pelo cliente e armazena seu estoque
+              const selectedVariant = getVariant(color, size);
               
               // Verifica se esse tamanho está disponível
-              const available = stockVariant?.available ?? 0;
+              const available = selectedVariant?.available ?? 0;
 
               return (
               <div className="size-row" key={size}>

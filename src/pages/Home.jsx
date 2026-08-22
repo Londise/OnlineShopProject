@@ -696,8 +696,6 @@ export default function Home() {
           product={currentProduct}
           showToast={showToast}
           onClose={closeBuilder}
-          onAdd={addToCart}
-          cartOpen={cartOpen}
         />
       )}
 
