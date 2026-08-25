@@ -15,7 +15,7 @@ export default function Counter({
       <button
         type="button"
         disabled={disabled || value <= 0} // Double-check, pois a disponibilidade também é checada no modal
-        onClick={() => change(value - 1)}
+        onClick={() => change(value - 1)} // Diminui 1 na quantidade desejada
         aria-label="Diminuir"
       >
         <Minus size={15} />
@@ -30,7 +30,7 @@ export default function Counter({
       <button
         type="button"
         disabled={disabled || value >= max}
-        onClick={() => change(value + 1)}
+        onClick={() => change(value + 1)} // Aumenta 1 na quantidade desejada
         aria-label="Aumentar"
       >
         <Plus size={15} />

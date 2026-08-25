@@ -7,7 +7,7 @@ export const getVariant = (option, size) => {
 
 /*
  Fornece a quantidade disponível na situação onde a variante do produto já está no carrinho. 
- retorna a quantidade disponível inicial - quantidade já adicionada = quantidade disponível final
+ retorna a (quantidade disponível inicial - quantidade já adicionada) = quantidade disponível final
 */
 export const getAvailableToAdd = (available, currentQuantity) => {
   if (!Number.isFinite(available)) {

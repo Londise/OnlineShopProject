@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 // Funções utilitárias para o tratamento do estoque
 import { getVariant, getAvailableToAdd } from "../utils/domainFunctions";
@@ -70,6 +70,31 @@ export default function useCart() {
     () => lines.reduce((sum, line) => sum + line.quantity * line.weight, 0),
     [lines],
   );
+
+
+  // Função que lista a quantidade de um item do carrinho
+  const getQuantityInCart = useCallback((variantId) => {
+    const quantityInCart = lines.find((line) => line.variantId === variantId)?.quantity ?? 0;
+
+    return quantityInCart;
+  }, [lines]);
+
+  /* Função que retorna a quantidade disponível a ser adicionada de uma variante (cor + tamanho, ex: Preto GG)
+     tendo em conta a quantidade disponível no estoque e a quantidade já existente no carrinho */
+  const getAvailableToAddForVariant = useCallback((variant) => {
+    if (!variant) {
+      return 0;
+    }
+
+    const currentQuantityInCart = getQuantityInCart(variant.id);
+    const currentQuantityInStock = variant.available;
+
+    return getAvailableToAdd(currentQuantityInStock, currentQuantityInCart);
+  }, 
+  [getQuantityInCart],
+  )
+  // Com useCallback, o Builder pode reagir às mudanças do carrinho.
+
 
   /*
    * ============================================================
@@ -224,6 +249,9 @@ export default function useCart() {
     changeLine,
     removeLine,
     clearCart,
+
+    getQuantityInCart,
+    getAvailableToAddForVariant,
 
     qtyTotal,
     orderTotal,

@@ -77,3 +77,7 @@ REACT
    │
    └── user = {...}
 `
+
+O modal recebe a quantidade de itens disponíveis de uma variante através de um cálculo que toma em conta
+o estoque e o carrinho
+EX: Estoque: 10, Carrinho: 2, então a quantidade disponível é (10 - 2) = 8

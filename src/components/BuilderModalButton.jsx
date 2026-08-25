@@ -1,9 +1,7 @@
-import React from "react";
-import { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import { X, ShoppingBag } from "lucide-react";
 import Counter from "./Counter";
 import { getVariant } from "../utils/domainFunctions";
-import { optional } from "zod/v4";
 
 import { useCartContext } from "../contexts/CartContext";
 
@@ -40,6 +38,7 @@ export default function BuilderModal({ product, showToast, onClose }) {
   const {
       addToCart,
       cartOpen,
+      getAvailableToAddForVariant,
     } = useCartContext();
 
 
@@ -82,11 +81,33 @@ export default function BuilderModal({ product, showToast, onClose }) {
 
   };
 
+  // Sincroniza as quantidades com o estoque disponível quando a cor mudar
+  useEffect(() => {
+    setQuantities((old) => {
+      const next = { ...old };
+
+      Object.entries(old).forEach(([size, amount]) => {
+        const selectedVariant = getVariant(color, size);
+
+        const availableToAdd = selectedVariant
+          ? getAvailableToAddForVariant(selectedVariant)
+          : 0;
+
+        next[size] = Math.min(amount, availableToAdd);
+      });
+
+      console.log("Quantidades atualizadas!")
+
+      return next;
+    });
+  }, [color]);
+
   useEffect(() => {
     const listener = (event) => event.key === "Escape" && onClose();
     window.addEventListener("keydown", listener);
     return () => window.removeEventListener("keydown", listener);
   }, [onClose]);
+
   return (
     <div
       // Adiciona a classe "with-cart" se o carrinho estiver aberto, para ajustar o estilo do modal
@@ -166,7 +187,7 @@ export default function BuilderModal({ product, showToast, onClose }) {
                   onClick={() => {
                     setColor(item);
                     setSelectedImage(item.image || product.image);
-                    // resetQuantities(); para zerar as quantidades ao trocar de cor
+                    resetQuantities(); // zera as quantidades do modal para aquela cor ao trocar para outra cor
                   }}
                   aria-label={item.name}
                   title={item.name}
@@ -185,8 +206,8 @@ export default function BuilderModal({ product, showToast, onClose }) {
               // Procura dentro das cores (option) o tamanho (variant) requerido pelo cliente e armazena seu estoque
               const selectedVariant = getVariant(color, size);
               
-              // Verifica se esse tamanho está disponível
-              const available = selectedVariant?.available ?? 0;
+              // Verifica se esse tamanho tem quantidade disponível, se não, não haverá quantidade disponível
+              const availableToAdd = selectedVariant ? getAvailableToAddForVariant(selectedVariant) : 0;
 
               return (
               <div className="size-row" key={size}>
@@ -194,8 +215,8 @@ export default function BuilderModal({ product, showToast, onClose }) {
 
                 <Counter
                   value={amount}
-                  max={available}
-                  disabled={available === 0}
+                  max={availableToAdd}
+                  disabled={availableToAdd === 0}
                   label={`tamanho ${size}`}
                   onChange={(value) =>
                     setQuantities((old) => ({
