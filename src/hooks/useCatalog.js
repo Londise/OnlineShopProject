@@ -63,6 +63,7 @@ export default function useCatalog() {
       })
       .catch(() => setUsingApi(false));
   }, []);
+  
   const categories = useMemo(
     () =>
       usingApi
