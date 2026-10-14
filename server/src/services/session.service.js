@@ -7,6 +7,7 @@ import {
   normalizeEmail,
 } from "../lib/security.js";
 import { AppError, unauthorized } from "../lib/errors.js";
+import { logInfo, logWarn } from "../lib/logger.js";
 
 const sessionExpiry = () =>
   new Date(Date.now() + env.SESSION_TTL_DAYS * 24 * 60 * 60 * 1000);
@@ -19,17 +20,27 @@ export async function registerCustomer({ name, email, password }) {
   if (exists)
     throw new AppError(409, "EMAIL_IN_USE", "Este e-mail já está em uso.");
   const passwordHash = await argon2.hash(password, { type: argon2.argon2id });
-  return prisma.user.create({
+  const user = await prisma.user.create({
     data: { name, email: normalizedEmail, passwordHash, role: "CUSTOMER" },
   });
+  logInfo("auth.registered", "Nova conta de cliente criada", {
+    actorId: user.id,
+    data: { userId: user.id },
+  });
+  return user;
 }
 
 export async function authenticate({ email, password }) {
   const user = await prisma.user.findUnique({
     where: { email: normalizeEmail(email) },
   });
-  if (!user?.active || !(await argon2.verify(user.passwordHash, password)))
+  if (!user?.active || !(await argon2.verify(user.passwordHash, password))) {
+    // Sem distinguir usuário inexistente de senha errada; o e-mail é redigido pelo logger.
+    logWarn("auth.login_failed", "Tentativa de login falhou", {
+      data: { email, reason: "invalid_credentials" },
+    });
     throw unauthorized("E-mail ou senha inválidos.");
+  }
   return user;
 }
 

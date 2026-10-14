@@ -8,3 +8,14 @@ export const validate = (schema, source = 'body') => (req, _res, next) => {
   req[source] = result.data;
   next();
 };
+
+// Express 5 expõe req.query como getter: o resultado validado vai para
+// req.validatedQuery em vez de substituir req.query.
+export const validateQuery = (schema) => (req, _res, next) => {
+  const result = schema.safeParse(req.query);
+  if (!result.success) {
+    return next(new AppError(422, 'VALIDATION_ERROR', 'Parâmetros de consulta inválidos.', result.error.flatten()));
+  }
+  req.validatedQuery = result.data;
+  next();
+};

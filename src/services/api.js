@@ -1,5 +1,13 @@
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001/api/v1";
 
+// Cada chamada carrega um trace-id próprio; a API devolve o mesmo no header
+// x-trace-id, permitindo seguir a request inteira no painel de logs.
+const newTraceId = () =>
+  globalThis.crypto?.randomUUID?.() ??
+  "xxxxxxxx-xxxx-4xxx-8xxx-xxxxxxxxxxxx".replace(/x/g, () =>
+    Math.floor(Math.random() * 16).toString(16),
+  );
+
 export class ApiError extends Error {
   constructor(message, code, status) {
     super(message);
@@ -13,6 +21,7 @@ async function request(path, options = {}) {
   const response = await fetch(`${API_URL}${path}`, {
     credentials: "include",
     headers: {
+      "x-trace-id": newTraceId(),
       ...(options.body && !(options.body instanceof FormData) ? { "Content-Type": "application/json" } : {}),
       ...headers,
     },

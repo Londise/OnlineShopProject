@@ -11,10 +11,12 @@ import {
   RefreshCw,
   Minus,
   Save,
+  ScrollText,
   X,
 } from "lucide-react";
 import { api } from "../services/api";
 import MediaManager from "../components/MediaManager";
+import LogsPanel from "../components/LogsPanel";
 
 import { useNavigate } from "react-router-dom";
 import { useAuthContext } from "../contexts/AuthContext";
@@ -52,6 +54,12 @@ const tabs = [
     id: "banners",
     label: "Banners",
     icon: PanelsTopLeft,
+    adminOnly: true,
+  },
+  {
+    id: "logs",
+    label: "Logs",
+    icon: ScrollText,
     adminOnly: true,
   },
 ];
@@ -213,6 +221,13 @@ export default function Management() {
    */
 
   const load = async () => {
+    // A aba de logs gerencia a própria carga (filtros, paginação e live tail).
+    if (tab === "logs") {
+      setLoading(false);
+      setData([]);
+      return;
+    }
+
     setLoading(true);
     setError("");
 
@@ -741,6 +756,8 @@ export default function Management() {
         ) : (
           <section className="management-panel">
             {tab === "media" && <MediaManager assets={data} onChange={load} />}
+
+            {tab === "logs" && <LogsPanel />}
             {/*
              * ==================================================
              * PEDIDOS

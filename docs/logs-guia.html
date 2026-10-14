@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Guia de uso — Sistema de Logs · Ferchu Modas</title>
+<style>
+  :root{
+    --bg:#0a0f1d; --card:#111a2e; --border:#1e2b47; --border2:#26365c;
+    --text:#dbe4f5; --muted:#8b99b8; --faint:#5b6a8c;
+    --accent:#38bdf8; --accent2:#818cf8; --ok:#34d399;
+    --trace:#64748b; --debug:#94a3b8; --info:#38bdf8; --warn:#fbbf24; --error:#f87171; --fatal:#f472b6;
+    --mono:ui-monospace,"Cascadia Code","JetBrains Mono",Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.65;font-size:15.5px}
+  .wrap{max-width:1000px;margin:0 auto;padding:0 22px}
+  code{font-family:var(--mono);font-size:.86em;background:#0b1322;border:1px solid var(--border);border-radius:5px;padding:.1em .45em;color:#a5d8ff}
+  a{color:var(--accent);text-decoration:none}
+
+  header.hero{padding:60px 0 40px;border-bottom:1px solid var(--border);background:radial-gradient(1000px 400px at 75% -10%,#14224a55,transparent)}
+  .kicker{font-family:var(--mono);font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--accent);margin-bottom:14px}
+  h1{font-size:clamp(26px,4.4vw,40px);line-height:1.15;font-weight:800;letter-spacing:-.02em}
+  h1 .grad{background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .hero p{margin-top:12px;max-width:760px;color:var(--muted);font-size:16.5px}
+  .badges{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}
+  .badge{font-family:var(--mono);font-size:11.5px;padding:5px 11px;border:1px solid var(--border2);border-radius:999px;color:var(--muted);background:#0d1526}
+  .badge b{color:var(--ok);font-weight:600}
+
+  nav.toc{position:sticky;top:0;z-index:20;background:#0a0f1de6;backdrop-filter:blur(10px);border-bottom:1px solid var(--border);padding:10px 0}
+  nav.toc .wrap{display:flex;gap:16px;flex-wrap:wrap;font-size:13px}
+  nav.toc a{color:var(--muted)}
+  nav.toc a:hover{color:var(--accent)}
+
+  section{padding:44px 0;border-bottom:1px solid #141d33}
+  h2{font-size:24px;font-weight:750;margin-bottom:6px;display:flex;align-items:center;gap:12px}
+  h2 .num{font-family:var(--mono);font-size:13px;color:var(--accent);border:1px solid var(--border2);border-radius:8px;padding:3px 9px;background:#0d1526}
+  .lede{color:var(--muted);max-width:820px;margin-bottom:22px}
+  h3{font-size:17px;margin:26px 0 8px;color:#c9d6ee}
+  p{margin:9px 0}
+  ul,ol{margin:9px 0 9px 22px}
+  li{margin:5px 0}
+  b{color:#e8effc}
+
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px 20px;margin:12px 0}
+  .card h4{font-size:14.5px;margin-bottom:6px;color:#d6e2f7}
+  .card p,.card li{font-size:13.5px;color:var(--muted)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:780px){.grid2{grid-template-columns:1fr}}
+
+  .codeblock{position:relative;margin:14px 0}
+  pre{background:#0a1220;border:1px solid var(--border);border-radius:12px;padding:15px 17px;overflow-x:auto;font-family:var(--mono);font-size:12.6px;line-height:1.7;color:#c6d4ef}
+  pre .c{color:var(--faint)} pre .s{color:#9ee8a9} pre .k{color:#8fb8ff}
+  .copy{position:absolute;top:8px;right:8px;font-family:var(--mono);font-size:10.5px;padding:4px 10px;border-radius:7px;border:1px solid var(--border2);background:#132743;color:var(--muted);cursor:pointer}
+  .copy:hover{color:var(--text);border-color:var(--accent)}
+  .copy.done{color:var(--ok);border-color:var(--ok)}
+
+  table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px}
+  th{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint);text-align:left;padding:8px 12px;border-bottom:1px solid var(--border2)}
+  td{padding:9px 12px;border-bottom:1px solid #16213a;vertical-align:top}
+
+  .pill{display:inline-block;font-family:var(--mono);font-size:11px;font-weight:600;padding:2px 9px;border-radius:6px;letter-spacing:.04em;text-transform:uppercase}
+  .pill.trace{color:var(--trace);background:#64748b1c;border:1px solid #64748b45}
+  .pill.debug{color:var(--debug);background:#94a3b81c;border:1px solid #94a3b845}
+  .pill.info{color:var(--info);background:#38bdf81c;border:1px solid #38bdf845}
+  .pill.warn{color:var(--warn);background:#fbbf241c;border:1px solid #fbbf2445}
+  .pill.error{color:var(--error);background:#f871711c;border:1px solid #f8717145}
+  .pill.fatal{color:var(--fatal);background:#f472b61c;border:1px solid #f472b645}
+
+  .note{border-left:3px solid var(--accent);background:#38bdf812;padding:12px 16px;border-radius:0 10px 10px 0;margin:14px 0;font-size:13.5px;color:var(--muted)}
+  .warnbox{border-left:3px solid var(--warn);background:#fbbf2410;padding:12px 16px;border-radius:0 10px 10px 0;margin:14px 0;font-size:13.5px;color:var(--muted)}
+
+  /* mock do painel */
+  .mock{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin:16px 0}
+  .mock-head{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border);background:#0d1526}
+  .dot{width:10px;height:10px;border-radius:50%}
+  .dot.r{background:#f87171}.dot.y{background:#fbbf24}.dot.g{background:#34d399}
+  .mock-title{font-family:var(--mono);font-size:11px;color:var(--faint)}
+  .mock-body{padding:6px 0;font-family:var(--mono);font-size:12px}
+  .mock-row{display:grid;grid-template-columns:64px 60px 56px 1fr;gap:10px;padding:6px 16px;border-bottom:1px solid #131e36;align-items:baseline}
+  .mock-row:last-child{border-bottom:0}
+  .mock-row .t{color:var(--faint)}
+  .mock-row .m{color:#c6d4ef;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .mock-row .m b{color:#8fb8ff;font-weight:600}
+  .lbl{font-weight:700}
+  .lbl.trace{color:var(--trace)}.lbl.debug{color:var(--debug)}.lbl.info{color:var(--info)}.lbl.warn{color:var(--warn)}.lbl.error{color:var(--error)}.lbl.fatal{color:var(--fatal)}
+  .callout-num{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:linear-gradient(135deg,#123a5e,#1a2a6e);border:1px solid var(--border2);color:var(--accent);font-family:var(--mono);font-size:11px;font-weight:700;margin-right:6px}
+
+  footer{padding:30px 0 54px;color:var(--faint);font-size:12px;font-family:var(--mono)}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="kicker">Ferchu Modas · Observabilidade</div>
+    <h1>Guia de uso do <span class="grad">Sistema de Logs</span></h1>
+    <p>Como consultar, filtrar e seguir o rastro (trace) de qualquer request — do clique do cliente até o erro no banco — e como emitir novos logs a partir do código.</p>
+    <div class="badges">
+      <span class="badge">status <b>implementado</b></span>
+      <span class="badge">painel <b>Gestão → Logs</b></span>
+      <span class="badge">acesso <b>somente ADMIN</b></span>
+      <span class="badge">retenção <b>90 dias</b></span>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a href="#painel">01 · O painel</a>
+    <a href="#niveis">02 · Níveis</a>
+    <a href="#receitas">03 · Receitas práticas</a>
+    <a href="#emitir">04 · Emitir logs (dev)</a>
+    <a href="#config">05 · Configuração</a>
+    <a href="#manutencao">06 · Manutenção</a>
+    <a href="#faq">07 · Problemas comuns</a>
+  </div>
+</nav>
+
+<!-- 01 -->
+<section id="painel">
+  <div class="wrap">
+    <h2><span class="num">01</span> O painel de logs</h2>
+    <p class="lede">Entre em <b>Gestão</b> (menu admin) e clique na aba <b>Logs</b>. Tudo que a API registra aparece aqui, do mais novo para o mais antigo.</p>
+
+    <div class="mock">
+      <div class="mock-head">
+        <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+        <span class="mock-title">gestão → logs</span>
+      </div>
+      <div class="mock-body">
+        <div class="mock-row"><span class="t">14:32:07</span><span class="lbl error">ERROR</span><span class="lbl info" style="color:var(--accent2)">api</span><span class="m"><b>payment.webhook_failed</b> · Webhook falhou após 5 tentativas · pedido #A1042</span></div>
+        <div class="mock-row"><span class="t">14:32:05</span><span class="lbl warn">WARN</span><span class="lbl info" style="color:var(--accent2)">api</span><span class="m"><b>payment.webhook_retry</b> · Webhook de pagamento falhou · retry 4/5</span></div>
+        <div class="mock-row"><span class="t">14:31:58</span><span class="lbl info">INFO</span><span class="lbl info" style="color:var(--accent2)">api</span><span class="m"><b>order.created</b> · Pedido FM-2026-1042 criado</span></div>
+        <div class="mock-row"><span class="t">14:31:58</span><span class="lbl info">INFO</span><span class="lbl info" style="color:var(--accent2)">api</span><span class="m"><b>http.request</b> · POST /api/v1/orders 201 · 38ms</span></div>
+        <div class="mock-row"><span class="t">14:31:41</span><span class="lbl warn">WARN</span><span class="lbl info" style="color:var(--accent2)">api</span><span class="m"><b>auth.login_failed</b> · Tentativa de login falhou</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h4><span class="callout-num">1</span>Filtros (barra superior)</h4>
+      <p><b>Nível</b> (trace…fatal), <b>serviço</b> (api, storefront, worker) e <b>busca livre</b> que procura no evento e na mensagem — ex.: <code>order.created</code>, <code>webhook</code>, <code>timeout</code>. Clique em <b>Filtrar</b> (ou Enter) para aplicar a busca; os seletores aplicam na hora.</p>
+    </div>
+    <div class="card">
+      <h4><span class="callout-num">2</span>Botão "Ao vivo"</h4>
+      <p>Liga o <b>live tail</b>: a lista se atualiza sozinha a cada 3 segundos. Ideal para acompanhar um teste em tempo real ("vou criar o pedido agora e ver o que acontece").</p>
+    </div>
+    <div class="card">
+      <h4><span class="callout-num">3</span>Clicar numa linha</h4>
+      <p>Expande o JSON completo do registro: <code>traceId</code>, <code>requestId</code>, <code>actorId</code> (quem estava logado), rota, status, latência, o contexto (<code>data</code>) e o <code>stack</code> quando é erro.</p>
+    </div>
+    <div class="card">
+      <h4><span class="callout-num">4</span>"Ver trace completo"</h4>
+      <p>Dentro da linha expandida: filtra a lista para mostrar <b>somente os logs daquela request</b>, em ordem cronológica — do <code>http.request</code> até o erro. É a resposta para "o que exatamente aconteceu nessa operação?". Um chip no topo mostra o trace filtrado; o ✕ limpa.</p>
+    </div>
+    <div class="card">
+      <h4><span class="callout-num">5</span>"Carregar mais"</h4>
+      <p>Navega para registros mais antigos usando paginação por cursor (sem pular nem repetir linhas, mesmo com logs novos chegando).</p>
+    </div>
+
+    <div class="note"><b>Dica:</b> toda resposta da API devolve os headers <code>x-trace-id</code> e <code>x-request-id</code>. Se um cliente reportar erro, o suporte pode pedir o trace (visível na aba Network do navegador) e você cola esse ID na busca do painel.</div>
+  </div>
+</section>
+
+<!-- 02 -->
+<section id="niveis">
+  <div class="wrap">
+    <h2><span class="num">02</span> Níveis de log</h2>
+    <table>
+      <tr><th>Nível</th><th>O que significa</th><th>Exemplos reais do sistema</th></tr>
+      <tr><td><span class="pill trace">trace</span></td><td>Detalhe muito fino; desligado em produção</td><td>payload bruto de cálculo</td></tr>
+      <tr><td><span class="pill debug">debug</span></td><td>Diagnóstico; em produção só ~10% é gravado (sampling)</td><td><code>/health</code> verificado</td></tr>
+      <tr><td><span class="pill info">info</span></td><td>Operação normal e relevante</td><td><code>order.created</code>, <code>order.status_changed</code>, <code>auth.registered</code>, <code>http.request 201</code>, <code>api.started</code></td></tr>
+      <tr><td><span class="pill warn">warn</span></td><td>Anomalia recuperável — fique de olho se repetir</td><td><code>auth.login_failed</code>, respostas 4xx</td></tr>
+      <tr><td><span class="pill error">error</span></td><td>Falha que exige ação</td><td><code>http.unhandled</code> (erro 500 com stack), respostas 5xx</td></tr>
+      <tr><td><span class="pill fatal">fatal</span></td><td>Processo em risco</td><td>conexão com o banco perdida</td></tr>
+    </table>
+    <p style="color:var(--muted);font-size:13.5px">Eventos seguem o padrão <code>dominio.verbo</code>: <code>order.created</code>, <code>order.status_changed</code>, <code>order.archived</code>, <code>auth.login_failed</code>, <code>auth.registered</code>, <code>http.request</code>, <code>http.unhandled</code>, <code>api.started</code>.</p>
+  </div>
+</section>
+
+<!-- 03 -->
+<section id="receitas">
+  <div class="wrap">
+    <h2><span class="num">03</span> Receitas práticas</h2>
+
+    <div class="grid2">
+      <div class="card">
+        <h4>🔍 "O cliente disse que o pedido falhou"</h4>
+        <ol>
+          <li>Peça o horário aproximado do erro.</li>
+          <li>No painel, filtre nível <b>error</b> e busque <code>order</code>.</li>
+          <li>Abra a linha do erro e clique <b>Ver trace completo</b>.</li>
+          <li>Você verá a sequência inteira: request → validação → banco → erro, com stack.</li>
+        </ol>
+      </div>
+      <div class="card">
+        <h4>🛡️ "Estão tentando entrar na minha conta?"</h4>
+        <ol>
+          <li>Busque <code>auth.login_failed</code>.</li>
+          <li>Cada tentativa aparece como <span class="pill warn">warn</span> (o e-mail é redigido por segurança).</li>
+          <li>Muitas tentativas seguidas no mesmo trace/rota = ataque de força bruta; o rate limit da API já bloqueia após 20 em 15 min.</li>
+        </ol>
+      </div>
+      <div class="card">
+        <h4>📈 "A loja está lenta?"</h4>
+        <ol>
+          <li>Busque <code>http.request</code> e olhe a coluna de duração (<code>···ms</code>).</li>
+          <li>Expande uma linha lenta: <code>durationMs</code> alto + rota indicam o gargalo.</li>
+          <li>Filtre por nível <b>warn/error</b> para ver se há falhas junto.</li>
+        </ol>
+      </div>
+      <div class="card">
+        <h4>🧾 "Quem confirmou/cancelou o pedido X?"</h4>
+        <ol>
+          <li>Busque <code>order.status_changed</code>.</li>
+          <li>Expanda a linha: <code>actorId</code> diz quem fez; <code>data.from/to</code> mostra a transição.</li>
+          <li>Para o antes/depois completo dos campos, isso continua na auditoria (<code>audit_logs</code>), que é separada dos logs.</li>
+        </ol>
+      </div>
+    </div>
+
+    <h3>Consultas rápidas via API (curl)</h3>
+    <div class="codeblock"><button class="copy">copiar</button><pre><span class="c"># erros e fatais de hoje (cookie de sessão ADMIN)</span>
+curl --cookie "ferchu_session=SEU_TOKEN" \
+  <span class="s">"http://localhost:3001/api/v1/admin/logs?level=error,fatal&limit=50"</span>
+
+<span class="c"># tudo de um trace específico, em ordem</span>
+curl --cookie "ferchu_session=SEU_TOKEN" \
+  <span class="s">"http://localhost:3001/api/v1/admin/logs/trace/7f3a1c2e-...."</span>
+
+<span class="c"># busca textual + paginação por cursor</span>
+curl --cookie "ferchu_session=SEU_TOKEN" \
+  <span class="s">"http://localhost:3001/api/v1/admin/logs?q=webhook&cursor=eyJ0...&limit=100"</span></pre></div>
+
+    <h3>Consultas diretas no SQL (somente leitura)</h3>
+    <div class="codeblock"><button class="copy">copiar</button><pre><span class="c">-- erros das últimas 24h</span>
+<span class="k">SELECT</span> ts, event, message, route, duration_ms
+<span class="k">FROM</span> app.log_entry
+<span class="k">WHERE</span> level &gt;= 50 <span class="k">AND</span> ts &gt; now() - interval <span class="s">'24 hours'</span>
+<span class="k">ORDER BY</span> ts <span class="k">DESC</span>;
+
+<span class="c">-- rotas mais lentas hoje (p95 aproximado)</span>
+<span class="k">SELECT</span> route, count(*) <span class="k">AS</span> reqs,
+       percentile_cont(0.95) within group (<span class="k">order by</span> duration_ms) <span class="k">AS</span> p95_ms
+<span class="k">FROM</span> app.log_entry
+<span class="k">WHERE</span> event = <span class="s">'http.request'</span> <span class="k">AND</span> ts &gt; now() - interval <span class="s">'1 day'</span>
+<span class="k">GROUP BY</span> route <span class="k">ORDER BY</span> p95_ms <span class="k">DESC</span>;</pre></div>
+  </div>
+</section>
+
+<!-- 04 -->
+<section id="emitir">
+  <div class="wrap">
+    <h2><span class="num">04</span> Emitir logs a partir do código (dev)</h2>
+    <p class="lede">Use o logger em <code>server/src/lib/logger.js</code> — nunca <code>console.log</code> para telemetria. Trace, request e usuário logado são herdados automaticamente do contexto da request.</p>
+    <div class="codeblock"><button class="copy">copiar</button><pre><span class="k">import</span> { logInfo, logWarn, logError } <span class="k">from</span> <span class="s">'../lib/logger.js'</span>;
+
+<span class="c">// evento de negócio (INFO)</span>
+logInfo(<span class="s">'shipping.quoted'</span>, <span class="s">'Frete calculado'</span>, {
+  data: { method: <span class="s">'CORREIOS'</span>, amountCents: 1420 },
+});
+
+<span class="c">// anomalia recuperável (WARN)</span>
+logWarn(<span class="s">'media.upload_rejected'</span>, <span class="s">'MIME não suportado'</span>, {
+  data: { mime: file.mimetype, sizeKb: 2400 },
+});
+
+<span class="c">// falha (ERROR) — passe o stack</span>
+logError(<span class="s">'payment.webhook_failed'</span>, error.message, {
+  stack: error.stack,
+  data: { orderId: order.id, attempt: 5 },
+});</pre></div>
+    <div class="grid2">
+      <div class="card">
+        <h4>✅ Boas práticas</h4>
+        <ul>
+          <li>Evento em <code>dominio.verbo</code> minúsculo: <code>order.created</code>, <code>db.query_timeout</code>.</li>
+          <li>Mensagem curta para humanos; detalhes vão em <code>data</code> (JSON).</li>
+          <li>Centavos em <code>totalCents</code>, milissegundos em <code>durationMs</code>.</li>
+          <li>Em rotas novas, o trace/usuário já chegam de graça — não repasse.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>🚫 O que NÃO fazer</h4>
+        <ul>
+          <li>Não logue senhas/tokens — o logger redige chaves sensíveis, mas evite.</li>
+          <li>Não logue dentro de loops quentes em INFO (use DEBUG: é sampleado).</li>
+          <li>Não chame o logger de dentro dele mesmo (flush/dead-letter usam só console).</li>
+          <li>Não use para auditoria de negócio (quem mudou o quê) — isso é <code>audit.service.js</code>.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="note"><b>Redação automática:</b> e-mail, CPF, cartão e qualquer chave com <code>password|token|secret|authorization|cookie|senha</code> viram <code>[REDACTED]</code> antes de gravar — inclusive dentro de objetos aninhados.</div>
+  </div>
+</section>
+
+<!-- 05 -->
+<section id="config">
+  <div class="wrap">
+    <h2><span class="num">05</span> Configuração (server/.env)</h2>
+    <table>
+      <tr><th>Variável</th><th>Padrão</th><th>O que controla</th></tr>
+      <tr><td><code>LOG_LEVEL</code></td><td><code>info</code></td><td>Nível mínimo gravado (<code>trace</code>…<code>fatal</code>). Em dev, <code>debug</code> ajuda.</td></tr>
+      <tr><td><code>LOG_DEBUG_SAMPLE</code></td><td><code>0.1</code></td><td>Fração de logs DEBUG gravados (0.1 = 10%). 1 grava todos.</td></tr>
+      <tr><td><code>LOG_BUFFER_MAX</code></td><td><code>100</code></td><td>Entradas no buffer que disparam flush imediato.</td></tr>
+      <tr><td><code>LOG_FLUSH_MS</code></td><td><code>2000</code></td><td>Intervalo máximo do buffer antes de gravar em lote.</td></tr>
+    </table>
+    <p style="color:var(--muted);font-size:13.5px">Em desenvolvimento, cada log também aparece no console da API (uma linha por evento). O flush final acontece no desligamento gracioso (SIGINT/SIGTERM), então Ctrl+C não perde logs.</p>
+  </div>
+</section>
+
+<!-- 06 -->
+<section id="manutencao">
+  <div class="wrap">
+    <h2><span class="num">06</span> Manutenção e retenção</h2>
+    <ul>
+      <li><b>Partições:</b> os logs ficam em <code>app.log_entry</code>, particionada por mês (mais uma partição <code>DEFAULT</code> de segurança). A migração cria o mês anterior, o atual e o seguinte.</li>
+      <li><b>Criação de partições futuras + limpeza:</b> a função <code>app.log_entry_maintenance()</code> garante os próximos 2 meses e apaga partições com mais de <b>90 dias</b> (drop instantâneo, sem DELETE em massa). No Supabase ela roda sozinha toda semana via <code>pg_cron</code> (se a extensão existir).</li>
+      <li><b>Sem pg_cron?</b> rode manualmente de tempos em tempos:</li>
+    </ul>
+    <div class="codeblock"><button class="copy">copiar</button><pre><span class="k">SELECT</span> app.log_entry_maintenance();</pre></div>
+    <ul>
+      <li><b>Dead-letter (<code>app.log_dead</code>):</b> se o banco ficar indisponível no momento do flush, o lote vai para essa tabela com o motivo. Verifique em <code>GET /api/v1/admin/logs/dead</code> ou:</li>
+    </ul>
+    <div class="codeblock"><button class="copy">copiar</button><pre><span class="k">SELECT</span> failed_at, fail_reason, jsonb_array_length(payload) <span class="k">AS</span> entradas
+<span class="k">FROM</span> app.log_dead <span class="k">ORDER BY</span> failed_at <span class="k">DESC</span> <span class="k">LIMIT</span> 20;</pre></div>
+    <div class="warnbox">⚠️ Se a <code>log_dead</code> estiver crescendo, o banco rejeitou gravações de log (queda, permissão ou partição ausente). Resolvido o problema, os lotes podem ser reinseridos manualmente a partir do <code>payload</code>.</div>
+  </div>
+</section>
+
+<!-- 07 -->
+<section id="faq">
+  <div class="wrap">
+    <h2><span class="num">07</span> Problemas comuns</h2>
+    <div class="card"><h4>"O painel mostra 403 / não aparece a aba Logs"</h4><p>A aba e os endpoints exigem sessão <b>ADMIN</b> (STAFF não acessa). Confira se seu usuário é ADMIN e refaça o login.</p></div>
+    <div class="card"><h4>"Não vejo logs de DEBUG"</h4><p>Dois motivos possíveis: <code>LOG_LEVEL</code> está acima de debug, ou o sampling (<code>LOG_DEBUG_SAMPLE=0.1</code>) descartou 90% deles de propósito. Em dev, use <code>LOG_LEVEL=debug</code> e <code>LOG_DEBUG_SAMPLE=1</code>.</p></div>
+    <div class="card"><h4>"Logs somem quando a API reinicia?"</h4><p>Não: o buffer grava a cada 2s e no desligamento gracioso. Só um crash <i>duro</i> (kill -9, queda de energia) pode perder o buffer dos últimos 2 segundos — trade-off aceito para não bloquear requests.</p></div>
+    <div class="card"><h4>"E-mail do cliente aparece como [REDACTED]"</h4><p>É de propósito (LGPD): dados pessoais são redigidos antes de gravar. Para atendimento, cruze o <code>orderId</code>/<code>traceId</code> com o pedido no painel de Gestão.</p></div>
+    <div class="card"><h4>"Onde ficam os logs de quem alterou o pedido?"</h4><p>Isso é <b>auditoria de negócio</b> (<code>audit_logs</code>), sistema separado que já existia. Logs operacionais = saúde/erros/telemetria; auditoria = antes/depois por usuário.</p></div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    Ferchu Modas · sistema de logs operacionais · implementação: migração <b>20261013100000_log_system</b> + <b>server/src/lib/logger.js</b> · docs/logs-guia.html
+  </div>
+</footer>
+
+<script>
+document.querySelectorAll('.codeblock').forEach((block) => {
+  const button = block.querySelector('.copy');
+  const pre = block.querySelector('pre');
+  button.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(pre.textContent);
+      button.textContent = 'copiado ✓';
+      button.classList.add('done');
+      setTimeout(() => { button.textContent = 'copiar'; button.classList.remove('done'); }, 1600);
+    } catch {
+      button.textContent = 'selecione e copie';
+    }
+  });
+});
+</script>
+</body>
+</html>

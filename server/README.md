@@ -115,6 +115,28 @@ Apenas `prisma/migrations/` é aplicado no PostgreSQL. Não há cliente MySQL at
   favicon é atualizado por `/site-media`. Uma falha no catálogo mostra erro/placeholder,
   não produtos locais fictícios. Carrinhos persistidos reconciliam apenas suas imagens.
 
+## Logs operacionais
+
+- Telemetria da aplicação (requests HTTP, erros, eventos de negócio) em JSON
+  estruturado; a auditoria de negócio continua em `audit.service.js`/`audit_logs`.
+- `src/lib/logger.js`: `log(level, event, message, ctx)` redige PII (e-mail, CPF,
+  cartão, chaves `password|token|secret|authorization|cookie`), empilha num buffer
+  e grava em lote a cada `LOG_FLUSH_MS` (2 s) ou `LOG_BUFFER_MAX` (100) entradas.
+  Falha no flush vai para `app.log_dead`; o processo nunca é derrubado pelo logger.
+- Níveis numéricos estilo pino: 10 trace, 20 debug, 30 info, 40 warn, 50 error,
+  60 fatal. `LOG_LEVEL` define o mínimo; `LOG_DEBUG_SAMPLE` (0–1) amostra debug.
+- `trace-id`/`request-id` chegam pelo header `x-trace-id` (ou são gerados), voltam
+  nos headers da resposta e fluem via AsyncLocalStorage: serviços não repassam IDs.
+- Armazenamento: `app.log_entry` particionada por RANGE mensal (mais partição
+  `DEFAULT`), criada por SQL cru na migração `20261013100000_log_system` — o
+  `schema.prisma` não declara essas tabelas de propósito. Retenção de 90 dias e
+  criação de partições futuras ficam em `app.log_entry_maintenance()`, agendada
+  semanalmente quando `pg_cron` existe; sem ela, rode a função manualmente.
+- Consulta: `GET /api/v1/admin/logs` (filtros `level`, `service`, `event`,
+  `traceId`, `q`, `from`, `to`, `cursor`, `limit`), `GET /api/v1/admin/logs/trace/:id`
+  e `GET /api/v1/admin/logs/dead`, todos somente ADMIN. Painel em Gestão → Logs.
+- Guia de uso ilustrado: `docs/logs-guia.html` na raiz do repositório.
+
 ### Testes e alterações futuras
 
 - `npm test`: testes de configuração, transações e SQL em PostgreSQL isolado

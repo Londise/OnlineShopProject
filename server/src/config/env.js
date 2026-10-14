@@ -11,6 +11,10 @@ const schema = z.object({
   SESSION_TTL_DAYS: z.coerce.number().int().min(1).max(90).default(14),
   SUPABASE_URL: z.preprocess(value => value || undefined, z.string().url().optional()),
   SUPABASE_SECRET_KEY: z.preprocess(value => value || undefined, z.string().startsWith('sb_secret_').optional()),
+  LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).default('info'),
+  LOG_DEBUG_SAMPLE: z.coerce.number().min(0).max(1).default(0.1),
+  LOG_BUFFER_MAX: z.coerce.number().int().min(1).max(1000).default(100),
+  LOG_FLUSH_MS: z.coerce.number().int().min(250).max(30_000).default(2000),
 });
 
 const parsed = schema.safeParse(process.env);

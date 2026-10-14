@@ -50,11 +50,12 @@ before(async () => {
 });
 after(async () => { if (db) await db.close(); });
 
-test("migrations create all 16 tables only in app, with RLS enabled", async () => {
+test("migrations create all 21 tables only in app, with RLS enabled", async () => {
   const { rows } = await db.query(`SELECT c.relname, c.relrowsecurity
     FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE n.nspname = 'app' AND c.relkind = 'r' AND c.relname <> '_prisma_migrations'`);
-  assert.equal(rows.length, 16);
+  // 16 de domínio + 4 partições de log_entry (3 mensais + default) + log_dead.
+  assert.equal(rows.length, 21);
   assert.equal(rows.every((row) => row.relrowsecurity), true);
   const publicTables = await db.query("SELECT tablename FROM pg_tables WHERE schemaname = 'public'");
   assert.equal(publicTables.rows.length, 0);

@@ -5,9 +5,12 @@ import cookieParser from "cookie-parser";
 import { rateLimit } from "express-rate-limit";
 import { env } from "./config/env.js";
 import { prisma } from "./db/prisma.js";
+import { flushAndClose, logInfo } from "./lib/logger.js";
 import { attachUser } from "./middlewares/auth.js";
 import { verifySameOrigin } from "./middlewares/csrf.js";
 import { errorHandler, notFoundHandler } from "./middlewares/error-handler.js";
+import { requestLogger } from "./middlewares/request-log.js";
+import { traceMiddleware } from "./middlewares/trace.js";
 import { adminRouter } from "./routes/admin.routes.js";
 import { authRouter } from "./routes/auth.routes.js";
 import { orderRouter } from "./routes/order.routes.js";
@@ -27,6 +30,8 @@ app.use(
 
 app.use(express.json({ limit: "100kb" }));
 app.use(cookieParser());
+app.use(traceMiddleware);
+app.use(requestLogger);
 app.use(verifySameOrigin);
 app.use(attachUser);
 
@@ -67,12 +72,16 @@ app.use("/api/v1", publicRouter);
 app.use(notFoundHandler);
 app.use(errorHandler);
 
-const server = app.listen(env.PORT, () =>
-  console.log(`Ferchu API listening on port ${env.PORT}`),
-);
+const server = app.listen(env.PORT, () => {
+  console.log(`Ferchu API listening on port ${env.PORT}`);
+  logInfo("api.started", `API ouvindo na porta ${env.PORT}`, {
+    data: { port: env.PORT, nodeEnv: env.NODE_ENV },
+  });
+});
 async function shutdown(signal) {
   console.log(`${signal} received, stopping API…`);
   server.close(async () => {
+    await flushAndClose();
     await prisma.$disconnect();
     process.exit(0);
   });

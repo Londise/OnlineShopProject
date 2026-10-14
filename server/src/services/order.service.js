@@ -3,6 +3,7 @@ import { lockInventories } from "../db/inventory.js";
 import { serializableTransaction } from "../db/transaction.js";
 import { MIN_ORDER_QUANTITY } from "../config/business.js";
 import { AppError, notFound } from "../lib/errors.js";
+import { logInfo } from "../lib/logger.js";
 import { publicOrderNumber } from "../lib/security.js";
 import { calculateShipping } from "./shipping.service.js";
 import { writeAudit } from "./audit.service.js";
@@ -187,7 +188,7 @@ export async function createOrder(input, user) {
   const items = aggregateItems(input.items);
   if (items.reduce((total, item) => total + item.quantity, 0) < MIN_ORDER_QUANTITY)
     throw new AppError(422, "MINIMUM_ORDER", `O pedido mínimo é de ${MIN_ORDER_QUANTITY} peças.`);
-  return serializableTransaction(
+  const order = await serializableTransaction(
     prisma,
     async (tx) => {
       const variants = await loadActiveVariants(tx, items);
@@ -263,10 +264,23 @@ export async function createOrder(input, user) {
       return order;
     },
   );
+  // Telemetria nunca pode quebrar o fluxo do pedido: acessos são defensivos.
+  logInfo("order.created", `Pedido ${order?.publicNumber ?? order?.id ?? "novo"} criado`, {
+    actorId: user?.id ?? null,
+    data: {
+      orderId: order?.id ?? null,
+      publicNumber: order?.publicNumber ?? null,
+      totalCents: order?.totalCents ?? null,
+      items: order?.items?.length ?? null,
+      deliveryMethod: order?.deliveryMethod ?? null,
+    },
+  });
+  return order;
 }
 
 export async function updateOrder(orderId, input, actor) {
-  return serializableTransaction(
+  let statusChange = null;
+  const updatedOrder = await serializableTransaction(
     prisma,
     async (tx) => {
       const order = await tx.order.findFirst({
@@ -401,9 +415,16 @@ export async function updateOrder(orderId, input, actor) {
           itemCount: updated.items.length,
         },
       });
+      statusChange = { from: before.status, to: updated.status };
       return updated;
     },
   );
+  if (statusChange && statusChange.from !== statusChange.to)
+    logInfo("order.status_changed", `Pedido ${updatedOrder?.publicNumber ?? updatedOrder?.id}: ${statusChange.from} → ${statusChange.to}`, {
+      actorId: actor.id,
+      data: { orderId: updatedOrder?.id ?? orderId, ...statusChange },
+    });
+  return updatedOrder;
 }
 
 export async function archiveOrder(orderId, actor) {
@@ -413,8 +434,8 @@ export async function archiveOrder(orderId, actor) {
   if (!existing) throw notFound("Pedido não encontrado.");
   if (existing.status === "NOVO" || existing.status === "CONFIRMADO")
     await updateOrder(orderId, { status: "CANCELADO" }, actor);
-  return prisma.$transaction(async (tx) => {
-    const archived = await tx.order.update({
+  const archived = await prisma.$transaction(async (tx) => {
+    const archivedOrder = await tx.order.update({
       where: { id: orderId },
       data: { archivedAt: new Date(), archivedById: actor.id },
     });
@@ -425,6 +446,11 @@ export async function archiveOrder(orderId, actor) {
       entityId: orderId,
       action: "ARCHIVED",
     });
-    return archived;
+    return archivedOrder;
   });
+  logInfo("order.archived", `Pedido ${archived?.publicNumber ?? orderId} arquivado`, {
+    actorId: actor.id,
+    data: { orderId: archived?.id ?? orderId, publicNumber: archived?.publicNumber ?? null },
+  });
+  return archived;
 }

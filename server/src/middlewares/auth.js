@@ -1,6 +1,7 @@
 import { prisma } from "../db/prisma.js";
 import { env } from "../config/env.js";
 import { hashSessionToken } from "../lib/security.js";
+import { patchTrace } from "../lib/trace-context.js";
 import { forbidden, unauthorized } from "../lib/errors.js";
 
 export async function attachUser(req, _res, next) {
@@ -14,7 +15,10 @@ export async function attachUser(req, _res, next) {
     },
     include: { user: true },
   });
-  if (session?.user.active) req.user = session.user;
+  if (session?.user.active) {
+    req.user = session.user;
+    patchTrace({ actorId: session.user.id });
+  }
   next();
 }
 

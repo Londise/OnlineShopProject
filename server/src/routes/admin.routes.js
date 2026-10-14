@@ -3,6 +3,7 @@ import { addProductImage, addProductOption, createProduct, listAdminProducts, up
 import { adjustInventory, catalogMetadata, createBanner, createCategory, createStaff, createVariantOption, listAdminBanners, listInventory, listStaff, updateBanner, updateCategory, updateVariantOption } from '../controllers/admin.controller.js';
 import { listMedia, receiveImage, siteMedia, updateImage, uploadImage, uploadLimit } from '../controllers/media.controller.js';
 import { archive, getAdmin, listAdmin, update } from '../controllers/order.controller.js';
+import { logsRouter } from './logs.routes.js';
 import { requireRoles } from '../middlewares/auth.js';
 import { validate } from '../middlewares/validate.js';
 import { bannerSchema, categorySchema, createStaffSchema, inventoryAdjustmentSchema, productImageSchema, productOptionPatchSchema, productOptionSchema, productPatchSchema, productSchema, productVariantPatchSchema, variantOptionSchema } from '../schemas/admin.schemas.js';
@@ -18,6 +19,7 @@ adminRouter.get('/inventory', listInventory);
 adminRouter.post('/inventory/:variantId/adjust', validate(inventoryAdjustmentSchema), adjustInventory);
 
 adminRouter.use(requireRoles('ADMIN'));
+adminRouter.use('/logs', logsRouter);
 adminRouter.get('/catalog-metadata', catalogMetadata);
 adminRouter.post('/categories', validate(categorySchema), createCategory);
 adminRouter.patch('/categories/:id', validate(categorySchema.partial()), updateCategory);
