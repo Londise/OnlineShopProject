@@ -1,0 +1,302 @@
+{
+  "bucket": "storefront-images",
+  "files": [
+    {
+      "source": "hero.jpeg",
+      "storagePath": "banner/site/193ee31e1d87accc65be7f88cdf557a06d918c1d683ec2fb1b5a3367e7be9fb8.jpeg",
+      "url": "https://itqzotexupaawiofqltc.supabase.co/storage/v1/object/public/storefront-images/banner/site/193ee31e1d87accc65be7f88cdf557a06d918c1d683ec2fb1b5a3367e7be9fb8.jpeg",
+      "purpose": "banner",
+      "mimeType": "image/jpeg",
+      "width": 1600,
+      "height": 750,
+      "byteSize": 75479,
+      "checksumSha256": "193ee31e1d87accc65be7f88cdf557a06d918c1d683ec2fb1b5a3367e7be9fb8"
+    },
+    {
+      "source": "logoferchumodas.jpeg",
+      "storagePath": "favicon/site/d332e5ff0fd73e8142e032db745a79269867aca43d420560262b7c7dddceb5a0.jpeg",
+      "url": "https://itqzotexupaawiofqltc.supabase.co/storage/v1/object/public/storefront-images/favicon/site/d332e5ff0fd73e8142e032db745a79269867aca43d420560262b7c7dddceb5a0.jpeg",
+      "purpose": "favicon",
+      "mimeType": "image/jpeg",
+      "width": 756,
+      "height": 755,
+      "byteSize": 47155,
+      "checksumSha256": "d332e5ff0fd73e8142e032db745a79269867aca43d420560262b7c7dddceb5a0"
+    },
+    {
+      "source": "products/bermuda_linho/bermudalinhomodelo1.jpeg",
+      "storagePath": "product/cmso46c8x007wuvvc622a1rlh/f615ad2475df5821fb921beb0b584f7221145a6a6fd5818744255e2864aa5e4c.jpeg",
+      "url": "https://itqzotexupaawiofqltc.supabase.co/storage/v1/object/public/storefront-images/product/cmso46c8x007wuvvc622a1rlh/f615ad2475df5821fb921beb0b584f7221145a6a6fd5818744255e2864aa5e4c.jpeg",
+      "purpose": "product",
+      "mimeType": "image/jpeg",
+      "width": 1066,
+      "height": 1600,
+      "byteSize": 104437,
+      "checksumSha256": "f615ad2475df5821fb921beb0b584f7221145a6a6fd5818744255e2864aa5e4c"
+    },
+    {
+      "source": "products/bermuda_linho/bermudalinhomodelo2.jpeg",
+      "storagePath": "product/cmso46c8x007wuvvc622a1rlh/8694f9a0cd6fad9673a3822bed3ebd8326bc8f843bd0ac9d06857f086594c8f6.jpeg",
+      "url": "https://itqzotexupaawiofqltc.supabase.co/storage/v1/object/public/storefront-images/product/cmso46c8x007wuvvc622a1rlh/8694f9a0cd6fad9673a3822bed3ebd8326bc8f843bd0ac9d06857f086594c8f6.jpeg",
+      "purpose": "product",
+      "mimeType": "image/jpeg",
+      "width": 1066,
+      "height": 1600,
+      "byteSize": 163397,
+      "checksumSha256": "8694f9a0cd6fad9673a3822bed3ebd8326bc8f843bd0ac9d06857f086594c8f6"
+    },
+    {
+      "source": "products/bermuda_linho/bermudalinhomodelo3.jpeg",
+      "storagePath": "product/cmso46c8x007wuvvc622a1rlh/91cc998b4fabdf542b841adf333e1ceb006f1f3808e85537acfacc6ce9891ba5.jpeg",
+      "url": "https://itqzotexupaawiofqltc.supabase.co/storage/v1/object/public/storefront-images/product/cmso46c8x007wuvvc622a1rlh/91cc998b4fabdf542b841adf333e1ceb006f1f3808e85537acfacc6ce9891ba5.jpeg",
+      "purpose": "product",
+      "mimeType": "image/jpeg",
+      "width": 1066,
+      "height": 1600,
+      "byteSize": 169533,
+      "checksumSha256": "91cc998b4fabdf542b841adf333e1ceb006f1f3808e85537acfacc6ce9891ba5"
+    },
+    {
+      "source": "products/bermuda_linho/bermudalinhomodelo4.jpeg",
+      "storagePath": "product/cmso46c8x007wuvvc622a1rlh/be10bfc51c8823a13f3127385bd21e245e4a54f049306e62f7cc7f64ccfeff2c.jpeg",
+      "url": "https://itqzotexupaawiofqltc.supabase.co/storage/v1/object/public/storefront-images/product/cmso46c8x007wuvvc622a1rlh/be10bfc51c8823a13f3127385bd21e245e4a54f049306e62f7cc7f64ccfeff2c.jpeg",
+      "purpose": "product",
+      "mimeType": "image/jpeg",
+      "width": 1066,
+      "height": 1600,
+      "byteSize": 166225,
+      "checksumSha256": "be10bfc51c8823a13f3127385bd21e245e4a54f049306e62f7cc7f64ccfeff2c"
+    },
+    {
+      "source": "products/bermuda_viscolycra_lisa/bermudaviscolycralisapeca1.jpeg",
+      "storagePath": "product/cmso46d5t00csuvvcqu1l862a/d1a31cc7766bf87291479e3d0bf294f7d0b7012d74b09fc6a2088b61ec3c871f.jpeg",
+      "url": "https://itqzotexupaawiofqltc.supabase.co/storage/v1/object/public/storefront-images/product/cmso46d5t00csuvvcqu1l862a/d1a31cc7766bf87291479e3d0bf294f7d0b7012d74b09fc6a2088b61ec3c871f.jpeg",
+      "purpose": "product",
+      "mimeType": "image/jpeg",
+      "width": 1600,
+      "height": 1600,
+      "byteSize": 247862,
+      "checksumSha256": "d1a31cc7766bf87291479e3d0bf294f7d0b7012d74b09fc6a2088b61ec3c871f"
+    },
+    {
+      "source": "products/calca_linho/calcalinhomodelo1.jpeg",
+      "storagePath": "product/cmso46bjk0036uvvcpxrmqivj/0df43a8721fe4806a2f4bb67bfc2e5e1c4437ba65b1bea4d48fc54591bee1029.jpeg",
+      "url": "https://itqzotexupaawiofqltc.supabase.co/storage/v1/object/public/storefront-images/product/cmso46bjk0036uvvcpxrmqivj/0df43a8721fe4806a2f4bb67bfc2e5e1c4437ba65b1bea4d48fc54591bee1029.jpeg",
+      "purpose": "product",
+      "mimeType": "image/jpeg",
+      "width": 1066,
+      "height": 1600,
+      "byteSize": 159547,
+      "checksumSha256": "0df43a8721fe4806a2f4bb67bfc2e5e1c4437ba65b1bea4d48fc54591bee1029"
+    },
+    {
+      "source": "products/calca_linho/calcalinhomodelo2.jpeg",
+      "storagePath": "product/cmso46bjk0036uvvcpxrmqivj/e84fc56b0cf133f334c4f8fefbbf6efcb9236bb423b0e8ad9ae5e23948c53cdc.jpeg",
+      "url": "https://itqzotexupaawiofqltc.supabase.co/storage/v1/object/public/storefront-images/product/cmso46bjk0036uvvcpxrmqivj/e84fc56b0cf133f334c4f8fefbbf6efcb9236bb423b0e8ad9ae5e23948c53cdc.jpeg",
+      "purpose": "product",
+      "mimeType": "image/jpeg",
+      "width": 1066,
+      "height": 1600,
+      "byteSize": 158119,
+      "checksumSha256": "e84fc56b0cf133f334c4f8fefbbf6efcb9236bb423b0e8ad9ae5e23948c53cdc"
+    },
+    {
+      "source": "products/calca_linho/calcalinhomodelo3.jpeg",
+      "storagePath": "product/cmso46bjk0036uvvcpxrmqivj/8e68d50c0ead605b3185247b749f87955f1c0172a49cdf5efcad558e06b4d9f0.jpeg",
+      "url": "https://itqzotexupaawiofqltc.supabase.co/storage/v1/object/public/storefront-images/product/cmso46bjk0036uvvcpxrmqivj/8e68d50c0ead605b3185247b749f87955f1c0172a49cdf5efcad558e06b4d9f0.jpeg",
+      "purpose": "product",
+      "mimeType": "image/jpeg",
+      "width": 1066,
+      "height": 1600,
+      "byteSize": 161528,
+      "checksumSha256": "8e68d50c0ead605b3185247b749f87955f1c0172a49cdf5efcad558e06b4d9f0"
+    },
+    {
+      "source": "products/calca_viscolycra_estampada/calcaestampadamodelo1.jpeg",
+      "storagePath": "product/cmso46bi4002tuvvcotp0av2f/11fc58457105b016b3a2ec03a222beb76905b549d52e7e3e1c6f48183dbad800.jpeg",
+      "url": "https://itqzotexupaawiofqltc.supabase.co/storage/v1/object/public/storefront-images/product/cmso46bi4002tuvvcotp0av2f/11fc58457105b016b3a2ec03a222beb76905b549d52e7e3e1c6f48183dbad800.jpeg",
+      "purpose": "product",
+      "mimeType": "image/jpeg",
+      "width": 1066,
+      "height": 1600,
+      "byteSize": 179219,
+      "checksumSha256": "11fc58457105b016b3a2ec03a222beb76905b549d52e7e3e1c6f48183dbad800"
+    },
+    {
+      "source": "products/calca_viscolycra_estampada/calcaestampadamodelo2.jpeg",
+      "storagePath": "product/cmso46bi4002tuvvcotp0av2f/a66591040f2f33d54036214afe1d76eaf3f42277523fe11c6d4124c5db60c51b.jpeg",
+      "url": "https://itqzotexupaawiofqltc.supabase.co/storage/v1/object/public/storefront-images/product/cmso46bi4002tuvvcotp0av2f/a66591040f2f33d54036214afe1d76eaf3f42277523fe11c6d4124c5db60c51b.jpeg",
+      "purpose": "product",
+      "mimeType": "image/jpeg",
+      "width": 1066,
+      "height": 1600,
+      "byteSize": 176819,
+      "checksumSha256": "a66591040f2f33d54036214afe1d76eaf3f42277523fe11c6d4124c5db60c51b"
+    },
+    {
+      "source": "products/calca_viscolycra_estampada/calcaestampadamodelo3.jpeg",
+      "storagePath": "product/cmso46bi4002tuvvcotp0av2f/939de779ca3e971e130ea31338ea18aa334e99fb76110f9cadd7dbbd900c2f77.jpeg",
+      "url": "https://itqzotexupaawiofqltc.supabase.co/storage/v1/object/public/storefront-images/product/cmso46bi4002tuvvcotp0av2f/939de779ca3e971e130ea31338ea18aa334e99fb76110f9cadd7dbbd900c2f77.jpeg",
+      "purpose": "product",
+      "mimeType": "image/jpeg",
+      "width": 1066,
+      "height": 1600,
+      "byteSize": 189069,
+      "checksumSha256": "939de779ca3e971e130ea31338ea18aa334e99fb76110f9cadd7dbbd900c2f77"
+    },
+    {
+      "source": "products/calca_viscolycra_lisa/calcaviscolycrafotomodelo1.jpeg",
+      "storagePath": "product/cmso46awe000buvvcp2y9adhg/803efa013d8777573bdf576dd68a7884736502aeb704bf1235904e23486cf5b8.jpeg",
+      "url": "https://itqzotexupaawiofqltc.supabase.co/storage/v1/object/public/storefront-images/product/cmso46awe000buvvcp2y9adhg/803efa013d8777573bdf576dd68a7884736502aeb704bf1235904e23486cf5b8.jpeg",
+      "purpose": "product",
+      "mimeType": "image/jpeg",
+      "width": 1066,
+      "height": 1600,
+      "byteSize": 161544,
+      "checksumSha256": "803efa013d8777573bdf576dd68a7884736502aeb704bf1235904e23486cf5b8"
+    },
+    {
+      "source": "products/calca_viscolycra_lisa/calcaviscolycrafotomodelo2.jpeg",
+      "storagePath": "product/cmso46awe000buvvcp2y9adhg/1f9f0ebc7086653577a5455cca1e6da0ab1093f3f7c2e5786f90963bce47efdd.jpeg",
+      "url": "https://itqzotexupaawiofqltc.supabase.co/storage/v1/object/public/storefront-images/product/cmso46awe000buvvcp2y9adhg/1f9f0ebc7086653577a5455cca1e6da0ab1093f3f7c2e5786f90963bce47efdd.jpeg",
+      "purpose": "product",
+      "mimeType": "image/jpeg",
+      "width": 1066,
+      "height": 1600,
+      "byteSize": 162985,
+      "checksumSha256": "1f9f0ebc7086653577a5455cca1e6da0ab1093f3f7c2e5786f90963bce47efdd"
+    },
+    {
+      "source": "products/calca_viscolycra_lisa/calcaviscolycrafotomodelo3.jpeg",
+      "storagePath": "product/cmso46awe000buvvcp2y9adhg/7e3499bed0c68cb3cf8c8e986d57e5e4bce2dfe7534199b9a8c43a8c450b3eaf.jpeg",
+      "url": "https://itqzotexupaawiofqltc.supabase.co/storage/v1/object/public/storefront-images/product/cmso46awe000buvvcp2y9adhg/7e3499bed0c68cb3cf8c8e986d57e5e4bce2dfe7534199b9a8c43a8c450b3eaf.jpeg",
+      "purpose": "product",
+      "mimeType": "image/jpeg",
+      "width": 1600,
+      "height": 1600,
+      "byteSize": 199222,
+      "checksumSha256": "7e3499bed0c68cb3cf8c8e986d57e5e4bce2dfe7534199b9a8c43a8c450b3eaf"
+    },
+    {
+      "source": "products/capri_estampada/capriestampadamodelo1.jpeg",
+      "storagePath": "product/cmso46cp400a6uvvcyc6qfsgi/78af8c279cc175b4cbd0e40a9b084ce9c13f14aa619982307ca1a5a9aa24e81c.jpeg",
+      "url": "https://itqzotexupaawiofqltc.supabase.co/storage/v1/object/public/storefront-images/product/cmso46cp400a6uvvcyc6qfsgi/78af8c279cc175b4cbd0e40a9b084ce9c13f14aa619982307ca1a5a9aa24e81c.jpeg",
+      "purpose": "product",
+      "mimeType": "image/jpeg",
+      "width": 1066,
+      "height": 1600,
+      "byteSize": 134404,
+      "checksumSha256": "78af8c279cc175b4cbd0e40a9b084ce9c13f14aa619982307ca1a5a9aa24e81c"
+    },
+    {
+      "source": "products/capri_estampada/capriestampadamodelo2.jpeg",
+      "storagePath": "product/cmso46cp400a6uvvcyc6qfsgi/b5bba216ec2ff73b96633d040b28dd4647d2546c04a14ac2325dd807f2e7a20b.jpeg",
+      "url": "https://itqzotexupaawiofqltc.supabase.co/storage/v1/object/public/storefront-images/product/cmso46cp400a6uvvcyc6qfsgi/b5bba216ec2ff73b96633d040b28dd4647d2546c04a14ac2325dd807f2e7a20b.jpeg",
+      "purpose": "product",
+      "mimeType": "image/jpeg",
+      "width": 1066,
+      "height": 1600,
+      "byteSize": 168368,
+      "checksumSha256": "b5bba216ec2ff73b96633d040b28dd4647d2546c04a14ac2325dd807f2e7a20b"
+    },
+    {
+      "source": "products/capri_estampada/capriestampadamodelo3.jpeg",
+      "storagePath": "product/cmso46cp400a6uvvcyc6qfsgi/6caee2b2879ffd675a5e0e5b418cc5d6910d50aa723439defc4913f02cd0905c.jpeg",
+      "url": "https://itqzotexupaawiofqltc.supabase.co/storage/v1/object/public/storefront-images/product/cmso46cp400a6uvvcyc6qfsgi/6caee2b2879ffd675a5e0e5b418cc5d6910d50aa723439defc4913f02cd0905c.jpeg",
+      "purpose": "product",
+      "mimeType": "image/jpeg",
+      "width": 1066,
+      "height": 1600,
+      "byteSize": 175799,
+      "checksumSha256": "6caee2b2879ffd675a5e0e5b418cc5d6910d50aa723439defc4913f02cd0905c"
+    },
+    {
+      "source": "products/capri_estampada/capriestampadamodelo4.jpeg",
+      "storagePath": "product/cmso46cp400a6uvvcyc6qfsgi/8d98bfa8056e93babbeadcc5611a45411519fc4ba20919491651ef895ecee694.jpeg",
+      "url": "https://itqzotexupaawiofqltc.supabase.co/storage/v1/object/public/storefront-images/product/cmso46cp400a6uvvcyc6qfsgi/8d98bfa8056e93babbeadcc5611a45411519fc4ba20919491651ef895ecee694.jpeg",
+      "purpose": "product",
+      "mimeType": "image/jpeg",
+      "width": 1066,
+      "height": 1600,
+      "byteSize": 175292,
+      "checksumSha256": "8d98bfa8056e93babbeadcc5611a45411519fc4ba20919491651ef895ecee694"
+    },
+    {
+      "source": "products/fotobermudalinho.jpeg",
+      "storagePath": "library/site/6aad2adb7378f9f9715022270911410199aed341fba487e3d6f4ced11ad1f018.jpeg",
+      "url": "https://itqzotexupaawiofqltc.supabase.co/storage/v1/object/public/storefront-images/library/site/6aad2adb7378f9f9715022270911410199aed341fba487e3d6f4ced11ad1f018.jpeg",
+      "purpose": "library",
+      "mimeType": "image/jpeg",
+      "width": 1024,
+      "height": 1280,
+      "byteSize": 89749,
+      "checksumSha256": "6aad2adb7378f9f9715022270911410199aed341fba487e3d6f4ced11ad1f018"
+    },
+    {
+      "source": "products/fotomodelocalcaviscolycra.jpeg",
+      "storagePath": "library/site/2f83b04705e30cea0b1b9325bacc9aa470e510709060855d2c70d54aa1a5d150.jpeg",
+      "url": "https://itqzotexupaawiofqltc.supabase.co/storage/v1/object/public/storefront-images/library/site/2f83b04705e30cea0b1b9325bacc9aa470e510709060855d2c70d54aa1a5d150.jpeg",
+      "purpose": "library",
+      "mimeType": "image/jpeg",
+      "width": 801,
+      "height": 1068,
+      "byteSize": 81062,
+      "checksumSha256": "2f83b04705e30cea0b1b9325bacc9aa470e510709060855d2c70d54aa1a5d150"
+    },
+    {
+      "source": "products/fotopantacurcapa.jpeg",
+      "storagePath": "library/site/25a2ed86add94640060d9914906b40670e53a195f0c5725e86b3fcf63c934aa9.jpeg",
+      "url": "https://itqzotexupaawiofqltc.supabase.co/storage/v1/object/public/storefront-images/library/site/25a2ed86add94640060d9914906b40670e53a195f0c5725e86b3fcf63c934aa9.jpeg",
+      "purpose": "library",
+      "mimeType": "image/jpeg",
+      "width": 1080,
+      "height": 1080,
+      "byteSize": 154460,
+      "checksumSha256": "25a2ed86add94640060d9914906b40670e53a195f0c5725e86b3fcf63c934aa9"
+    },
+    {
+      "source": "products/pantacourt_linho/pantacourtlinhomodelo1.jpeg",
+      "storagePath": "product/cmso46bvn005muvvcc6b4uu3s/dc347931138a2da29bab80b40c5b76c6b1c1e2d5026bef8762f500b6944fce30.jpeg",
+      "url": "https://itqzotexupaawiofqltc.supabase.co/storage/v1/object/public/storefront-images/product/cmso46bvn005muvvcc6b4uu3s/dc347931138a2da29bab80b40c5b76c6b1c1e2d5026bef8762f500b6944fce30.jpeg",
+      "purpose": "product",
+      "mimeType": "image/jpeg",
+      "width": 1066,
+      "height": 1600,
+      "byteSize": 159638,
+      "checksumSha256": "dc347931138a2da29bab80b40c5b76c6b1c1e2d5026bef8762f500b6944fce30"
+    },
+    {
+      "source": "products/pantacourt_linho/pantacourtlinhomodelo2.jpeg",
+      "storagePath": "product/cmso46bvn005muvvcc6b4uu3s/f7f6463b02817fb88b1b70bfe64a5b81c68d6525b68fa1964724b59205ab4c8a.jpeg",
+      "url": "https://itqzotexupaawiofqltc.supabase.co/storage/v1/object/public/storefront-images/product/cmso46bvn005muvvcc6b4uu3s/f7f6463b02817fb88b1b70bfe64a5b81c68d6525b68fa1964724b59205ab4c8a.jpeg",
+      "purpose": "product",
+      "mimeType": "image/jpeg",
+      "width": 1066,
+      "height": 1600,
+      "byteSize": 162094,
+      "checksumSha256": "f7f6463b02817fb88b1b70bfe64a5b81c68d6525b68fa1964724b59205ab4c8a"
+    },
+    {
+      "source": "products/pantacourt_linho/pantacourtlinhomodelo3.jpeg",
+      "storagePath": "product/cmso46bvn005muvvcc6b4uu3s/6c0cb484c2e77a66e53ddea29c5f61448ff45ec55e373c33cf11b1bab95d051e.jpeg",
+      "url": "https://itqzotexupaawiofqltc.supabase.co/storage/v1/object/public/storefront-images/product/cmso46bvn005muvvcc6b4uu3s/6c0cb484c2e77a66e53ddea29c5f61448ff45ec55e373c33cf11b1bab95d051e.jpeg",
+      "purpose": "product",
+      "mimeType": "image/jpeg",
+      "width": 1066,
+      "height": 1600,
+      "byteSize": 157835,
+      "checksumSha256": "6c0cb484c2e77a66e53ddea29c5f61448ff45ec55e373c33cf11b1bab95d051e"
+    },
+    {
+      "source": "products/shortviscolycra.png",
+      "storagePath": "product/cmso46cpw00aiuvvc8ruklqj0/755fb487dd96255b2a2967829522b423ab5a61a77b9f15c6ea2b68b26446f648.png",
+      "url": "https://itqzotexupaawiofqltc.supabase.co/storage/v1/object/public/storefront-images/product/cmso46cpw00aiuvvc8ruklqj0/755fb487dd96255b2a2967829522b423ab5a61a77b9f15c6ea2b68b26446f648.png",
+      "purpose": "product",
+      "mimeType": "image/png",
+      "width": 595,
+      "height": 595,
+      "byteSize": 684586,
+      "checksumSha256": "755fb487dd96255b2a2967829522b423ab5a61a77b9f15c6ea2b68b26446f648"
+    }
+  ]
+}

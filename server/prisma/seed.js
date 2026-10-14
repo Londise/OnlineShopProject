@@ -1,8 +1,5 @@
-import "dotenv/config";
 import argon2 from "argon2";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "../src/db/prisma.js";
 
 const catalog = [
   {

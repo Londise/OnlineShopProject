@@ -1,10 +1,11 @@
 import { Router } from 'express';
 import { addProductImage, addProductOption, createProduct, listAdminProducts, updateProduct, updateProductOption, updateProductVariant } from '../controllers/catalog.controller.js';
-import { adjustInventory, catalogMetadata, createBanner, createCategory, createMediaAsset, createStaff, createVariantOption, listAdminBanners, listInventory, listStaff, signedUpload, updateBanner, updateCategory, updateVariantOption } from '../controllers/admin.controller.js';
+import { adjustInventory, catalogMetadata, createBanner, createCategory, createStaff, createVariantOption, listAdminBanners, listInventory, listStaff, updateBanner, updateCategory, updateVariantOption } from '../controllers/admin.controller.js';
+import { listMedia, receiveImage, siteMedia, updateImage, uploadImage, uploadLimit } from '../controllers/media.controller.js';
 import { archive, getAdmin, listAdmin, update } from '../controllers/order.controller.js';
 import { requireRoles } from '../middlewares/auth.js';
 import { validate } from '../middlewares/validate.js';
-import { bannerSchema, categorySchema, createStaffSchema, inventoryAdjustmentSchema, mediaAssetSchema, productImageSchema, productOptionPatchSchema, productOptionSchema, productPatchSchema, productSchema, productVariantPatchSchema, variantOptionSchema } from '../schemas/admin.schemas.js';
+import { bannerSchema, categorySchema, createStaffSchema, inventoryAdjustmentSchema, productImageSchema, productOptionPatchSchema, productOptionSchema, productPatchSchema, productSchema, productVariantPatchSchema, variantOptionSchema } from '../schemas/admin.schemas.js';
 import { updateOrderSchema } from '../schemas/order.schemas.js';
 
 export const adminRouter = Router();
@@ -31,8 +32,10 @@ adminRouter.patch('/products/:id/variants/:variantId', validate(productVariantPa
 adminRouter.post('/products/:id/images', validate(productImageSchema), addProductImage);
 adminRouter.get('/users/staff', listStaff);
 adminRouter.post('/users/staff', validate(createStaffSchema), createStaff);
-adminRouter.post('/uploads/signature', signedUpload);
-adminRouter.post('/media-assets', validate(mediaAssetSchema), createMediaAsset);
+adminRouter.post('/uploads', uploadLimit, receiveImage, uploadImage);
+adminRouter.get('/media-assets', listMedia);
+adminRouter.patch('/product-images/:id', updateImage);
+adminRouter.get('/site-media', siteMedia);
 adminRouter.get('/banners', listAdminBanners);
 adminRouter.post('/banners', validate(bannerSchema), createBanner);
 adminRouter.patch('/banners/:id', validate(bannerSchema.partial()), updateBanner);

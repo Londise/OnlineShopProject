@@ -1,17 +1,11 @@
 import argon2 from "argon2";
-import { v2 as cloudinary } from "cloudinary";
 import { prisma } from "../db/prisma.js";
-import { env } from "../config/env.js";
+import { lockInventories } from "../db/inventory.js";
+import { serializableTransaction } from "../db/transaction.js";
 import { asyncHandler } from "../lib/async-handler.js";
 import { AppError, notFound } from "../lib/errors.js";
 import { normalizeEmail } from "../lib/security.js";
 import { writeAudit } from "../services/audit.service.js";
-
-cloudinary.config({
-  cloud_name: env.CLOUDINARY_CLOUD_NAME,
-  api_key: env.CLOUDINARY_API_KEY,
-  api_secret: env.CLOUDINARY_API_SECRET,
-});
 
 export const catalogMetadata = asyncHandler(async (_req, res) => {
   const [categories, options, sizes] = await Promise.all([
@@ -120,10 +114,8 @@ export const listInventory = asyncHandler(async (_req, res) => {
 export const adjustInventory = asyncHandler(async (req, res) => {
   const { variantId } = req.params;
   const { delta, reason } = req.body;
-  const level = await prisma.$transaction(async (tx) => {
-    const current = await tx.inventoryLevel.findUnique({
-      where: { variantId },
-    });
+  const level = await serializableTransaction(prisma, async (tx) => {
+    const current = (await lockInventories(tx, [variantId])).get(variantId);
     if (!current) throw notFound("Variação de estoque não encontrada.");
     const onHand = current.onHand + delta;
     if (onHand < current.reserved)
@@ -202,46 +194,6 @@ export const listStaff = asyncHandler(async (_req, res) => {
     orderBy: { createdAt: "desc" },
   });
   res.json({ users });
-});
-
-export const createMediaAsset = asyncHandler(async (req, res) => {
-  const asset = await prisma.mediaAsset.create({ data: req.body });
-  await prisma.$transaction((tx) =>
-    writeAudit(tx, {
-      actorId: req.user.id,
-      entityType: "MEDIA_ASSET",
-      entityId: asset.id,
-      action: "CREATED",
-      afterJson: { url: asset.url },
-    }),
-  );
-  res.status(201).json({ asset });
-});
-
-export const signedUpload = asyncHandler(async (_req, res) => {
-  if (
-    !env.CLOUDINARY_CLOUD_NAME ||
-    !env.CLOUDINARY_API_KEY ||
-    !env.CLOUDINARY_API_SECRET
-  )
-    throw new AppError(
-      503,
-      "UPLOAD_UNAVAILABLE",
-      "Cloudinary ainda não foi configurado.",
-    );
-  const timestamp = Math.floor(Date.now() / 1000);
-  const folder = "ferchu-modas";
-  const signature = cloudinary.utils.api_sign_request(
-    { timestamp, folder },
-    env.CLOUDINARY_API_SECRET,
-  );
-  res.json({
-    cloudName: env.CLOUDINARY_CLOUD_NAME,
-    apiKey: env.CLOUDINARY_API_KEY,
-    timestamp,
-    folder,
-    signature,
-  });
 });
 
 export const listAdminBanners = asyncHandler(async (_req, res) =>

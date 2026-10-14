@@ -4,7 +4,7 @@ import { AppError, notFound } from "../lib/errors.js";
 import { writeAudit } from "../services/audit.service.js";
 
 const productInclude = {
-  category: true,
+  category: { include: { imageAsset: true } },
   images: {
     include: { asset: true },
     orderBy: [{ type: "asc" }, { sortOrder: "asc" }],
@@ -25,7 +25,7 @@ const productInclude = {
 };
 
 const adminProductInclude = {
-  category: true,
+  category: { include: { imageAsset: true } },
   images: {
     include: { asset: true },
     orderBy: [{ type: "asc" }, { sortOrder: "asc" }],
@@ -47,6 +47,7 @@ const presentProduct = (product) => ({
   id: product.id,
   slug: product.slug,
   name: product.name,
+  active: product.active,
   description: product.description,
   material: product.material,
   priceCents: product.priceCents,
@@ -55,6 +56,7 @@ const presentProduct = (product) => ({
     id: product.category.id,
     name: product.category.name,
     slug: product.category.slug,
+    imageUrl: product.category.imageAsset?.url ?? null,
   },
   images: product.images.map((image) => ({
     id: image.id,

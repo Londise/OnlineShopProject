@@ -1,5 +1,7 @@
-import { Prisma } from "@prisma/client";
 import { prisma } from "../db/prisma.js";
+import { lockInventories } from "../db/inventory.js";
+import { serializableTransaction } from "../db/transaction.js";
+import { MIN_ORDER_QUANTITY } from "../config/business.js";
 import { AppError, notFound } from "../lib/errors.js";
 import { publicOrderNumber } from "../lib/security.js";
 import { calculateShipping } from "./shipping.service.js";
@@ -31,22 +33,6 @@ const aggregateItems = (items) =>
       return map;
     }, new Map()),
   ].map(([variantId, quantity]) => ({ variantId, quantity }));
-
-async function lockInventories(tx, variantIds) {
-  if (!variantIds.length) return new Map();
-  const rows = await tx.$queryRaw(Prisma.sql`
-    SELECT variant_id AS variantId, on_hand AS onHand, reserved
-    FROM inventory_levels
-    WHERE variant_id IN (${Prisma.join(variantIds)})
-    FOR UPDATE
-  `);
-  return new Map(
-    rows.map((row) => [
-      row.variantId,
-      { onHand: Number(row.onHand), reserved: Number(row.reserved) },
-    ]),
-  );
-}
 
 async function loadActiveVariants(tx, items) {
   const variantIds = items.map((item) => item.variantId);
@@ -199,9 +185,10 @@ async function moveForStatus(
 
 export async function createOrder(input, user) {
   const items = aggregateItems(input.items);
-  if (items.reduce((total, item) => total + item.quantity, 0) < 20)
-    throw new AppError(422, "MINIMUM_ORDER", "O pedido mínimo é de 20 peças.");
-  return prisma.$transaction(
+  if (items.reduce((total, item) => total + item.quantity, 0) < MIN_ORDER_QUANTITY)
+    throw new AppError(422, "MINIMUM_ORDER", `O pedido mínimo é de ${MIN_ORDER_QUANTITY} peças.`);
+  return serializableTransaction(
+    prisma,
     async (tx) => {
       const variants = await loadActiveVariants(tx, items);
       const stock = await lockInventories(
@@ -275,12 +262,12 @@ export async function createOrder(input, user) {
       });
       return order;
     },
-    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
   );
 }
 
 export async function updateOrder(orderId, input, actor) {
-  return prisma.$transaction(
+  return serializableTransaction(
+    prisma,
     async (tx) => {
       const order = await tx.order.findFirst({
         where: { id: orderId, archivedAt: null },
@@ -297,12 +284,12 @@ export async function updateOrder(orderId, input, actor) {
       const requested = input.items ? aggregateItems(input.items) : null;
       if (
         requested &&
-        requested.reduce((total, item) => total + item.quantity, 0) < 20
+        requested.reduce((total, item) => total + item.quantity, 0) < MIN_ORDER_QUANTITY
       ) {
         throw new AppError(
           422,
           "MINIMUM_ORDER",
-          "O pedido mÃ­nimo Ã© de 20 peÃ§as.",
+          `O pedido mínimo é de ${MIN_ORDER_QUANTITY} peças.`,
         );
       }
       requested?.forEach((item) => itemIds.add(item.variantId));
@@ -416,7 +403,6 @@ export async function updateOrder(orderId, input, actor) {
       });
       return updated;
     },
-    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
   );
 }
 
