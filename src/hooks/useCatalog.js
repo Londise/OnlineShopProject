@@ -1,82 +1,33 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  products as localProducts,
-  categories as localCategories,
-} from "../data/products";
 import { api } from "../services/api";
-
-const localBySlug = new Map(
-  localProducts.map((product) => [product.id, product]),
-);
+import { IMAGE_PLACEHOLDER } from "../config/media";
 
 function mapProduct(product) {
-  const fallback =
-    localBySlug.get(product.slug) ??
-    localProducts.find((candidate) => candidate.name === product.name);
-
-    const newProductObject = {
-      id: product.id,
-      slug: product.slug,
-      name: product.name,
-      category: product.category.name,
-      material: product.material,
-      price: product.priceCents / 100,
-      weight: product.weightGrams / 1000,
-      image: product.images[0]?.url ?? fallback?.image,
-      images: product.images.length
-        ? product.images.map((image) => image.url)
-        : (fallback?.images ?? []),
-      options: product.options.map((option) => ({
-        name: option.name,
-        image:
-          product.images.find((image) => image.productOptionId === option.id)
-            ?.url ?? null,
-        variants: option.variants.map((variant) => ({
-          id: variant.id,
-          sku: variant.sku,
-          size: variant.size,
-          price: variant.priceCents / 100,
-          // Protege contra eventual falha caso o backend retorne uma disponibilidade negativa para a variante
-          available: Math.max(0, variant.available),
-        })),
-      }))
-    }
-
-    console.log(newProductObject)
-
-  return newProductObject;
-
+  const image = product.images.find(item => item.type === "PRIMARY")?.url ?? product.images[0]?.url ?? IMAGE_PLACEHOLDER;
+  return {
+    id: product.id, slug: product.slug, name: product.name, category: product.category.name,
+    categoryImage: product.category.imageUrl, material: product.material,
+    price: product.priceCents / 100, weight: product.weightGrams / 1000,
+    image, images: product.images.length ? product.images.map(item => item.url) : [IMAGE_PLACEHOLDER],
+    options: product.options.map(option => ({
+      name: option.name, image: option.imageUrl ?? product.images.find(item => item.productOptionId === option.id)?.url ?? null,
+      variants: option.variants.map(variant => ({ id: variant.id, sku: variant.sku, size: variant.size,
+        price: variant.priceCents / 100, available: Math.max(0, variant.available) })),
+    })),
+  };
 }
 
 export default function useCatalog() {
-  const [products, setProducts] = useState(localProducts);
-  const [usingApi, setUsingApi] = useState(false);
-  
+  const [products, setProducts] = useState([]);
+  const [error, setError] = useState("");
   useEffect(() => {
-    api.catalog
-      .products()
-      .then(({ products: serverProducts }) => {
-        if (serverProducts.length) {
-          setProducts(serverProducts.map(mapProduct));
-          setUsingApi(true);
-        }
-      })
-      .catch(() => setUsingApi(false));
+    let active = true;
+    api.catalog.products().then(({ products }) => {
+      if (active) setProducts(products.map(mapProduct));
+    }).catch(() => { if (active) setError("Não foi possível carregar o catálogo. Tente novamente."); });
+    return () => { active = false; };
   }, []);
-  
-  const categories = useMemo(
-    () =>
-      usingApi
-        ? [
-            ...new Map(
-              products.map((product) => [
-                product.category,
-                { name: product.category, image: product.image },
-              ]),
-            ).values(),
-          ]
-        : localCategories,
-    [products, usingApi],
-  );
-  return { products, categories, usingApi };
+  const categories = useMemo(() => [...new Map(products.map(product => [product.category,
+    { name: product.category, image: product.categoryImage ?? product.image }])).values()], [products]);
+  return { products, categories, error, usingApi: true };
 }

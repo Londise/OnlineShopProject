@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 // Funções utilitárias para o tratamento do estoque
 import { getVariant, getAvailableToAdd } from "../utils/domainFunctions";
+import { api } from "../services/api";
+import { IMAGE_PLACEHOLDER } from "../config/media";
 
 const CART_STORAGE_KEY = "ferchu-cart";
 
@@ -25,6 +27,21 @@ export default function useCart() {
   });
 
   const [cartOpen, setCartOpen] = useState(false);
+
+  // Reconcile only presentation URLs; never discard saved quantities or orders.
+  useEffect(() => {
+    let active = true;
+    api.catalog.products().then(({ products }) => {
+      if (!active) return;
+      const images = new Map();
+      for (const product of products) {
+        const cover = product.images.find(image => image.type === "PRIMARY")?.url ?? product.images[0]?.url ?? IMAGE_PLACEHOLDER;
+        for (const option of product.options) for (const variant of option.variants) images.set(variant.id, option.imageUrl ?? cover);
+      }
+      setLines(old => old.map(line => ({ ...line, image: images.get(line.variantId) ?? IMAGE_PLACEHOLDER })));
+    }).catch(() => {});
+    return () => { active = false; };
+  }, []);
 
   /*
    * ============================================================

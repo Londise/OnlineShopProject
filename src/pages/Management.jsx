@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { api } from "../services/api";
+import MediaManager from "../components/MediaManager";
 
 import { useNavigate } from "react-router-dom";
 import { useAuthContext } from "../contexts/AuthContext";
@@ -30,6 +31,7 @@ const money = new Intl.NumberFormat("pt-BR", {
  */
 
 const tabs = [
+  { id: "media", label: "Imagens", icon: PanelsTopLeft, adminOnly: true },
   {
     id: "orders",
     label: "Pedidos",
@@ -216,6 +218,7 @@ export default function Management() {
 
     try {
       const loaders = {
+        media: api.admin.media,
         orders: api.admin.orders,
         inventory: api.admin.inventory,
         products: api.admin.products,
@@ -224,7 +227,7 @@ export default function Management() {
 
       const result = await loaders[tab]();
 
-      setData(result[tab] ?? result.variants ?? []);
+      setData(result[tab] ?? result.variants ?? result.assets ?? []);
     } catch (err) {
       setError(err?.message || "Não foi possível carregar os dados.");
     } finally {
@@ -737,6 +740,7 @@ export default function Management() {
           <p className="management-loading">Carregando…</p>
         ) : (
           <section className="management-panel">
+            {tab === "media" && <MediaManager assets={data} onChange={load} />}
             {/*
              * ==================================================
              * PEDIDOS

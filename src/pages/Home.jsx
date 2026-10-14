@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
 import Logo from "../components/Logo";
-import HERO_IMAGE from "../assets/hero.jpeg";
+import { IMAGE_PLACEHOLDER } from "../config/media";
+import { api } from "../services/api";
 import ProductCard from "../components/ProductCard";
 import Cart from "../components/Cart";
 import Footer from "../components/Footer";
@@ -63,6 +64,7 @@ export default function Home() {
   const {
     products,
     categories,
+    error: catalogError,
   } = useCatalog();
 
   /*
@@ -86,6 +88,17 @@ export default function Home() {
   // Banner atual.
   const [slide, setSlide] =
     useState(0);
+  const [banners, setBanners] = useState([]);
+  const heroSlides = banners.length ? banners : [{ id: "placeholder", imageUrl: IMAGE_PLACEHOLDER }];
+  const activeSlide = Math.min(slide, heroSlides.length - 1);
+  useEffect(() => {
+    let active = true;
+    api.catalog.banners().then(({ banners }) => { if (active) { setBanners(banners); setSlide(0); } }).catch(() => {});
+    api.catalog.siteMedia().then(({ faviconUrl }) => {
+      if (active && faviconUrl) document.querySelector('link[rel="icon"]')?.setAttribute("href", faviconUrl);
+    }).catch(() => {});
+    return () => { active = false; };
+  }, []);
 
   // Categoria selecionada.
   const [filter, setFilter] =
@@ -296,6 +309,7 @@ export default function Home() {
       ========================================================= */}
 
       <main id="inicio">
+        {catalogError && <p role="alert">{catalogError}</p>}
         {/* ======================================================
             HERO
         ======================================================= */}
@@ -304,18 +318,20 @@ export default function Home() {
           <div
             className="hero-image"
             style={{
+              width: `${heroSlides.length * 100}%`,
               transform: `translateX(-${
-                slide * 33.333333
+                activeSlide * (100 / heroSlides.length)
               }%)`,
             }}
           >
-            {[0, 1, 2].map(
+            {heroSlides.map(
               (item) => (
                 <div
                   className="hero-slide"
-                  key={item}
+                  key={item.id}
                   style={{
-                    backgroundImage: `linear-gradient(90deg, rgba(37,17,30,.72), rgba(37,17,30,.1)), url(${HERO_IMAGE})`,
+                    width: `${100 / heroSlides.length}%`, flexShrink: 0,
+                    backgroundImage: `linear-gradient(90deg, rgba(37,17,30,.72), rgba(37,17,30,.1)), url(${item.imageUrl})`,
                   }}
                 >
                   <div>
@@ -330,8 +346,7 @@ export default function Home() {
                     </h1>
 
                     <p>
-                      Peças confortáveis e modelos
-                      variados para revender.
+                      {item.subtitle ?? "Peças confortáveis e modelos variados para revender."}
                     </p>
 
                     <button
@@ -353,7 +368,7 @@ export default function Home() {
             className="hero-arrow left"
             onClick={() =>
               setSlide(
-                (slide + 2) % 3,
+                (activeSlide + heroSlides.length - 1) % heroSlides.length,
               )
             }
             aria-label="Banner anterior"
@@ -365,7 +380,7 @@ export default function Home() {
             className="hero-arrow right"
             onClick={() =>
               setSlide(
-                (slide + 1) % 3,
+                (activeSlide + 1) % heroSlides.length,
               )
             }
             aria-label="Próximo banner"
@@ -374,20 +389,20 @@ export default function Home() {
           </button>
 
           <div className="slider-dots">
-            {[0, 1, 2].map(
-              (item) => (
+            {heroSlides.map(
+              (item, index) => (
                 <button
-                  key={item}
+                  key={item.id}
                   aria-label={`Ir para banner ${
-                    item + 1
+                    index + 1
                   }`}
                   className={
-                    slide === item
+                    activeSlide === index
                       ? "active"
                       : ""
                   }
                   onClick={() =>
-                    setSlide(item)
+                    setSlide(index)
                   }
                 />
               ),
@@ -446,7 +461,7 @@ export default function Home() {
             </b>
 
             <small>
-              Pedido mínimo 20 peças
+              Pedido mínimo 15 peças
             </small>
           </div>
 

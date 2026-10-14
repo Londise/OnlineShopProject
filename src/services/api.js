@@ -9,13 +9,14 @@ export class ApiError extends Error {
 }
 
 async function request(path, options = {}) {
+  const { headers, ...rest } = options;
   const response = await fetch(`${API_URL}${path}`, {
     credentials: "include",
     headers: {
-      ...(options.body ? { "Content-Type": "application/json" } : {}),
-      ...options.headers,
+      ...(options.body && !(options.body instanceof FormData) ? { "Content-Type": "application/json" } : {}),
+      ...headers,
     },
-    ...options,
+    ...rest,
   });
   if (response.status === 204) return null;
   const data = await response.json().catch(() => ({}));
@@ -42,6 +43,7 @@ export const api = {
   catalog: {
     products: () => request("/products"),
     banners: () => request("/banners"),
+    siteMedia: () => request("/site-media"),
   },
 
   orders: {
@@ -51,6 +53,10 @@ export const api = {
   },
   
   admin: {
+    media: () => request("/admin/media-assets"),
+    metadata: () => request("/admin/catalog-metadata"),
+    uploadImage: (body) => request("/admin/uploads", { method: "POST", body }),
+    updateImage: (id, body) => request(`/admin/product-images/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
     orders: () => request("/admin/orders"),
     updateOrder: (id, body) =>
       request(`/admin/orders/${id}`, {
@@ -76,5 +82,16 @@ export const api = {
         method: "PATCH",
         body: JSON.stringify(body),
       }),
+    logs: (params = {}) => {
+      const search = new URLSearchParams();
+      for (const [key, value] of Object.entries(params)) {
+        if (value !== undefined && value !== null && value !== "")
+          search.set(key, String(value));
+      }
+      const suffix = search.toString();
+      return request(`/admin/logs${suffix ? `?${suffix}` : ""}`);
+    },
+    logsByTrace: (traceId) => request(`/admin/logs/trace/${traceId}`),
+    logsDead: () => request("/admin/logs/dead"),
   },
 };

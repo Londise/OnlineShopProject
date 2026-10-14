@@ -1,0 +1,1 @@
+export const IMAGE_PLACEHOLDER = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='800'%3E%3Crect width='100%25' height='100%25' fill='%23eee8e3'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' fill='%23665' font-size='24'%3EImagem indispon%C3%ADvel%3C/text%3E%3C/svg%3E";
