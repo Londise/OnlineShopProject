@@ -16,7 +16,15 @@ import { AuthProvider, useAuthContext } from "../contexts/AuthContext";
 import { CartProvider } from "../contexts/CartContext";
 
 function AdminRoute({ children }) {
-  const { user } = useAuthContext();
+  const { user, loading, error, refreshSession } = useAuthContext();
+
+  if (loading) return <main className="management-loading" role="status">Verificando sua sessão… O servidor pode levar alguns instantes para iniciar.</main>;
+  if (error) return (
+    <main className="management-loading">
+      <p role="alert">{error}</p>
+      <button className="button outline" onClick={() => refreshSession()}>Tentar novamente</button>
+    </main>
+  );
 
   if (!user) {
     return <Navigate to="/" replace />;

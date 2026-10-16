@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "../services/api";
 import { IMAGE_PLACEHOLDER } from "../config/media";
 
@@ -20,14 +20,22 @@ function mapProduct(product) {
 export default function useCatalog() {
   const [products, setProducts] = useState([]);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [attempt, setAttempt] = useState(0);
+  const reload = useCallback(() => setAttempt(value => value + 1), []);
   useEffect(() => {
-    let active = true;
-    api.catalog.products().then(({ products }) => {
-      if (active) setProducts(products.map(mapProduct));
-    }).catch(() => { if (active) setError("Não foi possível carregar o catálogo. Tente novamente."); });
-    return () => { active = false; };
-  }, []);
+    const controller = new AbortController();
+    setLoading(true);
+    setError("");
+    api.catalog.products({ signal: controller.signal }).then(({ products }) => {
+      if (!Array.isArray(products)) throw new Error('Resposta do catálogo inválida.');
+      if (!controller.signal.aborted) setProducts(products.map(mapProduct));
+    }).catch(error => {
+      if (!controller.signal.aborted) setError(error.message || "Não foi possível carregar o catálogo. Tente novamente.");
+    }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, [attempt]);
   const categories = useMemo(() => [...new Map(products.map(product => [product.category,
     { name: product.category, image: product.categoryImage ?? product.image }])).values()], [products]);
-  return { products, categories, error, usingApi: true };
+  return { products, categories, error, loading, reload, usingApi: true };
 }

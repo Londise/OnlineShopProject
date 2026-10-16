@@ -1,47 +1,14 @@
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001/api/v1";
+import { createRequestClient, resolveApiUrl } from './http.js';
+export { ApiError } from './http.js';
 
-// Cada chamada carrega um trace-id próprio; a API devolve o mesmo no header
-// x-trace-id, permitindo seguir a request inteira no painel de logs.
-const newTraceId = () =>
-  globalThis.crypto?.randomUUID?.() ??
-  "xxxxxxxx-xxxx-4xxx-8xxx-xxxxxxxxxxxx".replace(/x/g, () =>
-    Math.floor(Math.random() * 16).toString(16),
-  );
-
-export class ApiError extends Error {
-  constructor(message, code, status) {
-    super(message);
-    this.code = code;
-    this.status = status;
-  }
-}
-
-async function request(path, options = {}) {
-  const { headers, ...rest } = options;
-  const response = await fetch(`${API_URL}${path}`, {
-    credentials: "include",
-    headers: {
-      "x-trace-id": newTraceId(),
-      ...(options.body && !(options.body instanceof FormData) ? { "Content-Type": "application/json" } : {}),
-      ...headers,
-    },
-    ...rest,
-  });
-  if (response.status === 204) return null;
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok)
-    throw new ApiError(
-      data.error?.message ?? "Não foi possível concluir a operação.",
-      data.error?.code,
-      response.status,
-    );
-  return data;
-}
+const request = createRequestClient({
+  baseUrl: resolveApiUrl(import.meta.env.VITE_API_URL, { production: import.meta.env.PROD }),
+});
 
 export const api = {
 
   auth: {
-    me: () => request("/auth/me"),
+    me: (options) => request("/auth/me", options),
     login: (body) =>
       request("/auth/login", { method: "POST", body: JSON.stringify(body) }),
     register: (body) =>
@@ -50,7 +17,7 @@ export const api = {
   },
 
   catalog: {
-    products: () => request("/products"),
+    products: (options) => request("/products", options),
     banners: () => request("/banners"),
     siteMedia: () => request("/site-media"),
   },

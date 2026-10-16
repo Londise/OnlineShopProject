@@ -65,6 +65,8 @@ export default function Home() {
     products,
     categories,
     error: catalogError,
+    loading: catalogLoading,
+    reload: reloadCatalog,
   } = useCatalog();
 
   /*
@@ -309,7 +311,9 @@ export default function Home() {
       ========================================================= */}
 
       <main id="inicio">
-        {catalogError && <p role="alert">{catalogError}</p>}
+        {catalogLoading && <p role="status">Carregando catálogo… O servidor pode levar alguns instantes para iniciar.</p>}
+        {catalogError && <div role="alert"><p>{catalogError}</p><button className="button outline" onClick={reloadCatalog}>Tentar carregar novamente</button></div>}
+        {auth.error && <div role="alert"><p>{auth.error}</p><button className="button outline" onClick={() => auth.refreshSession()}>Verificar sessão novamente</button></div>}
         {/* ======================================================
             HERO
         ======================================================= */}
