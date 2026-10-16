@@ -137,6 +137,50 @@ Apenas `prisma/migrations/` é aplicado no PostgreSQL. Não há cliente MySQL at
   e `GET /api/v1/admin/logs/dead`, todos somente ADMIN. Painel em Gestão → Logs.
 - Guia de uso ilustrado: `docs/logs-guia.html` na raiz do repositório.
 
+## Deploy: Render + Vercel
+
+Guia de configuração: [`../docs/render-guia.html`](../docs/render-guia.html).
+O banco, os usuários, as sessões e as imagens continuam no Supabase. Não rodar
+seed, migrate dev, db push/reset ou migração de mídia para trocar de hospedagem.
+
+- Render: Web Service Node, Root Directory `server`, Node `22.23.3` (arquivo
+  `.node-version`), build `npm ci --include=dev && npm run prisma:generate`,
+  start `npm start`, health `/health`. `render.yaml` opcional define Free e não
+  cria banco. Não copiar `PORT=3001`: o Render fornece a porta.
+- `NODE_ENV=production` exige `FRONTEND_ORIGIN=https://ferchumodas.shop` e
+  `ORIGIN_PROXY_SECRET` aleatório de 32–256 caracteres (letras, números, `_`, `-`).
+  O mesmo segredo fica somente nas envs do Render e do Vercel, nunca em `VITE_*`.
+- `/health` fica acessível para o Render. As rotas `/api/*` só aceitam chamadas
+  do proxy com o segredo correto e `x-real-ip` válido. Acesso direto ao backend
+  sem esse segredo retorna 403, inclusive para o catálogo: é intencional.
+- Express não confia genericamente em `x-forwarded-for`/hop counts. O rate limit
+  usa o IP verificado do proxy (com agrupamento IPv6); localmente usa o socket.
+  O segredo não substitui sessão/roles nem a verificação de origem.
+- Vercel: `vercel.mjs` encaminha `/api/*` ao host real informado por
+  `RENDER_BACKEND_URL` e injeta o segredo server-only. O navegador usa
+  `VITE_API_URL=/api/v1`, preservando o cookie HttpOnly/Secure/SameSite=Lax.
+  Configuração ausente impede o novo deploy, em vez de publicar localhost.
+- Nenhuma resposta `/api` deve ser cacheada. Testar login, refresh, logout,
+  `/management`, IPs distintos e cabeçalhos forjados pela cadeia real de proxies.
+- Render usa apenas `DATABASE_URL` restrita; se o build Prisma exigir DIRECT_URL,
+  repetir essa URL restrita no Render. A URL owner fica no ambiente protegido de
+  migrações, fora do processo. Aplicar migrações pendentes separadamente e antes
+  do deploy compatível; o Free não tem pre-deploy command.
+- `LOG_QUEUE_MAX_ENTRIES`/`LOG_QUEUE_MAX_BYTES` são tetos reais (incluem o lote em
+  andamento). Produção emite JSON redigido no stdout. Falha das duas gravações
+  descarta entradas com contador; não há promessa de entrega durável durante queda.
+  Shutdown aguarda lote ativo e fila, com deadline de 25 s antes dos 30 s do Render.
+- `MEDIA_UPLOAD_CONCURRENCY=1` limita uploads completos para reduzir consumo de
+  memória na instância de 512 MB; excesso responde 503, sem repetir POST sozinho.
+- Free dorme após 15 min sem tráfego; é indicado para validação, não uma promessa
+  de disponibilidade para vendas. Não usar pings para contornar essa limitação.
+
+Segurança de dependências: `proxy-addr` e `qs` foram atualizados no lockfile.
+Restam avisos do npm audit relacionados ao CLI/configuração Prisma e `deepmerge-ts`;
+não executar `npm audit fix --force` (ele sugere downgrade incompatível). Revisar
+atualização/patch compatível de Prisma separadamente antes de considerar a loja
+pronta para produção. Os testes e o deploy não são substitutos de uma auditoria.
+
 ### Testes e alterações futuras
 
 - `npm test`: testes de configuração, transações e SQL em PostgreSQL isolado

@@ -19,9 +19,7 @@ const {
 } = await import("../src/lib/logger.js");
 const { runWithTrace } = await import("../src/lib/trace-context.js");
 
-beforeEach(() => {
-  __testing.buffer.length = 0;
-});
+beforeEach(() => { __testing.clear(); });
 
 test("redactData redige e-mail, CPF, cartão e chaves sensíveis aninhadas", () => {
   const output = redactData({

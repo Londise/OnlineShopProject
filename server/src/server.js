@@ -1,90 +1,20 @@
-import express from "express";
-import helmet from "helmet";
-import cors from "cors";
-import cookieParser from "cookie-parser";
-import { rateLimit } from "express-rate-limit";
-import { env } from "./config/env.js";
-import { prisma } from "./db/prisma.js";
-import { flushAndClose, logInfo } from "./lib/logger.js";
-import { attachUser } from "./middlewares/auth.js";
-import { verifySameOrigin } from "./middlewares/csrf.js";
-import { errorHandler, notFoundHandler } from "./middlewares/error-handler.js";
-import { requestLogger } from "./middlewares/request-log.js";
-import { traceMiddleware } from "./middlewares/trace.js";
-import { adminRouter } from "./routes/admin.routes.js";
-import { authRouter } from "./routes/auth.routes.js";
-import { orderRouter } from "./routes/order.routes.js";
-import { publicRouter } from "./routes/public.routes.js";
+import { createApp } from './app.js';
+import { env } from './config/env.js';
+import { prisma } from './db/prisma.js';
+import { flushAndClose, logInfo } from './lib/logger.js';
+import { createShutdown } from './lib/shutdown.js';
 
-const app = express();
-if (env.NODE_ENV === "production") app.set("trust proxy", 1);
-app.disable("x-powered-by");
-app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
-app.use(
-  cors({
-    origin: env.FRONTEND_ORIGIN,
-    credentials: true,
-    methods: ["GET", "POST", "PATCH", "DELETE"],
-  }),
-);
-
-app.use(express.json({ limit: "100kb" }));
-app.use(cookieParser());
-app.use(traceMiddleware);
-app.use(requestLogger);
-app.use(verifySameOrigin);
-app.use(attachUser);
-
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 20,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    error: {
-      code: "TOO_MANY_REQUESTS",
-      message: "Tente novamente mais tarde.",
-    },
-  },
-});
-const orderLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 20,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    error: {
-      code: "TOO_MANY_REQUESTS",
-      message: "Tente novamente mais tarde.",
-    },
-  },
-});
-
-app.get("/health", async (_req, res) => {
-  await prisma.$queryRaw`SELECT 1`;
-  res.json({ status: "ok" });
-});
-
-app.use("/api/v1/auth", authLimiter, authRouter);
-app.use("/api/v1/orders", orderLimiter, orderRouter);
-app.use("/api/v1/admin", adminRouter);
-app.use("/api/v1", publicRouter);
-app.use(notFoundHandler);
-app.use(errorHandler);
-
-const server = app.listen(env.PORT, () => {
-  console.log(`Ferchu API listening on port ${env.PORT}`);
-  logInfo("api.started", `API ouvindo na porta ${env.PORT}`, {
+const server = createApp().listen(env.PORT, '0.0.0.0', () => {
+  logInfo('api.started', `API ouvindo na porta ${env.PORT}`, {
     data: { port: env.PORT, nodeEnv: env.NODE_ENV },
   });
 });
-async function shutdown(signal) {
-  console.log(`${signal} received, stopping API…`);
-  server.close(async () => {
-    await flushAndClose();
-    await prisma.$disconnect();
-    process.exit(0);
-  });
-}
-process.on("SIGINT", () => shutdown("SIGINT"));
-process.on("SIGTERM", () => shutdown("SIGTERM"));
+
+const shutdown = createShutdown({
+  server,
+  flush: flushAndClose,
+  disconnect: () => prisma.$disconnect(),
+  onStart: signal => logInfo('api.stopping', 'Encerrando API', { data: { signal } }),
+});
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);

@@ -7,6 +7,13 @@ export function notFoundHandler(_req, _res, next) {
 }
 
 export function errorHandler(error, _req, res, _next) {
+  if (res.headersSent) return _next(error);
+  if (error?.type === 'entity.parse.failed') {
+    return res.status(400).json({ error: { code: 'INVALID_JSON', message: 'Envie um JSON válido.' } });
+  }
+  if (error?.type === 'entity.too.large') {
+    return res.status(413).json({ error: { code: 'PAYLOAD_TOO_LARGE', message: 'O conteúdo enviado é muito grande.' } });
+  }
   if (error instanceof AppError) {
     return res.status(error.status).json({ error: { code: error.code, message: error.message, details: error.details } });
   }

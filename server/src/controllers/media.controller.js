@@ -3,11 +3,14 @@ import multer from "multer";
 import { rateLimit } from "express-rate-limit";
 import { z } from "zod";
 import { prisma } from "../db/prisma.js";
+import { env } from "../config/env.js";
 import { asyncHandler } from "../lib/async-handler.js";
 import { AppError, notFound } from "../lib/errors.js";
 import { inspectImage, MAX_IMAGE_BYTES } from "../lib/images.js";
 import { putImage, removeNewImage, STORAGE_BUCKET } from "../services/storage.service.js";
 import { writeAudit } from "../services/audit.service.js";
+import { createUploadCapacity } from "../lib/upload-capacity.js";
+import { clientRateLimitKey } from "../middlewares/proxy-origin.js";
 
 const formSchema = z.object({
   purpose: z.enum(["product", "category", "banner", "favicon", "library"]),
@@ -26,11 +29,29 @@ const formSchema = z.object({
 const multipart = multer({ storage: multer.memoryStorage(), limits: {
   fileSize: MAX_IMAGE_BYTES, files: 1, fields: 6, parts: 7, fieldSize: 1024,
 } }).single("file");
-export const uploadLimit = rateLimit({ windowMs: 60_000, limit: 20, standardHeaders: true, legacyHeaders: false });
+export const uploadLimit = rateLimit({ windowMs: 60_000, limit: 20, keyGenerator: clientRateLimitKey, standardHeaders: true, legacyHeaders: false });
+const uploadCapacity = createUploadCapacity(env.MEDIA_UPLOAD_CONCURRENCY);
 export function receiveImage(req, res, next) {
+  const release = uploadCapacity.acquire();
+  if (!release) {
+    res.set('Retry-After', '3');
+    return next(new AppError(503, 'UPLOAD_BUSY', 'Outro upload está em processamento. Tente novamente em instantes.'));
+  }
+  let processing = false;
+  const onClose = () => { if (!processing) release(); };
+  res.once('close', onClose);
+  req.releaseUploadSlot = () => {
+    res.removeListener('close', onClose);
+    release();
+  };
   multipart(req, res, error => {
-    if (error) return next(new AppError(error.code === "LIMIT_FILE_SIZE" ? 413 : 422,
-      "IMAGE_UPLOAD", "Envie um único arquivo de até 5 MB e os campos esperados."));
+    if (error || res.destroyed) {
+      req.releaseUploadSlot();
+      if (res.destroyed) return;
+      return next(new AppError(error.code === "LIMIT_FILE_SIZE" ? 413 : 422,
+        "IMAGE_UPLOAD", "Envie um único arquivo de até 5 MB e os campos esperados."));
+    }
+    processing = true;
     next();
   });
 }
@@ -42,6 +63,7 @@ export const listMedia = asyncHandler(async (_req, res) => {
 });
 
 export const uploadImage = asyncHandler(async (req, res) => {
+  try {
   const parsed = formSchema.safeParse(req.body);
   if (!parsed.success) throw new AppError(422, "INVALID_UPLOAD", "Verifique os dados do upload.", parsed.error.flatten());
   const input = parsed.data;
@@ -85,6 +107,9 @@ export const uploadImage = asyncHandler(async (req, res) => {
     throw error;
   }
   res.status(201).json({ asset });
+  } finally {
+    req.releaseUploadSlot?.();
+  }
 });
 
 export const updateImage = asyncHandler(async (req, res) => {

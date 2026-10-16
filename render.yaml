@@ -1,0 +1,37 @@
+# Optional Blueprint. No database or paid resources are created by this file.
+# The dashboard prompts for existing secrets; never paste their values here.
+services:
+  - type: web
+    name: ferchumodas-api
+    runtime: node
+    plan: free
+    region: virginia
+    rootDir: server
+    autoDeployTrigger: 'off'
+    buildCommand: npm ci --include=dev && npm run prisma:generate
+    startCommand: npm start
+    healthCheckPath: /health
+    maxShutdownDelaySeconds: 30
+    envVars:
+      - key: NODE_VERSION
+        value: 22.23.3
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      # Prisma tooling may require it. Use the SAME restricted runtime URL here,
+      # not the owner connection. Migrations run separately, not on startup.
+      - key: DIRECT_URL
+        sync: false
+      - key: FRONTEND_ORIGIN
+        sync: false
+      - key: ORIGIN_PROXY_SECRET
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+      - key: LOG_LEVEL
+        value: info
+      - key: MEDIA_UPLOAD_CONCURRENCY
+        value: '1'
