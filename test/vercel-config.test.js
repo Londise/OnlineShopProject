@@ -11,14 +11,14 @@ test('deployment fails closed until the real backend origin and secret are confi
   }
 });
 
-test('API proxy precedes SPA fallback, overwrites the secret header and disables caching', () => {
+test('API proxy precedes SPA fallback, enables trusted middleware and disables caching', () => {
   const config = createVercelConfig(environment);
+  assert.deepEqual(config.proxy, { entrypoint: 'middleware.js', matcher: '/api/:path*' });
   const [proxy, filesystem, fallback] = config.routes;
   assert.equal(proxy.dest, 'https://example.onrender.com/api/$1');
   assert.equal(proxy.headers['Cache-Control'], 'no-store');
   assert.equal(proxy.headers['x-vercel-enable-rewrite-caching'], '0');
-  assert.equal(proxy.transforms[0].op, 'set');
-  assert.equal(proxy.transforms[0].args, '$ORIGIN_PROXY_SECRET');
+  assert.equal(proxy.transforms, undefined);
   assert.equal(JSON.stringify(config).includes(environment.ORIGIN_PROXY_SECRET), false);
   assert.equal(filesystem.handle, 'filesystem');
   assert.equal(fallback.dest, '/index.html');

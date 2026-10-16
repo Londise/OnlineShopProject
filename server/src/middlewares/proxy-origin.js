@@ -4,7 +4,8 @@ import { ipKeyGenerator } from 'express-rate-limit';
 import { AppError, forbidden } from '../lib/errors.js';
 
 // Forwarded headers are untrusted by default. Only the Vercel rewrite with the
-// shared, server-only secret may supply x-real-ip. No arbitrary hop counts.
+// shared, server-only secret may supply x-ferchu-client-ip. No hop counts or
+// assumptions about standard headers rewritten by intermediate load balancers.
 export function requireProxyOrigin(secret) {
   if (!secret) return (_req, _res, next) => next();
   const expected = Buffer.from(secret);
@@ -14,7 +15,7 @@ export function requireProxyOrigin(secret) {
     if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) {
       return next(forbidden('Acesse os dados pelo endereço da loja.'));
     }
-    const clientIp = req.get('x-real-ip');
+    const clientIp = req.get('x-ferchu-client-ip');
     if (typeof clientIp !== 'string' || !isIP(clientIp)) {
       return next(new AppError(400, 'INVALID_PROXY_IP', 'O proxy não informou um IP válido.'));
     }

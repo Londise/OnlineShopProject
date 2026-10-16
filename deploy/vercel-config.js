@@ -20,16 +20,12 @@ export function createVercelConfig(environment) {
       'CDN-Cache-Control': 'no-store',
       'x-vercel-enable-rewrite-caching': '0',
     },
-    transforms: [{
-      type: 'request.headers', op: 'set',
-      target: { key: 'x-ferchu-proxy-secret' },
-      args: '$ORIGIN_PROXY_SECRET', env: ['ORIGIN_PROXY_SECRET'],
-    }],
   });
   return {
     framework: 'vite',
     buildCommand: 'npm run build',
     outputDirectory: 'dist',
+    proxy: { entrypoint: 'middleware.js', matcher: '/api/:path*' },
     routes: [
       proxy('^/api(?:/(.*))?$'),
       { handle: 'filesystem' },

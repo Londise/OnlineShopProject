@@ -151,13 +151,16 @@ seed, migrate dev, db push/reset ou migração de mídia para trocar de hospedag
   `ORIGIN_PROXY_SECRET` aleatório de 32–256 caracteres (letras, números, `_`, `-`).
   O mesmo segredo fica somente nas envs do Render e do Vercel, nunca em `VITE_*`.
 - `/health` fica acessível para o Render. As rotas `/api/*` só aceitam chamadas
-  do proxy com o segredo correto e `x-real-ip` válido. Acesso direto ao backend
+  do proxy com o segredo correto e `x-ferchu-client-ip` válido. Acesso direto ao backend
   sem esse segredo retorna 403, inclusive para o catálogo: é intencional.
 - Express não confia genericamente em `x-forwarded-for`/hop counts. O rate limit
   usa o IP verificado do proxy (com agrupamento IPv6); localmente usa o socket.
+  `middleware.js` captura o IP da plataforma Vercel e sobrescreve o header
+  customizado, pois headers padrão podem ser reescritos pelo ingress do Render.
   O segredo não substitui sessão/roles nem a verificação de origem.
 - Vercel: `vercel.mjs` encaminha `/api/*` ao host real informado por
-  `RENDER_BACKEND_URL` e injeta o segredo server-only. O navegador usa
+  `RENDER_BACKEND_URL`; `middleware.js` injeta o segredo server-only e o IP
+  verificado apenas nos headers da requisição upstream. O navegador usa
   `VITE_API_URL=/api/v1`, preservando o cookie HttpOnly/Secure/SameSite=Lax.
   Configuração ausente impede o novo deploy, em vez de publicar localhost.
 - Nenhuma resposta `/api` deve ser cacheada. Testar login, refresh, logout,

@@ -17,7 +17,7 @@
   <nav><a href="#status">Estado da publicação</a><a href="#render">Configurar Render</a><a href="#env">Variáveis</a><a href="#vercel">Conectar Vercel</a><a href="#test">Testar</a><a href="#mcp">MCP/OpenCode</a><a href="#errors">Problemas comuns</a></nav>
   <div class="card"><div class="flow"><b>ferchumodas.shop</b><span>→</span><b>Vercel /api</b><span>→</span><b>Render / Express</b><span>→</span><b>Supabase</b></div><p class="small">O navegador usa a mesma origem da loja; Vercel encaminha as chamadas. Não migramos produtos, sessões, senhas, pedidos nem imagens para outro banco.</p></div>
   <section id="status"><h2>1. Estado da publicação</h2>
-    <div class="note" id="deployment-status"><b>Preparação concluída; publicação em andamento.</b> Origem confirmada: <code>https://ferchumodas.shop</code>. O endereço do Render só será considerado real após a criação e consulta da hospedagem.</div>
+    <div class="note" id="deployment-status"><b>Hospedagem Free criada; deploy Linux Live e health check 200.</b> Backend: <a href="https://ferchumodas-api.onrender.com/health">https://ferchumodas-api.onrender.com</a> · <a href="https://dashboard.render.com/web/srv-db8o68vf3r2c73eq8deg">abrir no Render</a>. Origem da loja: <code>https://ferchumodas.shop</code>. A conexão pública Vercel → Render ainda precisa de configuração e validação.</div>
     <p>Já foram preparados: Node fixado, health check, proxy autenticado, respostas sem cache, proteção de IP/rate limit, fila de logs limitada, desligamento com prazo e recuperação do frontend.</p>
     <div class="warning"><b>Free é para configurar e validar.</b> Ele dorme após 15 minutos sem tráfego e pode demorar cerca de um minuto para iniciar. Há cotas de horas, banda e builds. Não usar pings para mantê-lo artificialmente acordado. Para uma loja que depende de vendas, avaliar compute pago antes de produção real — nenhum upgrade está autorizado automaticamente.</div>
   </section>
@@ -64,13 +64,14 @@
   <section id="vercel"><h2>4. Conectar o Vercel ao Render</h2>
     <p>Este projeto usa <code>vercel.mjs</code>, não um hostname fixo ou placeholder dentro de vercel.json. A configuração lê o endereço real informado no painel e injeta o segredo no encaminhamento HTTP sem enviá-lo ao navegador.</p>
     <div class="table card"><table><thead><tr><th>Vercel → Environment Variables → Production</th><th>Valor</th></tr></thead><tbody>
-      <tr><td><code>RENDER_BACKEND_URL</code></td><td>Origem HTTPS real do Render, sem /api, sem caminho e sem credenciais</td></tr>
+      <tr><td><code>RENDER_BACKEND_URL</code></td><td><code>https://ferchumodas-api.onrender.com</code> — sem /api nem caminho</td></tr>
       <tr><td><code>ORIGIN_PROXY_SECRET</code></td><td>Mesmo segredo configurado no Render</td></tr>
       <tr><td><code>VITE_API_URL</code></td><td><code>/api/v1</code> (também é o padrão do frontend em produção)</td></tr>
     </tbody></table></div>
     <div class="warning"><b>Nenhum segredo começa com VITE_.</b> Não criar VITE_ORIGIN_PROXY_SECRET, VITE_DATABASE_URL ou VITE_SUPABASE_SECRET_KEY. Tudo com VITE_ pode ir para o JavaScript público.</div>
     <p>Depois de salvar, fazer <b>novo deploy</b> do frontend. A configuração ausente faz o build falhar antes de substituir o site atual: é uma proteção, não motivo para remover a validação. Não adicionar outro vercel.json junto de vercel.mjs.</p>
     <p>A mesma origem preserva o cookie <code>HttpOnly; Secure; SameSite=Lax</code>. Não é necessário relaxar para SameSite=None ou liberar qualquer domínio *.vercel.app.</p>
+    <p><code>middleware.js</code> captura o IP verificado pelo Vercel e o envia em <code>x-ferchu-client-ip</code>, junto do segredo privado somente nos headers da chamada upstream. A rota encaminha ao Render. Isso evita depender de headers padrão que o ingress pode alterar. Não remover essa validação para contornar um erro 400.</p>
   </section>
   <section id="test"><h2>5. Verificar de ponta a ponta</h2>
     <p>A história completa é: <b>navegador → ferchumodas.shop/api → proxy Vercel → Express no Render → Supabase → JSON → tela</b>. Build aprovado sozinho não prova esse fluxo.</p>
@@ -91,7 +92,7 @@ curl.exe -i "https://ferchumodas.shop/api/v1/inexistente"
 # Esperado: JSON 404, não HTML 200.</code></pre></div>
     <div class="card"><h3>Teste no navegador</h3><ul class="checks"><li>Catálogo mostra produtos/imagens reais</li><li>Login persiste depois de atualizar a página</li><li>Gestão abre só com role permitida</li><li>Logout revoga a sessão</li><li>Refresh em /management e /account funciona</li><li>Logs autenticados e respostas sem cache</li><li>Dois clientes têm limites de IP independentes</li><li>Headers forjados sem segredo são rejeitados</li><li>Cold start mostra espera/recuperação, não catálogo vazio</li></ul></div></div>
     <p>Pedidos e upload devem ser exercitados de forma controlada em staging; não criar vendas fictícias ou apagar snapshots em produção para testar. O transporte não repete POST automaticamente.</p>
-    <div class="note"><b>Testes locais executados:</b> 54 testes backend + 9 de transporte/configuração frontend passaram com Node 22.23.3; build Vite aprovado. São testes isolados. A validação Linux e da cadeia real Vercel/Render ainda depende do deploy concluído.</div>
+    <div class="note"><b>Verificação:</b> os testes locais cobrem backend, transporte e proxy. O build Linux/Prisma e o health check Render passaram. A cadeia pública Vercel/Render, a sessão no navegador e o cutover completo só estarão concluídos depois de configurar o projeto Vercel e validar o fluxo real.</div>
   </section>
   <section id="mcp"><h2>6. MCP do Render no OpenCode</h2>
     <p>É o controle de gerenciamento, não parte da loja. O MCP já foi consultado nesta sessão. Endpoint oficial: <code>https://mcp.render.com/mcp</code>.</p>

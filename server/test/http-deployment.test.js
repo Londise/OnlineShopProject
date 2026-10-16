@@ -24,7 +24,7 @@ const stub = (object, key, value) => {
 };
 const headers = (ip = '198.51.100.1') => ({
   'x-ferchu-proxy-secret': process.env.ORIGIN_PROXY_SECRET,
-  'x-real-ip': ip,
+  'x-ferchu-client-ip': ip,
   Origin: process.env.FRONTEND_ORIGIN,
 });
 
@@ -61,7 +61,7 @@ test('health is public; API rejects bypass and forged forwarding headers', async
   const bypass = await fetch(`${base}/api/v1/products`, { headers: { 'x-real-ip': '198.51.100.1', 'x-forwarded-for': '198.51.100.2' } });
   assert.equal(bypass.status, 403);
   assert.equal(bypass.headers.get('cache-control'), 'no-store');
-  const badIp = await fetch(`${base}/api/v1/products`, { headers: { ...headers(), 'x-real-ip': '198.51.100.1, 198.51.100.2' } });
+  const badIp = await fetch(`${base}/api/v1/products`, { headers: { ...headers(), 'x-ferchu-client-ip': '198.51.100.1, 198.51.100.2' } });
   assert.equal(badIp.status, 400);
 });
 
