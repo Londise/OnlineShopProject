@@ -9,7 +9,7 @@
 </head>
 <body><main>
   <header>
-    <p class="small">FERCHU MODAS · GUIA DE CONFIGURAÇÃO · 15/10/2026</p>
+    <p class="small">FERCHU MODAS · GUIA DE CONFIGURAÇÃO · 16/10/2026</p>
     <h1>Seu backend no Render.<br>Seu site continua no Vercel.</h1>
     <span class="badge">Código preparado e testado</span><span class="badge">Render Free</span><span class="badge">Banco e imagens preservados</span>
     <p>Este guia acompanha a implementação, não substitui a confirmação de deploy Live. Os valores secretos devem ser preenchidos nos painéis, nunca no GitHub ou no chat.</p>
@@ -60,6 +60,7 @@
     </tbody></table></div>
     <p>Para gerar o segredo do proxy no seu próprio terminal, sem compartilhá-lo no chat:</p><pre><code>node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"</code></pre>
     <p class="small">Cole esse valor somente em ORIGIN_PROXY_SECRET nos dois painéis. Ele não é a chave de API do Render. Não preencher ADMIN_EMAIL/ADMIN_PASSWORD nem RENDER_API_KEY na loja.</p>
+    <p><b>Se trocar a chave:</b> atualizar o mesmo valor no Render e no Vercel, salvar e publicar novos deploys. Não reaproveitar a cópia antiga de um terminal ou script local para testar a nova configuração. A chave não deve aparecer no guia, em commits ou no chat.</p>
   </section>
   <section id="vercel"><h2>4. Conectar o Vercel ao Render</h2>
     <p>Este projeto usa <code>vercel.mjs</code>, não um hostname fixo ou placeholder dentro de vercel.json. A configuração lê o endereço real informado no painel e injeta o segredo no encaminhamento HTTP sem enviá-lo ao navegador.</p>
@@ -72,6 +73,8 @@
     <p>Depois de salvar, fazer <b>novo deploy</b> do frontend. A configuração ausente faz o build falhar antes de substituir o site atual: é uma proteção, não motivo para remover a validação. Não adicionar outro vercel.json junto de vercel.mjs.</p>
     <p>A mesma origem preserva o cookie <code>HttpOnly; Secure; SameSite=Lax</code>. Não é necessário relaxar para SameSite=None ou liberar qualquer domínio *.vercel.app.</p>
     <p><code>middleware.js</code> captura o IP verificado pelo Vercel e o envia em <code>x-ferchu-client-ip</code>, junto do segredo privado somente nos headers da chamada upstream. A rota encaminha ao Render. Isso evita depender de headers padrão que o ingress pode alterar. Não remover essa validação para contornar um erro 400.</p>
+    <p>A configuração usa <code>rewrites</code> e <code>headers</code> de alto nível, deixando o Vercel compor o middleware e os arquivos estáticos. Não substituir por uma tabela legada de <code>routes</code> que possa pular essa composição.</p>
+    <p class="small">O header público <code>x-ferchu-proxy: middleware</code> serve só para confirmar a execução do encaminhamento; não contém credenciais e não substitui a autenticação privada no Render.</p>
   </section>
   <section id="test"><h2>5. Verificar de ponta a ponta</h2>
     <p>A história completa é: <b>navegador → ferchumodas.shop/api → proxy Vercel → Express no Render → Supabase → JSON → tela</b>. Build aprovado sozinho não prova esse fluxo.</p>
@@ -92,7 +95,7 @@ curl.exe -i "https://ferchumodas.shop/api/v1/inexistente"
 # Esperado: JSON 404, não HTML 200.</code></pre></div>
     <div class="card"><h3>Teste no navegador</h3><ul class="checks"><li>Catálogo mostra produtos/imagens reais</li><li>Login persiste depois de atualizar a página</li><li>Gestão abre só com role permitida</li><li>Logout revoga a sessão</li><li>Refresh em /management e /account funciona</li><li>Logs autenticados e respostas sem cache</li><li>Dois clientes têm limites de IP independentes</li><li>Headers forjados sem segredo são rejeitados</li><li>Cold start mostra espera/recuperação, não catálogo vazio</li></ul></div></div>
     <p>Pedidos e upload devem ser exercitados de forma controlada em staging; não criar vendas fictícias ou apagar snapshots em produção para testar. O transporte não repete POST automaticamente.</p>
-    <div class="note"><b>Verificação:</b> os testes locais cobrem backend, transporte e proxy. O build Linux/Prisma e o health check Render passaram. A cadeia pública Vercel/Render, a sessão no navegador e o cutover completo só estarão concluídos depois de configurar o projeto Vercel e validar o fluxo real.</div>
+    <div class="note"><b>Verificação:</b> 54 testes backend e 13 testes frontend/proxy passaram com Node 22.23.3. O build Linux/Prisma e o health check Render passaram. A cadeia pública Vercel/Render, a sessão no navegador e o cutover completo só estarão concluídos depois de configurar o projeto Vercel e validar o fluxo real.</div>
   </section>
   <section id="mcp"><h2>6. MCP do Render no OpenCode</h2>
     <p>É o controle de gerenciamento, não parte da loja. O MCP já foi consultado nesta sessão. Endpoint oficial: <code>https://mcp.render.com/mcp</code>.</p>
@@ -122,7 +125,7 @@ opencode service restart</code></pre>
     <div class="warning">Exigir aprovação para deploys, criação de recursos e alterações de plano. O comando MCP de atualizar envs substitui a lista completa: não enviar apenas uma variável como se fosse patch.</div>
   </section>
   <section id="errors"><h2>7. Problemas comuns e rollback</h2><div class="table card"><table><thead><tr><th>Sintoma</th><th>Verificar</th></tr></thead><tbody>
-    <tr><td>API Render responde 403</td><td>Sem proxy, é esperado. Pelo site, conferir segredo igual nos dois painéis e novo deploy.</td></tr>
+    <tr><td>API Render responde 403</td><td>Sem proxy, é esperado. Pelo site: PROXY_AUTH_MISSING indica header privado ausente; PROXY_AUTH_INVALID indica header recusado. Conferir middleware, mesmo segredo nos dois painéis e novos deploys, sem exibir os valores.</td></tr>
     <tr><td>Vercel falha por RENDER_BACKEND_URL</td><td>Falta a origem real do Render. Não inserir URL inventada ou localhost.</td></tr>
     <tr><td>Login não persiste</td><td>VITE_API_URL=/api/v1; origem exata https://ferchumodas.shop; verificar Set-Cookie pelo site, não entre domínios diferentes.</td></tr>
     <tr><td>Backend não inicia</td><td>Node/Root Directory, DATABASE_URL restrita, FRONTEND_ORIGIN HTTPS, segredo com 32–256 caracteres e build Prisma.</td></tr>

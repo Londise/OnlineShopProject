@@ -19,5 +19,5 @@ export default function middleware(request) {
   headers.set('x-ferchu-client-ip', ip);
   // request.headers modifies the upstream request, not browser response headers.
   headers.set('x-ferchu-proxy-secret', secret);
-  return next({ request: { headers } });
+  return next({ request: { headers }, headers: { 'x-ferchu-proxy': 'middleware' } });
 }

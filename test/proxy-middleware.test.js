@@ -11,6 +11,7 @@ test('proxy middleware overwrites a visitor-supplied client IP with Vercel verif
   } });
   const response = middleware(request);
   assert.equal(response.headers.get('x-middleware-next'), '1');
+  assert.equal(response.headers.get('x-ferchu-proxy'), 'middleware');
   assert.equal(response.headers.get('x-middleware-request-x-ferchu-client-ip'), '203.0.113.10');
   assert.equal(response.headers.get('x-middleware-request-x-ferchu-proxy-secret'), secret);
   assert.equal(response.headers.has('x-ferchu-proxy-secret'), false);

@@ -12,24 +12,23 @@ export function createVercelConfig(environment) {
   if (!/^[A-Za-z0-9_-]{32,256}$/.test(environment.ORIGIN_PROXY_SECRET ?? '')) {
     throw new Error('Configure ORIGIN_PROXY_SECRET no Vercel e no Render (mesmo valor, mínimo 32 caracteres).');
   }
-  const proxy = src => ({
-    src,
-    dest: `${url.origin}/api/$1`,
-    headers: {
-      'Cache-Control': 'no-store',
-      'CDN-Cache-Control': 'no-store',
-      'x-vercel-enable-rewrite-caching': '0',
-    },
-  });
   return {
     framework: 'vite',
     buildCommand: 'npm run build',
     outputDirectory: 'dist',
     proxy: { entrypoint: 'middleware.js', matcher: '/api/:path*' },
-    routes: [
-      proxy('^/api(?:/(.*))?$'),
-      { handle: 'filesystem' },
-      { src: '/(.*)', dest: '/index.html' },
+    // Let Vercel compose filesystem and routing middleware. An explicit legacy
+    // routes table must not bypass the middleware that authenticates upstream.
+    rewrites: [
+      { source: '/api/:path*', destination: `${url.origin}/api/:path*` },
+      { source: '/((?!api(?:/|$)).*)', destination: '/index.html' },
+    ],
+    headers: [
+      { source: '/api/:path*', headers: [
+        { key: 'Cache-Control', value: 'no-store' },
+        { key: 'CDN-Cache-Control', value: 'no-store' },
+        { key: 'x-vercel-enable-rewrite-caching', value: '0' },
+      ] },
     ],
   };
 }

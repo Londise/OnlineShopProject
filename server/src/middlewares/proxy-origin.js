@@ -1,7 +1,7 @@
 import { timingSafeEqual } from 'node:crypto';
 import { isIP } from 'node:net';
 import { ipKeyGenerator } from 'express-rate-limit';
-import { AppError, forbidden } from '../lib/errors.js';
+import { AppError } from '../lib/errors.js';
 
 // Forwarded headers are untrusted by default. Only the Vercel rewrite with the
 // shared, server-only secret may supply x-ferchu-client-ip. No hop counts or
@@ -11,9 +11,12 @@ export function requireProxyOrigin(secret) {
   const expected = Buffer.from(secret);
   return (req, _res, next) => {
     const supplied = req.get('x-ferchu-proxy-secret');
+    if (!supplied) {
+      return next(new AppError(403, 'PROXY_AUTH_MISSING', 'Acesse os dados pelo endereço da loja.'));
+    }
     const actual = Buffer.from(typeof supplied === 'string' ? supplied : '');
     if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) {
-      return next(forbidden('Acesse os dados pelo endereço da loja.'));
+      return next(new AppError(403, 'PROXY_AUTH_INVALID', 'O encaminhamento da loja não foi autorizado.'));
     }
     const clientIp = req.get('x-ferchu-client-ip');
     if (typeof clientIp !== 'string' || !isIP(clientIp)) {

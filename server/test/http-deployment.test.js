@@ -60,7 +60,13 @@ test('health is public; API rejects bypass and forged forwarding headers', async
   assert.equal((await fetch(`${base}/health`)).status, 200);
   const bypass = await fetch(`${base}/api/v1/products`, { headers: { 'x-real-ip': '198.51.100.1', 'x-forwarded-for': '198.51.100.2' } });
   assert.equal(bypass.status, 403);
+  assert.equal((await bypass.json()).error.code, 'PROXY_AUTH_MISSING');
   assert.equal(bypass.headers.get('cache-control'), 'no-store');
+  const wrongSecret = await fetch(`${base}/api/v1/products`, { headers: { ...headers(), 'x-ferchu-proxy-secret': 'wrong-test-value' } });
+  assert.equal(wrongSecret.status, 403);
+  const error = (await wrongSecret.json()).error;
+  assert.equal(error.code, 'PROXY_AUTH_INVALID');
+  assert.equal(error.message.includes('wrong-test-value'), false);
   const badIp = await fetch(`${base}/api/v1/products`, { headers: { ...headers(), 'x-ferchu-client-ip': '198.51.100.1, 198.51.100.2' } });
   assert.equal(badIp.status, 400);
 });
