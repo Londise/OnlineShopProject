@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Ferchu Modas — configurar Render e Vercel</title>
+  <style>
+    :root{--bg:#f7f4ed;--card:#fffdfa;--ink:#27352f;--muted:#637168;--line:#dbe2d8;--green:#1d6049;--warn:#fff0cf;--mono:Consolas,monospace}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.65 system-ui,sans-serif}main{max-width:1080px;margin:auto;padding:40px 24px 70px}h1{font:700 clamp(30px,5vw,49px)/1.1 Georgia,serif;margin:12px 0 20px}h2{font-size:25px;line-height:1.25;margin:36px 0 14px}h3{margin:20px 0 9px}a{color:var(--green);text-underline-offset:3px}code{font:13px var(--mono);background:#eaf0e7;border-radius:5px;padding:2px 5px;overflow-wrap:anywhere}pre{background:#173c2f;color:#eef7ef;padding:18px;border-radius:12px;white-space:pre-wrap;overflow-wrap:anywhere;font:13px/1.7 var(--mono)}pre code{background:none;color:inherit;padding:0}.card{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:22px;margin:18px 0}.note,.warning{padding:15px 18px;border-left:4px solid var(--green);background:#e7f0e5;border-radius:0 9px 9px 0;margin:18px 0}.warning{background:var(--warn);border-color:#af7c22}.small{font-size:13px;color:var(--muted)}.badge{display:inline-block;background:#e7f0e5;border:1px solid #bdd2bf;border-radius:99px;padding:5px 12px;font-size:12px;margin:3px 5px 3px 0}.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}nav{display:flex;gap:10px 18px;flex-wrap:wrap;margin:22px 0;font-size:14px}.table{overflow:auto}table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;vertical-align:top;border-bottom:1px solid var(--line);padding:10px}th{font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:.08em}.flow{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:12px;padding:20px 0}.flow b{border:1px solid #b3c6b5;background:#edf3e9;padding:12px 18px;border-radius:10px}.flow span{font-size:23px;color:var(--green)}.checks{list-style:none;padding:0}.checks li{padding:7px 0;border-bottom:1px solid var(--line)}.checks li:before{content:'□ ';color:var(--green)}li{margin:6px 0}footer{margin-top:38px;border-top:1px solid var(--line);padding-top:18px;font:12px/1.8 var(--mono);color:var(--muted)}@media(max-width:760px){.grid{grid-template-columns:1fr}main{padding:24px 16px 50px}.card{padding:17px}}@media print{body{background:white}nav{display:none}.card{break-inside:avoid}pre{background:#eee;color:#111}}
+  </style>
+</head>
+<body><main>
+  <header>
+    <p class="small">FERCHU MODAS · GUIA DE CONFIGURAÇÃO · 15/10/2026</p>
+    <h1>Seu backend no Render.<br>Seu site continua no Vercel.</h1>
+    <span class="badge">Código preparado e testado</span><span class="badge">Render Free</span><span class="badge">Banco e imagens preservados</span>
+    <p>Este guia acompanha a implementação, não substitui a confirmação de deploy Live. Os valores secretos devem ser preenchidos nos painéis, nunca no GitHub ou no chat.</p>
+  </header>
+  <nav><a href="#status">Estado da publicação</a><a href="#render">Configurar Render</a><a href="#env">Variáveis</a><a href="#vercel">Conectar Vercel</a><a href="#test">Testar</a><a href="#mcp">MCP/OpenCode</a><a href="#errors">Problemas comuns</a></nav>
+  <div class="card"><div class="flow"><b>ferchumodas.shop</b><span>→</span><b>Vercel /api</b><span>→</span><b>Render / Express</b><span>→</span><b>Supabase</b></div><p class="small">O navegador usa a mesma origem da loja; Vercel encaminha as chamadas. Não migramos produtos, sessões, senhas, pedidos nem imagens para outro banco.</p></div>
+  <section id="status"><h2>1. Estado da publicação</h2>
+    <div class="note" id="deployment-status"><b>Preparação concluída; publicação em andamento.</b> Origem confirmada: <code>https://ferchumodas.shop</code>. O endereço do Render só será considerado real após a criação e consulta da hospedagem.</div>
+    <p>Já foram preparados: Node fixado, health check, proxy autenticado, respostas sem cache, proteção de IP/rate limit, fila de logs limitada, desligamento com prazo e recuperação do frontend.</p>
+    <div class="warning"><b>Free é para configurar e validar.</b> Ele dorme após 15 minutos sem tráfego e pode demorar cerca de um minuto para iniciar. Há cotas de horas, banda e builds. Não usar pings para mantê-lo artificialmente acordado. Para uma loja que depende de vendas, avaliar compute pago antes de produção real — nenhum upgrade está autorizado automaticamente.</div>
+  </section>
+  <section id="render"><h2>2. Criar ou conferir a hospedagem no Render</h2>
+    <p>Abra <a href="https://dashboard.render.com/" target="_blank" rel="noopener noreferrer">o dashboard Render</a>. Se a hospedagem já tiver sido criada pelo agente, <b>não crie outra</b>; apenas confira os campos. Para criar manualmente: <b>New → Web Service → Git Provider</b> e conecte <code>Londise/OnlineShopProject</code>.</p>
+    <div class="table card"><table><thead><tr><th>Campo</th><th>Valor</th></tr></thead><tbody>
+      <tr><td>Name</td><td><code>ferchumodas-api</code> (sugestão; o hostname efetivo é informado pelo Render)</td></tr>
+      <tr><td>Branch</td><td><code>main</code></td></tr>
+      <tr><td>Runtime</td><td><code>Node</code></td></tr>
+      <tr><td>Root Directory</td><td><code>server</code></td></tr>
+      <tr><td>Region</td><td><code>Virginia</code></td></tr>
+      <tr><td>Compute plan</td><td><b>Free</b> — conferir antes de criar</td></tr>
+      <tr><td>Node</td><td><code>22.23.3</code>, também fixado em <code>server/.node-version</code></td></tr>
+      <tr><td>Build Command</td><td><code>npm ci --include=dev &amp;&amp; npm run prisma:generate</code></td></tr>
+      <tr><td>Start Command</td><td><code>npm start</code></td></tr>
+      <tr><td>Health Check Path</td><td><code>/health</code></td></tr>
+      <tr><td>Auto-Deploy inicial</td><td><b>Off</b> durante a configuração; depois habilitar conscientemente</td></tr>
+    </tbody></table></div>
+    <p>O arquivo opcional <code>render.yaml</code> também contém esses campos e pede os segredos pelo dashboard. Escolha <b>um</b> fluxo de criação: Web Service manual, agente ou Blueprint, não os três.</p>
+    <p class="small">Se a criação por MCP tiver usado comandos <code>cd server &amp;&amp; …</code> por não expor Root Directory, primeiro ajuste Root Directory para server e remova o cd dos comandos; não combinar os dois formatos.</p>
+    <div class="warning"><b>Não criar banco Render Postgres.</b> Continuamos no Supabase. Não copiar node_modules do Windows, não iniciar com npm run dev e não copiar PORT=3001. O Render fornece a porta. Não adicionar seed nem migração ao Start Command.</div>
+  </section>
+  <section id="env"><h2>3. Preencher Environment no Render</h2>
+    <p>Preencha diretamente no painel. A conexão de banco deve continuar usando o login restrito do backend, nunca o proprietário/admin.</p>
+    <div class="table card"><table><thead><tr><th>Nome</th><th>Como preencher</th></tr></thead><tbody>
+      <tr><td><code>NODE_ENV</code></td><td><code>production</code></td></tr>
+      <tr><td><code>NODE_VERSION</code></td><td><code>22.23.3</code></td></tr>
+      <tr><td><code>DATABASE_URL</code></td><td>Conexão restrita atual do Supabase, Session pooler 5432; preservar schema=app, sslmode=require e limite conservador de conexões.</td></tr>
+      <tr><td><code>DIRECT_URL</code></td><td>Se exigida pelo build Prisma, repetir <b>a mesma conexão restrita</b>. A URL owner continua fora do processo, no ambiente protegido das migrações.</td></tr>
+      <tr><td><code>FRONTEND_ORIGIN</code></td><td><code>https://ferchumodas.shop</code>, sem barra final</td></tr>
+      <tr><td><code>ORIGIN_PROXY_SECRET</code></td><td>Segredo aleatório, igual ao Vercel; 32–256 caracteres sem espaços (letras, números, _ ou -). Pode gerar 64 caracteres hexadecimais.</td></tr>
+      <tr><td><code>SUPABASE_URL</code></td><td>URL do projeto atual</td></tr>
+      <tr><td><code>SUPABASE_SECRET_KEY</code></td><td>Chave privilegiada atual de Storage, somente backend</td></tr>
+      <tr><td><code>SESSION_COOKIE_NAME</code></td><td><code>ferchu_session</code></td></tr>
+      <tr><td><code>SESSION_TTL_DAYS</code></td><td><code>14</code></td></tr>
+      <tr><td><code>LOG_LEVEL</code></td><td><code>info</code></td></tr>
+      <tr><td><code>LOG_BUFFER_MAX</code> / <code>LOG_FLUSH_MS</code></td><td><code>100</code> / <code>2000</code></td></tr>
+      <tr><td><code>LOG_QUEUE_MAX_ENTRIES</code> / <code>LOG_QUEUE_MAX_BYTES</code></td><td><code>1000</code> / <code>2097152</code></td></tr>
+      <tr><td><code>MEDIA_UPLOAD_CONCURRENCY</code></td><td><code>1</code> para limitar memória dos uploads</td></tr>
+    </tbody></table></div>
+    <p>Para gerar o segredo do proxy no seu próprio terminal, sem compartilhá-lo no chat:</p><pre><code>node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"</code></pre>
+    <p class="small">Cole esse valor somente em ORIGIN_PROXY_SECRET nos dois painéis. Ele não é a chave de API do Render. Não preencher ADMIN_EMAIL/ADMIN_PASSWORD nem RENDER_API_KEY na loja.</p>
+  </section>
+  <section id="vercel"><h2>4. Conectar o Vercel ao Render</h2>
+    <p>Este projeto usa <code>vercel.mjs</code>, não um hostname fixo ou placeholder dentro de vercel.json. A configuração lê o endereço real informado no painel e injeta o segredo no encaminhamento HTTP sem enviá-lo ao navegador.</p>
+    <div class="table card"><table><thead><tr><th>Vercel → Environment Variables → Production</th><th>Valor</th></tr></thead><tbody>
+      <tr><td><code>RENDER_BACKEND_URL</code></td><td>Origem HTTPS real do Render, sem /api, sem caminho e sem credenciais</td></tr>
+      <tr><td><code>ORIGIN_PROXY_SECRET</code></td><td>Mesmo segredo configurado no Render</td></tr>
+      <tr><td><code>VITE_API_URL</code></td><td><code>/api/v1</code> (também é o padrão do frontend em produção)</td></tr>
+    </tbody></table></div>
+    <div class="warning"><b>Nenhum segredo começa com VITE_.</b> Não criar VITE_ORIGIN_PROXY_SECRET, VITE_DATABASE_URL ou VITE_SUPABASE_SECRET_KEY. Tudo com VITE_ pode ir para o JavaScript público.</div>
+    <p>Depois de salvar, fazer <b>novo deploy</b> do frontend. A configuração ausente faz o build falhar antes de substituir o site atual: é uma proteção, não motivo para remover a validação. Não adicionar outro vercel.json junto de vercel.mjs.</p>
+    <p>A mesma origem preserva o cookie <code>HttpOnly; Secure; SameSite=Lax</code>. Não é necessário relaxar para SameSite=None ou liberar qualquer domínio *.vercel.app.</p>
+  </section>
+  <section id="test"><h2>5. Verificar de ponta a ponta</h2>
+    <p>A história completa é: <b>navegador → ferchumodas.shop/api → proxy Vercel → Express no Render → Supabase → JSON → tela</b>. Build aprovado sozinho não prova esse fluxo.</p>
+    <div class="grid"><div class="card"><h3>Verificações externas</h3><pre><code># Substituir BACKEND_RENDER pelo hostname efetivo:
+curl.exe -i "https://BACKEND_RENDER/health"
+# Esperado: 200 + JSON.
+
+curl.exe -i "https://BACKEND_RENDER/api/v1/products"
+# Esperado: 403 sem segredo do proxy — proteção correta.
+
+curl.exe -i "https://ferchumodas.shop/api/v1/products"
+# Esperado: 200 + JSON dos produtos reais.
+
+curl.exe -i "https://ferchumodas.shop/api/v1/admin/logs"
+# Esperado: 401 sem sessão.
+
+curl.exe -i "https://ferchumodas.shop/api/v1/inexistente"
+# Esperado: JSON 404, não HTML 200.</code></pre></div>
+    <div class="card"><h3>Teste no navegador</h3><ul class="checks"><li>Catálogo mostra produtos/imagens reais</li><li>Login persiste depois de atualizar a página</li><li>Gestão abre só com role permitida</li><li>Logout revoga a sessão</li><li>Refresh em /management e /account funciona</li><li>Logs autenticados e respostas sem cache</li><li>Dois clientes têm limites de IP independentes</li><li>Headers forjados sem segredo são rejeitados</li><li>Cold start mostra espera/recuperação, não catálogo vazio</li></ul></div></div>
+    <p>Pedidos e upload devem ser exercitados de forma controlada em staging; não criar vendas fictícias ou apagar snapshots em produção para testar. O transporte não repete POST automaticamente.</p>
+    <div class="note"><b>Testes locais executados:</b> 54 testes backend + 9 de transporte/configuração frontend passaram com Node 22.23.3; build Vite aprovado. São testes isolados. A validação Linux e da cadeia real Vercel/Render ainda depende do deploy concluído.</div>
+  </section>
+  <section id="mcp"><h2>6. MCP do Render no OpenCode</h2>
+    <p>É o controle de gerenciamento, não parte da loja. O MCP já foi consultado nesta sessão. Endpoint oficial: <code>https://mcp.render.com/mcp</code>.</p>
+    <pre><code>opencode mcp add render --global --url https://mcp.render.com/mcp
+opencode mcp list</code></pre>
+    <p>Para OAuth, abrir <code>/mcps</code>, escolher render e autorizar no navegador. Se este cliente não conseguir registrar a autorização, usar API key por variável de ambiente, não uma chave literal no arquivo:</p>
+    <pre><code>{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "servers": {
+      "render": {
+        "type": "remote",
+        "url": "https://mcp.render.com/mcp",
+        "oauth": false,
+        "headers": { "Authorization": "Bearer {env:RENDER_API_KEY}" }
+      }
+    }
+  }
+}</code></pre>
+    <p>Mesclar com a configuração global existente, sem apagar outros MCPs. A chave de gerenciamento não vai para o repositório nem para as variáveis do backend.</p>
+    <h3>Por que aparecia connected, mas respondia unauthorized?</h3>
+    <p>A variável estava salva no Windows, mas o processo do OpenCode tinha sido iniciado sem ela. Um terminal antigo pode herdar o ambiente antigo. A correção usada foi carregar explicitamente a variável do usuário antes do reinício:</p>
+    <pre><code>$env:RENDER_API_KEY = [Environment]::GetEnvironmentVariable("RENDER_API_KEY", "User")
+opencode service restart</code></pre>
+    <p class="small">Só usar se a chave já estiver salva nesse escopo. Não imprimir, colar no chat ou trocar a chave sem necessidade. Connected prova o transporte; listar workspaces prova a autorização.</p>
+    <h3>Pedidos seguros ao agente</h3><ul><li>“Liste workspaces e use somente o que eu confirmar.”</li><li>“Leia o último deploy e os logs desta hospedagem, sem mostrar segredos.”</li><li>“Explique a falha antes de alterar configurações.”</li></ul>
+    <div class="warning">Exigir aprovação para deploys, criação de recursos e alterações de plano. O comando MCP de atualizar envs substitui a lista completa: não enviar apenas uma variável como se fosse patch.</div>
+  </section>
+  <section id="errors"><h2>7. Problemas comuns e rollback</h2><div class="table card"><table><thead><tr><th>Sintoma</th><th>Verificar</th></tr></thead><tbody>
+    <tr><td>API Render responde 403</td><td>Sem proxy, é esperado. Pelo site, conferir segredo igual nos dois painéis e novo deploy.</td></tr>
+    <tr><td>Vercel falha por RENDER_BACKEND_URL</td><td>Falta a origem real do Render. Não inserir URL inventada ou localhost.</td></tr>
+    <tr><td>Login não persiste</td><td>VITE_API_URL=/api/v1; origem exata https://ferchumodas.shop; verificar Set-Cookie pelo site, não entre domínios diferentes.</td></tr>
+    <tr><td>Backend não inicia</td><td>Node/Root Directory, DATABASE_URL restrita, FRONTEND_ORIGIN HTTPS, segredo com 32–256 caracteres e build Prisma.</td></tr>
+    <tr><td>Vercel MCP retorna 403/404</td><td>Reautorizar a integração na conta/time corretos. O acesso ao Render não concede acesso ao Vercel. Usar o dashboard para configurações pendentes, sem compartilhar tokens.</td></tr>
+    <tr><td>Upload retorna 503</td><td>Outro upload está em processamento; aguardar e repetir manualmente. Não desativar limite de memória.</td></tr>
+    <tr><td>Logs não persistem</td><td>Conexão/grants e status de migrações. Não rodar seed. A fila é limitada; stdout contém registros redigidos e contadores de perda.</td></tr>
+  </tbody></table></div>
+    <p><b>Rollback:</b> manter SHA e configuração testados. Restaurar versões de frontend/backend compatíveis com o mesmo banco; não resetar PostgreSQL nem apagar histórico de migrações. O frontend antigo com produtos embutidos não substitui o fluxo real de pedidos.</p>
+    <p class="small">Dependências: os avisos crítico/moderado em proxy-addr/qs foram corrigidos no lockfile. Restam três avisos ligados ao Prisma/Config/deepmerge-ts; revisar patch compatível separadamente. Não executar npm audit fix --force, que sugere downgrade incompatível. Não considerar a loja auditada só porque os testes passaram.</p>
+  </section>
+  <footer>Documentação: <a href="https://render.com/docs/web-services">Render Web Services</a> · <a href="https://render.com/docs/free">Render Free</a> · <a href="https://render.com/docs/mcp-server">MCP Render</a> · <a href="https://opencode.ai/v2/docs/mcp-servers">OpenCode V2</a> · <a href="https://vercel.com/docs/project-configuration/vercel-ts">Configuração Vercel</a><br>Guia sem credenciais reais; abrir diretamente no navegador. O relatório antigo em ~/.opencode/plan é planejamento, não prova de hospedagem publicada.</footer>
+</main></body></html>
