@@ -11,13 +11,13 @@
   <header>
     <p class="small">FERCHU MODAS · GUIA DE CONFIGURAÇÃO · 16/10/2026</p>
     <h1>Seu backend no Render.<br>Seu site continua no Vercel.</h1>
-    <span class="badge">Código preparado e testado</span><span class="badge">Render Free</span><span class="badge">Banco e imagens preservados</span>
+    <span class="badge">Publicação Live verificada</span><span class="badge">Render Free</span><span class="badge">Banco e imagens preservados</span>
     <p>Este guia acompanha a implementação, não substitui a confirmação de deploy Live. Os valores secretos devem ser preenchidos nos painéis, nunca no GitHub ou no chat.</p>
   </header>
   <nav><a href="#status">Estado da publicação</a><a href="#render">Configurar Render</a><a href="#env">Variáveis</a><a href="#vercel">Conectar Vercel</a><a href="#test">Testar</a><a href="#mcp">MCP/OpenCode</a><a href="#errors">Problemas comuns</a></nav>
   <div class="card"><div class="flow"><b>ferchumodas.shop</b><span>→</span><b>Vercel /api</b><span>→</span><b>Render / Express</b><span>→</span><b>Supabase</b></div><p class="small">O navegador usa a mesma origem da loja; Vercel encaminha as chamadas. Não migramos produtos, sessões, senhas, pedidos nem imagens para outro banco.</p></div>
   <section id="status"><h2>1. Estado da publicação</h2>
-    <div class="note" id="deployment-status"><b>Hospedagem Free criada; deploy Linux Live e health check 200.</b> Backend: <a href="https://ferchumodas-api.onrender.com/health">https://ferchumodas-api.onrender.com</a> · <a href="https://dashboard.render.com/web/srv-db8o68vf3r2c73eq8deg">abrir no Render</a>. Origem da loja: <code>https://ferchumodas.shop</code>. A conexão pública Vercel → Render ainda precisa de configuração e validação.</div>
+    <div class="note" id="deployment-status"><b>Publicação Live e conexão pública validada.</b> Backend: <a href="https://ferchumodas-api.onrender.com/health">https://ferchumodas-api.onrender.com</a> · <a href="https://dashboard.render.com/web/srv-db8o68vf3r2c73eq8deg">abrir no Render</a>. Origem da loja: <code>https://ferchumodas.shop</code>. O catálogo real responde pelo site: <code>GET /api/v1/products</code> → 200 com produtos, banners e mídia; o acesso direto ao Render sem o proxy continua 403. Falta apenas confirmar login/logout de administrador no navegador com uma conta real.</div>
     <p>Já foram preparados: Node fixado, health check, proxy autenticado, respostas sem cache, proteção de IP/rate limit, fila de logs limitada, desligamento com prazo e recuperação do frontend.</p>
     <div class="warning"><b>Free é para configurar e validar.</b> Ele dorme após 15 minutos sem tráfego e pode demorar cerca de um minuto para iniciar. Há cotas de horas, banda e builds. Não usar pings para mantê-lo artificialmente acordado. Para uma loja que depende de vendas, avaliar compute pago antes de produção real — nenhum upgrade está autorizado automaticamente.</div>
   </section>
@@ -95,7 +95,7 @@ curl.exe -i "https://ferchumodas.shop/api/v1/inexistente"
 # Esperado: JSON 404, não HTML 200.</code></pre></div>
     <div class="card"><h3>Teste no navegador</h3><ul class="checks"><li>Catálogo mostra produtos/imagens reais</li><li>Login persiste depois de atualizar a página</li><li>Gestão abre só com role permitida</li><li>Logout revoga a sessão</li><li>Refresh em /management e /account funciona</li><li>Logs autenticados e respostas sem cache</li><li>Dois clientes têm limites de IP independentes</li><li>Headers forjados sem segredo são rejeitados</li><li>Cold start mostra espera/recuperação, não catálogo vazio</li></ul></div></div>
     <p>Pedidos e upload devem ser exercitados de forma controlada em staging; não criar vendas fictícias ou apagar snapshots em produção para testar. O transporte não repete POST automaticamente.</p>
-    <div class="note"><b>Verificação:</b> 54 testes backend e 13 testes frontend/proxy passaram com Node 22.23.3. O build Linux/Prisma e o health check Render passaram. A cadeia pública Vercel/Render, a sessão no navegador e o cutover completo só estarão concluídos depois de configurar o projeto Vercel e validar o fluxo real.</div>
+    <div class="note"><b>Verificação:</b> 54 testes backend e 13 testes frontend/proxy passaram com Node 22.23.3. O build Linux/Prisma e o health check Render passaram. A cadeia pública foi validada em 16/10: <code>/api/v1/products</code>, <code>/banners</code>, <code>/site-media</code> e <code>/auth/me</code> retornam 200 pelo site, o marcador <code>x-ferchu-proxy</code> confirma o middleware, nenhum header interno vaza e o Render direto segue 403. Falta confirmar no navegador o login/logout de administrador com uma conta real; nenhum segredo foi usado nos testes.</div>
   </section>
   <section id="mcp"><h2>6. MCP do Render no OpenCode</h2>
     <p>É o controle de gerenciamento, não parte da loja. O MCP já foi consultado nesta sessão. Endpoint oficial: <code>https://mcp.render.com/mcp</code>.</p>
