@@ -275,6 +275,72 @@ nav button:hover:after {
     }
 }
 
+/* Avisos da loja: carregamento do catálogo e falhas de sessão. */
+
+.storefront-notice {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 14px;
+    padding: 14px 20px;
+    background: var(--cream);
+    border-bottom: 1px solid var(--line);
+    color: var(--ink);
+    text-align: left;
+}
+
+.storefront-notice p {
+    margin: 0;
+    display: grid;
+    gap: 2px;
+}
+
+.storefront-notice strong {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.storefront-notice small {
+    color: var(--muted);
+    font-size: 12.5px;
+}
+
+.storefront-notice .button {
+    flex: none;
+    width: auto;
+    margin-top: 0;
+}
+
+.storefront-notice.error {
+    background: #fdf1f2;
+    border-bottom-color: #f1d3d8;
+    color: #8c2532;
+}
+
+.storefront-notice-spinner {
+    flex: none;
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--sand);
+    border-top-color: var(--wine);
+    border-radius: 50%;
+    animation: storefrontSpin .8s linear infinite;
+}
+
+@keyframes storefrontSpin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .storefront-notice-spinner {
+        animation: none;
+        border-top-color: var(--sand);
+    }
+}
+
 .button:hover:not(:disabled) {
     transform: translateY(-2px)
 }

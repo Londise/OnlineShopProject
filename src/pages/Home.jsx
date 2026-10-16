@@ -237,6 +237,29 @@ export default function Home() {
 
   /*
    * ============================================================
+   * AVISOS DA LOJA
+   * ============================================================
+   *
+   * Catálogo e sessão consultam o mesmo servidor: quando ele
+   * está indisponível, os dois falham com a mesma mensagem.
+   * Unificamos tudo num único aviso, sem repetir o texto.
+   */
+
+  const storefrontErrors = [
+    ...new Set(
+      [catalogError, auth.error]
+        .filter(Boolean)
+        .map((message) => message.trim()),
+    ),
+  ];
+
+  const retryStorefront = () => {
+    reloadCatalog();
+    auth.refreshSession();
+  };
+
+  /*
+   * ============================================================
    * RENDER
    * ============================================================
    */
@@ -311,9 +334,35 @@ export default function Home() {
       ========================================================= */}
 
       <main id="inicio">
-        {catalogLoading && <p role="status">Carregando catálogo… O servidor pode levar alguns instantes para iniciar.</p>}
-        {catalogError && <div role="alert"><p>{catalogError}</p><button className="button outline" onClick={reloadCatalog}>Tentar carregar novamente</button></div>}
-        {auth.error && <div role="alert"><p>{auth.error}</p><button className="button outline" onClick={() => auth.refreshSession()}>Verificar sessão novamente</button></div>}
+        {catalogLoading && (
+          <div className="storefront-notice" role="status">
+            <span className="storefront-notice-spinner" aria-hidden="true" />
+
+            <p>
+              <strong>Carregando catálogo…</strong>
+
+              <small>
+                O servidor pode levar alguns instantes para iniciar.
+              </small>
+            </p>
+          </div>
+        )}
+        {storefrontErrors.length > 0 && (
+          <div className="storefront-notice error" role="alert">
+            <p>
+              {storefrontErrors.map((message) => (
+                <span key={message}>{message}</span>
+              ))}
+            </p>
+
+            <button
+              className="button outline"
+              onClick={retryStorefront}
+            >
+              Tentar novamente
+            </button>
+          </div>
+        )}
         {/* ======================================================
             HERO
         ======================================================= */}
