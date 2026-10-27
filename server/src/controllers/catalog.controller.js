@@ -1,5 +1,4 @@
 import { prisma } from "../db/prisma.js";
-import { asyncHandler } from "../lib/async-handler.js";
 import { AppError, notFound } from "../lib/errors.js";
 import { writeAudit } from "../services/audit.service.js";
 
@@ -10,12 +9,12 @@ const productInclude = {
     orderBy: [{ type: "asc" }, { sortOrder: "asc" }],
   },
   options: {
-    where: { active: true },
+    where: { active: true, variantOption: { active: true } },
     include: {
       variantOption: true,
       imageAsset: true,
       variants: {
-        where: { active: true },
+        where: { active: true, size: { active: true } },
         include: { size: true, inventory: true },
         orderBy: { size: { sortOrder: "asc" } },
       },
@@ -87,25 +86,25 @@ const presentProduct = (product) => ({
   })),
 });
 
-export const listProducts = asyncHandler(async (_req, res) => {
+export const listProducts = async (_req, res) => {
   const products = await prisma.product.findMany({
     where: { active: true, category: { active: true } },
     include: productInclude,
     orderBy: { name: "asc" },
   });
   res.json({ products: products.map((product) => presentProduct(product)) });
-});
+};
 
-export const getProduct = asyncHandler(async (req, res) => {
+export const getProduct = async (req, res) => {
   const product = await prisma.product.findFirst({
-    where: { slug: req.params.slug, active: true },
+    where: { slug: req.params.slug, active: true, category: { active: true } },
     include: productInclude,
   });
   if (!product) throw notFound("Produto não encontrado.");
   res.json({ product: presentProduct(product) });
-});
+};
 
-export const listAdminProducts = asyncHandler(async (_req, res) => {
+export const listAdminProducts = async (_req, res) => {
   const products = await prisma.product.findMany({
     include: adminProductInclude,
     orderBy: { updatedAt: "desc" },
@@ -113,44 +112,46 @@ export const listAdminProducts = asyncHandler(async (_req, res) => {
   res.json({
     products: products.map((product) => presentProduct(product)),
   });
-});
+};
 
-export const createProduct = asyncHandler(async (req, res) => {
-  const product = await prisma.product.create({
-    data: req.body,
-    include: productInclude,
-  });
-  await prisma.$transaction((tx) =>
-    writeAudit(tx, {
+export const createProduct = async (req, res) => {
+  const product = await prisma.$transaction(async (tx) => {
+    const created = await tx.product.create({
+      data: req.body,
+      include: productInclude,
+    });
+    await writeAudit(tx, {
       actorId: req.user.id,
       entityType: "PRODUCT",
-      entityId: product.id,
+      entityId: created.id,
       action: "CREATED",
-      afterJson: { name: product.name },
-    }),
-  );
-  res.status(201).json({ product: presentProduct(product) });
-});
-
-export const updateProduct = asyncHandler(async (req, res) => {
-  const product = await prisma.product.update({
-    where: { id: req.params.id },
-    data: req.body,
-    include: productInclude,
+      afterJson: { name: created.name },
+    });
+    return created;
   });
-  await prisma.$transaction((tx) =>
-    writeAudit(tx, {
+  res.status(201).json({ product: presentProduct(product) });
+};
+
+export const updateProduct = async (req, res) => {
+  const product = await prisma.$transaction(async (tx) => {
+    const updated = await tx.product.update({
+      where: { id: req.params.id },
+      data: req.body,
+      include: productInclude,
+    });
+    await writeAudit(tx, {
       actorId: req.user.id,
       entityType: "PRODUCT",
-      entityId: product.id,
+      entityId: updated.id,
       action: "UPDATED",
-      afterJson: { name: product.name },
-    }),
-  );
+      afterJson: { name: updated.name },
+    });
+    return updated;
+  });
   res.json({ product: presentProduct(product) });
-});
+};
 
-export const addProductOption = asyncHandler(async (req, res) => {
+export const addProductOption = async (req, res) => {
   const product = await prisma.product.findUnique({
     where: { id: req.params.id },
   });
@@ -195,80 +196,83 @@ export const addProductOption = asyncHandler(async (req, res) => {
     return created;
   });
   res.status(201).json({ option });
-});
+};
 
-export const updateProductOption = asyncHandler(async (req, res) => {
-  const option = await prisma.productOption.findFirst({
-    where: { id: req.params.optionId, productId: req.params.id },
-  });
-  if (!option) throw notFound("OpÃ§Ã£o do produto nÃ£o encontrada.");
-  const updated = await prisma.productOption.update({
-    where: { id: option.id },
-    data: req.body,
-  });
-  await prisma.$transaction((tx) =>
-    writeAudit(tx, {
+export const updateProductOption = async (req, res) => {
+  const updated = await prisma.$transaction(async (tx) => {
+    const option = await tx.productOption.findFirst({
+      where: { id: req.params.optionId, productId: req.params.id },
+    });
+    if (!option) throw notFound("Opção do produto não encontrada.");
+    const result = await tx.productOption.update({
+      where: { id: option.id },
+      data: req.body,
+    });
+    await writeAudit(tx, {
       actorId: req.user.id,
       entityType: "PRODUCT_OPTION",
-      entityId: updated.id,
+      entityId: result.id,
       action: "UPDATED",
       afterJson: req.body,
-    }),
-  );
+    });
+    return result;
+  });
   res.json({ option: updated });
-});
+};
 
-export const updateProductVariant = asyncHandler(async (req, res) => {
-  const variant = await prisma.productVariant.findUnique({
-    where: { id: req.params.variantId },
-    include: { productOption: true },
-  });
-  if (!variant || variant.productOption.productId !== req.params.id)
-    throw notFound("VariaÃ§Ã£o do produto nÃ£o encontrada.");
-  const updated = await prisma.productVariant.update({
-    where: { id: variant.id },
-    data: req.body,
-  });
-  await prisma.$transaction((tx) =>
-    writeAudit(tx, {
+export const updateProductVariant = async (req, res) => {
+  const updated = await prisma.$transaction(async (tx) => {
+    const variant = await tx.productVariant.findUnique({
+      where: { id: req.params.variantId },
+      include: { productOption: true },
+    });
+    if (!variant || variant.productOption.productId !== req.params.id)
+      throw notFound("Variação do produto não encontrada.");
+    const result = await tx.productVariant.update({
+      where: { id: variant.id },
+      data: req.body,
+    });
+    await writeAudit(tx, {
       actorId: req.user.id,
       entityType: "PRODUCT_VARIANT",
-      entityId: updated.id,
+      entityId: result.id,
       action: "UPDATED",
       afterJson: req.body,
-    }),
-  );
-  res.json({ variant: updated });
-});
-
-export const addProductImage = asyncHandler(async (req, res) => {
-  const product = await prisma.product.findUnique({
-    where: { id: req.params.id },
-  });
-  if (!product) throw notFound("Produto nÃ£o encontrado.");
-  if (req.body.productOptionId) {
-    const option = await prisma.productOption.findFirst({
-      where: { id: req.body.productOptionId, productId: product.id },
     });
-    if (!option)
-      throw new AppError(
-        422,
-        "INVALID_PRODUCT_OPTION",
-        "A imagem deve pertencer a uma opÃ§Ã£o deste produto.",
-      );
-  }
-  const image = await prisma.productImage.create({
-    data: { productId: product.id, ...req.body },
-    include: { asset: true },
+    return result;
   });
-  await prisma.$transaction((tx) =>
-    writeAudit(tx, {
+  res.json({ variant: updated });
+};
+
+export const addProductImage = async (req, res) => {
+  const image = await prisma.$transaction(async (tx) => {
+    const product = await tx.product.findUnique({
+      where: { id: req.params.id },
+    });
+    if (!product) throw notFound("Produto não encontrado.");
+    if (req.body.productOptionId) {
+      const option = await tx.productOption.findFirst({
+        where: { id: req.body.productOptionId, productId: product.id },
+      });
+      if (!option)
+        throw new AppError(
+          422,
+          "INVALID_PRODUCT_OPTION",
+          "A imagem deve pertencer a uma opção deste produto.",
+        );
+    }
+    const created = await tx.productImage.create({
+      data: { productId: product.id, ...req.body },
+      include: { asset: true },
+    });
+    await writeAudit(tx, {
       actorId: req.user.id,
       entityType: "PRODUCT_IMAGE",
-      entityId: image.id,
+      entityId: created.id,
       action: "CREATED",
-      afterJson: { productId: product.id, assetId: image.assetId },
-    }),
-  );
+      afterJson: { productId: product.id, assetId: created.assetId },
+    });
+    return created;
+  });
   res.status(201).json({ image });
-});
+};

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { X, ShoppingBag } from "lucide-react";
 import Counter from "./Counter";
-import { getVariant } from "../utils/domainFunctions";
 
 import { useCartContext } from "../contexts/CartContext";
 
@@ -10,7 +9,6 @@ const money = new Intl.NumberFormat("pt-BR", {
   currency: "BRL",
 });
 
-// Detecta se está em tela mobile
 const colorStyles = {
   Preto: "#1A1A1A",
   Vinho: "#9C1A39",
@@ -52,27 +50,18 @@ export default function BuilderModal({ product, showToast, onClose }) {
   }, [product]);
 
   // Seta as quantidades em 0 no começo
-  const [quantities, setQuantities] = useState({
-    P: 0,
-    M: 0,
-    G: 0,
-    GG: 0 
-  });
+  const [quantities, setQuantities] = useState({});
 
   // Reseta as quantidades caso o botão de "Adicionar ao pedido" for acionado.
   const resetQuantities = () => {
-    setQuantities({
-      P: 0,
-      M: 0,
-      G: 0,
-      GG: 0 
-    });
+    setQuantities({});
   };
 
   const selected = Object.values(quantities).reduce((a, b) => a + b, 0);
 
   // Controla a ação de apertar o botão "Adicionar ao Pedido"
   const handleAdd = () => {
+    if (!color || !selected) return;
     addToCart(product, color, quantities);
 
     resetQuantities();
@@ -84,23 +73,15 @@ export default function BuilderModal({ product, showToast, onClose }) {
   // Sincroniza as quantidades com o estoque disponível quando a cor mudar
   useEffect(() => {
     setQuantities((old) => {
-      const next = { ...old };
-
-      Object.entries(old).forEach(([size, amount]) => {
-        const selectedVariant = getVariant(color, size);
-
-        const availableToAdd = selectedVariant
-          ? getAvailableToAddForVariant(selectedVariant)
-          : 0;
-
-        next[size] = Math.min(amount, availableToAdd);
-      });
-
-      console.log("Quantidades atualizadas!")
-
-      return next;
+      const next = Object.fromEntries((color?.variants ?? []).map(variant => [
+        variant.size,
+        Math.min(old[variant.size] ?? 0, getAvailableToAddForVariant(variant)),
+      ]));
+      const unchanged = Object.keys(old).length === Object.keys(next).length &&
+        Object.keys(next).every(size => old[size] === next[size]);
+      return unchanged ? old : next;
     });
-  }, [color]);
+  }, [color, getAvailableToAddForVariant]);
 
   useEffect(() => {
     const listener = (event) => event.key === "Escape" && onClose();
@@ -171,7 +152,7 @@ export default function BuilderModal({ product, showToast, onClose }) {
           <span className="eyebrow">{product.material} · atacado</span>
           <h2 id="builder-title">{product.name}</h2>
           <p className="product-price">
-            {money.format(product.price)} <small>por peça</small>
+            {money.format(product.price)} <small>preço base · valores por tamanho abaixo</small>
           </p>
           <div className="color-row">
             <span>Escolha a cor</span>
@@ -182,7 +163,7 @@ export default function BuilderModal({ product, showToast, onClose }) {
                   key={item.name}
                   type="button"
                   // Na primeira iteração, a primeira cor é selecionada pois ela é product.options[0]
-                  className={`color-dot ${color.name === item.name ? "selected" : ""}`}
+                  className={`color-dot ${color?.name === item.name ? "selected" : ""}`}
                   style={{ background: colorStyles[item.name] }}
                   onClick={() => {
                     setColor(item);
@@ -194,24 +175,24 @@ export default function BuilderModal({ product, showToast, onClose }) {
                 />
               ))}
             </div>
-            <b>{color.name}</b>
+            <b>{color?.name ?? "Sem variações disponíveis"}</b>
           </div>
           <div className="sizes">
             <div>
               <span>Distribua por tamanho</span>
               <small>Digite a quantidade diretamente, se preferir.</small>
             </div>
-            {Object.entries(quantities).map(([size, amount]) => {
+            {(color?.variants ?? []).map((selectedVariant) => {
+              const size = selectedVariant.size;
+              const amount = quantities[size] ?? 0;
               
               // Procura dentro das cores (option) o tamanho (variant) requerido pelo cliente e armazena seu estoque
-              const selectedVariant = getVariant(color, size);
-              
               // Verifica se esse tamanho tem quantidade disponível, se não, não haverá quantidade disponível
               const availableToAdd = selectedVariant ? getAvailableToAddForVariant(selectedVariant) : 0;
 
               return (
               <div className="size-row" key={size}>
-                <strong>{size}</strong>
+                <strong>{size} <small>{money.format(selectedVariant.price ?? product.price)}</small></strong>
 
                 <Counter
                   value={amount}

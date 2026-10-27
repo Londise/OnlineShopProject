@@ -1,9 +1,4 @@
-/* O carrinho fica salvo em localStorage, o estado responsável por gerenciar o carrinho
-tenta recuperar o carrinho armazenado no localStorage antes de carregar o Checkout, se
-tiver um carrinho em localStorage, ele é armazenado no estado controlador do carrinho
-que é "lines", a cada mudança do carrinho */
-
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 import { useNavigate } from "react-router-dom";
 
@@ -26,7 +21,7 @@ import { useAuthContext } from "../contexts/AuthContext";
 
 import {
   buildOrderMessage,
-  sendToWhatsApp,
+  buildWhatsAppUrl,
 } from "../utils/whatsapp";
 
 import { api } from "../services/api";
@@ -133,9 +128,8 @@ export default function Checkout() {
     qtyTotal,
     orderTotal,
     totalWeight,
+    clearCart,
   } = useCartContext();
-
-  console.log("Checkout qtyTotal:", qtyTotal);
 
   const { user } = useAuthContext();
 
@@ -151,21 +145,6 @@ export default function Checkout() {
    *
    * A API também terá sua própria validação.
    */
-
-  useEffect(() => {
-    if (qtyTotal < MIN_ORDER_QUANTITY) {
-      navigate("/", { replace: true });
-    }
-  }, [qtyTotal, navigate]);
-
-  /*
-   * Enquanto o redirecionamento acontece, não renderiza
-   * o Checkout.
-   */
-
-  if (qtyTotal < MIN_ORDER_QUANTITY) {
-    return null;
-  }
 
   /*
    * ==========================================================
@@ -184,12 +163,25 @@ export default function Checkout() {
   const [sending, setSending] = useState(false);
 
   const [orderError, setOrderError] = useState("");
+  const [confirmed, setConfirmed] = useState(null);
+  const submitting = useRef(false);
+  const createdOrder = useRef(null);
 
   const [customer, setCustomer] = useState({
     name: user?.name ?? "",
     whatsapp: "",
     email: user?.email ?? "",
   });
+
+  useEffect(() => {
+    if (!confirmed && qtyTotal < MIN_ORDER_QUANTITY) {
+      navigate("/", { replace: true });
+    }
+  }, [qtyTotal, navigate, confirmed]);
+
+  useEffect(() => {
+    setShipping(null);
+  }, [totalWeight]);
 
   /*
    * ==========================================================
@@ -217,7 +209,7 @@ export default function Checkout() {
    */
 
   const handleWhatsApp = async () => {
-    if (sending) {
+    if (submitting.current || createdOrder.current) {
       return;
     }
 
@@ -235,6 +227,10 @@ export default function Checkout() {
         throw new Error(
           `O pedido mínimo é de ${MIN_ORDER_QUANTITY} peças.`,
         );
+      }
+
+      if (!selectedDelivery) {
+        throw new Error("Escolha a entrega e calcule a estimativa, se necessário.");
       }
 
       /*
@@ -275,8 +271,6 @@ export default function Checkout() {
         );
       }
 
-      setSending(true);
-
       /*
        * Garante que todas as linhas possuem variantId.
        */
@@ -286,6 +280,10 @@ export default function Checkout() {
           "O catálogo ainda está sendo atualizado. Reabra o pedido e tente novamente.",
         );
       }
+
+      const message = buildOrderMessage({ lines, qtyTotal, selectedDelivery });
+      submitting.current = true;
+      setSending(true);
 
       /*
        * Criação do pedido.
@@ -317,19 +315,12 @@ export default function Checkout() {
         })),
       });
 
-      /*
-       * Só abre o WhatsApp depois que a API confirmou
-       * a criação do pedido.
-       */
-
-      sendToWhatsApp(
-        buildOrderMessage({
-          lines,
-          qtyTotal,
-          selectedDelivery,
-          orderNumber: order.publicNumber,
-        }),
-      );
+      createdOrder.current = order;
+      setConfirmed({
+        number: order.publicNumber,
+        url: buildWhatsAppUrl(`Pedido: ${order.publicNumber}\n${message}`),
+      });
+      clearCart(lines);
     } catch (error) {
       setOrderError(
         error instanceof Error
@@ -337,6 +328,7 @@ export default function Checkout() {
           : "Não foi possível enviar o pedido.",
       );
     } finally {
+      submitting.current = false;
       setSending(false);
     }
   };
@@ -378,6 +370,24 @@ export default function Checkout() {
    * RENDER
    * ==========================================================
    */
+
+  if (confirmed) {
+    return (
+      <main className="checkout-main">
+        <section className="review" aria-labelledby="confirmed-title">
+          <h1 id="confirmed-title">Pedido recebido</h1>
+          <p role="status">Seu pedido {confirmed.number} foi criado. As peças enviadas foram retiradas do carrinho.</p>
+          <p>Continue a conversa sem criar outro pedido:</p>
+          <a className="button primary" href={confirmed.url} target="_blank" rel="noopener noreferrer">
+            Abrir WhatsApp <Send size={18} />
+          </a>
+          <button className="button outline" onClick={() => navigate("/")}>Voltar à loja</button>
+        </section>
+      </main>
+    );
+  }
+
+  if (qtyTotal < MIN_ORDER_QUANTITY) return null;
 
   return (
     <div className="checkout">
@@ -560,13 +570,15 @@ export default function Checkout() {
                       inputMode="numeric"
                       autoComplete="postal-code"
                       value={cep}
-                      onChange={(event) =>
+                      onChange={(event) => {
+                        setShipping(null);
+                        setShippingError("");
                         setCep(
                           formatCep(
                             event.target.value,
                           ),
-                        )
-                      }
+                        );
+                      }}
                       placeholder="00000-000"
                       maxLength={9}
                     />

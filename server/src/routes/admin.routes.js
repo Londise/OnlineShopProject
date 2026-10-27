@@ -6,7 +6,7 @@ import { archive, getAdmin, listAdmin, update } from '../controllers/order.contr
 import { logsRouter } from './logs.routes.js';
 import { requireRoles } from '../middlewares/auth.js';
 import { validate } from '../middlewares/validate.js';
-import { bannerSchema, categorySchema, createStaffSchema, inventoryAdjustmentSchema, productImageSchema, productOptionPatchSchema, productOptionSchema, productPatchSchema, productSchema, productVariantPatchSchema, variantOptionSchema } from '../schemas/admin.schemas.js';
+import { bannerPatchSchema, bannerSchema, categoryPatchSchema, categorySchema, createStaffSchema, inventoryAdjustmentSchema, productImageSchema, productOptionPatchSchema, productOptionSchema, productPatchSchema, productSchema, productVariantPatchSchema, variantOptionPatchSchema, variantOptionSchema } from '../schemas/admin.schemas.js';
 import { updateOrderSchema } from '../schemas/order.schemas.js';
 
 export const adminRouter = Router();
@@ -22,9 +22,9 @@ adminRouter.use(requireRoles('ADMIN'));
 adminRouter.use('/logs', logsRouter);
 adminRouter.get('/catalog-metadata', catalogMetadata);
 adminRouter.post('/categories', validate(categorySchema), createCategory);
-adminRouter.patch('/categories/:id', validate(categorySchema.partial()), updateCategory);
+adminRouter.patch('/categories/:id', validate(categoryPatchSchema), updateCategory);
 adminRouter.post('/variant-options', validate(variantOptionSchema), createVariantOption);
-adminRouter.patch('/variant-options/:id', validate(variantOptionSchema.partial()), updateVariantOption);
+adminRouter.patch('/variant-options/:id', validate(variantOptionPatchSchema), updateVariantOption);
 adminRouter.get('/products', listAdminProducts);
 adminRouter.post('/products', validate(productSchema), createProduct);
 adminRouter.patch('/products/:id', validate(productPatchSchema), updateProduct);
@@ -40,4 +40,4 @@ adminRouter.patch('/product-images/:id', updateImage);
 adminRouter.get('/site-media', siteMedia);
 adminRouter.get('/banners', listAdminBanners);
 adminRouter.post('/banners', validate(bannerSchema), createBanner);
-adminRouter.patch('/banners/:id', validate(bannerSchema.partial()), updateBanner);
+adminRouter.patch('/banners/:id', validate(bannerPatchSchema), updateBanner);

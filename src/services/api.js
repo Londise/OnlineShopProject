@@ -67,7 +67,5 @@ export const api = {
       const suffix = search.toString();
       return request(`/admin/logs${suffix ? `?${suffix}` : ""}`);
     },
-    logsByTrace: (traceId) => request(`/admin/logs/trace/${traceId}`),
-    logsDead: () => request("/admin/logs/dead"),
   },
 };

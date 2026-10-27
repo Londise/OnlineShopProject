@@ -8,34 +8,30 @@ export function buildOrderMessage({
   // Se não houver linhas de pedido, retorna uma string vazia
   if (!lines || lines.length === 0) return "";
 
-  const money = new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  });
-
   let message = "Olá! Gostaria de fazer o seguinte pedido:\n";
   if (orderNumber) message += `Pedido: ${orderNumber}\n`;
   message += "━━━━━━━━━━━━━━━━━━━━\n\n";
 
   // Agrupa por produto
-  const groupedProducts = {};
+  const groupedProducts = new Map();
 
   lines.forEach((line) => {
-    if (!groupedProducts[line.name]) {
-      groupedProducts[line.name] = {};
+    if (!groupedProducts.has(line.name)) {
+      groupedProducts.set(line.name, new Map());
     }
 
-    if (!groupedProducts[line.name][line.size]) {
-      groupedProducts[line.name][line.size] = [];
+    const sizes = groupedProducts.get(line.name);
+    if (!sizes.has(line.size)) {
+      sizes.set(line.size, []);
     }
 
-    groupedProducts[line.name][line.size].push(line);
+    sizes.get(line.size).push(line);
   });
 
-  Object.entries(groupedProducts).forEach(([productName, sizes]) => {
+  groupedProducts.forEach((sizes, productName) => {
     message += `📦 ${productName.toUpperCase()}\n\n`;
 
-    Object.entries(sizes).forEach(([size, items]) => {
+    sizes.forEach((items, size) => {
       message += `${size}\n`;
 
       items.forEach((item) => {
@@ -56,18 +52,9 @@ export function buildOrderMessage({
   return message;
 }
 
-export function sendToWhatsApp(message) {
-
-  if (!message) return
-
-  const PHONE = import.meta.env.VITE_WHATSAPP_NUMBER;
-
-  const params = new URLSearchParams({
-    phone: PHONE,
-    text: message,
-  });
-
-  const url = `https://api.whatsapp.com/send?${params}`;
-
-  window.open(url, "_blank");
+export function buildWhatsAppUrl(message, phone = import.meta.env?.VITE_WHATSAPP_NUMBER) {
+  const params = new URLSearchParams();
+  if (phone != null && String(phone).trim()) params.set("phone", String(phone).trim());
+  params.set("text", message);
+  return `https://api.whatsapp.com/send?${params}`;
 }

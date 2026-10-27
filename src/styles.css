@@ -1185,25 +1185,6 @@ footer small {
     font-size: 13px
 }
 
-.floating-cart {
-    position: fixed;
-
-    right: 24px;
-    bottom: 24px;
-
-    display: flex;
-    align-items: center;
-    gap: 10px;
-
-    padding: 14px 18px;
-
-    border-radius: 999px;
-
-    z-index: 999;
-
-    cursor: pointer;
-}
-
 .checkout {
     min-height: 100dvh;
     background: #faf7f3
@@ -2133,15 +2114,6 @@ footer small {
     font-size: 29px;
 }
 
-.account-empty {
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    padding: 24px;
-    background: #fff;
-    color: var(--muted);
-}
-
 .account-orders,
 .management-list {
     display: grid;
@@ -2149,8 +2121,7 @@ footer small {
 }
 
 .account-orders article,
-.management-order,
-.inventory-row {
+.management-order {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -2163,41 +2134,15 @@ footer small {
 .account-orders b,
 .account-orders small,
 .management-order b,
-.management-order small,
-.inventory-row b,
-.inventory-row small {
+.management-order small {
     display: block;
 }
 
 .account-orders small,
-.management-order small,
-.inventory-row small {
+.management-order small {
     margin-top: 4px;
     color: var(--muted);
     font-size: 11px;
-}
-
-.order-status {
-    padding: 5px 8px;
-    font-size: 10px;
-    font-weight: 700;
-    background: #f2e8e8;
-    color: var(--wine);
-}
-
-.status-confirmado {
-    background: #e2f0e4;
-    color: #32643c;
-}
-
-.status-cancelado {
-    background: #f9e0e2;
-    color: #963746;
-}
-
-.status-concluido {
-    background: #e6edf7;
-    color: #315c91;
 }
 
 .management-user {
@@ -2303,36 +2248,6 @@ footer small {
     font-size: 11px;
 }
 
-.stock-numbers {
-    display: flex;
-    gap: 14px;
-    font-size: 11px;
-    color: var(--muted);
-}
-
-.stock-numbers b {
-    display: inline;
-    margin-left: 3px;
-    color: var(--ink);
-}
-
-.stock-adjust {
-    display: flex;
-    gap: 7px;
-}
-
-.stock-adjust input {
-    width: 72px;
-    border: 1px solid var(--line);
-    padding: 0 8px;
-}
-
-.stock-adjust .button {
-    min-height: 34px;
-    padding: 0 10px;
-    font-size: 11px;
-}
-
 .management-back {
     margin-top: 35px;
 }
@@ -2376,14 +2291,9 @@ footer small {
     }
 
     .account-orders article,
-    .management-order,
-    .inventory-row {
+    .management-order {
         align-items: flex-start;
         flex-direction: column;
-    }
-
-    .stock-numbers {
-        flex-wrap: wrap;
     }
 
     .order-editor {

@@ -13,9 +13,6 @@ export const LOG_LEVELS = Object.freeze({
   fatal: 60,
 });
 
-export const levelName = (level) =>
-  Object.keys(LOG_LEVELS).find((name) => LOG_LEVELS[name] === level) ?? String(level);
-
 const REDACTED = '[REDACTED]';
 const SENSITIVE_KEY = /pass(word)?|token|secret|authorization|cookie|senha|api[-_]?key/i;
 const EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
@@ -203,12 +200,9 @@ export const log = logger.log;
 export const flush = logger.flush;
 export const flushAndClose = logger.close;
 
-export const logTrace = (event, message, ctx) => log(LOG_LEVELS.trace, event, message, ctx);
-export const logDebug = (event, message, ctx) => log(LOG_LEVELS.debug, event, message, ctx);
 export const logInfo = (event, message, ctx) => log(LOG_LEVELS.info, event, message, ctx);
 export const logWarn = (event, message, ctx) => log(LOG_LEVELS.warn, event, message, ctx);
 export const logError = (event, message, ctx) => log(LOG_LEVELS.error, event, message, ctx);
-export const logFatal = (event, message, ctx) => log(LOG_LEVELS.fatal, event, message, ctx);
 
 // Somente para testes: permitem inspecionar o buffer e injetar destinos falsos.
 export const __testing = {

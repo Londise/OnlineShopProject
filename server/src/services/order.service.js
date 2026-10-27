@@ -27,10 +27,18 @@ const variantInclude = {
   inventory: true,
 };
 
+const MAX_INT = 2147483647;
+
+function orderInt(value) {
+  if (!Number.isSafeInteger(value) || value < 0 || value > MAX_INT)
+    throw new AppError(422, "ORDER_AMOUNT_OVERFLOW", "Quantidade, peso ou valor do pedido excede o limite permitido.");
+  return value;
+}
+
 const aggregateItems = (items) =>
   [
     ...items.reduce((map, item) => {
-      map.set(item.variantId, (map.get(item.variantId) || 0) + item.quantity);
+      map.set(item.variantId, orderInt((map.get(item.variantId) || 0) + orderInt(item.quantity)));
       return map;
     }, new Map()),
   ].map(([variantId, quantity]) => ({ variantId, quantity }));
@@ -41,7 +49,11 @@ async function loadActiveVariants(tx, items) {
     where: {
       id: { in: variantIds },
       active: true,
-      productOption: { active: true, product: { active: true } },
+      productOption: {
+        active: true,
+        variantOption: { active: true },
+        product: { active: true, category: { active: true } },
+      },
       size: { active: true },
     },
     include: variantInclude,
@@ -72,11 +84,22 @@ function snapshotItem(variant, quantity, previousItem) {
     sizeSnapshot: previousItem?.sizeSnapshot ?? variant.size.code,
     imageUrlSnapshot:
       previousItem?.imageUrlSnapshot ?? product.images[0]?.asset.url ?? null,
-    unitPriceCentsSnapshot: unitPriceCents,
-    unitWeightGramsSnapshot: unitWeightGrams,
+    unitPriceCentsSnapshot: orderInt(unitPriceCents),
+    unitWeightGramsSnapshot: orderInt(unitWeightGrams),
     quantity,
-    lineTotalCentsSnapshot: unitPriceCents * quantity,
+    lineTotalCentsSnapshot: orderInt(unitPriceCents * quantity),
   };
+}
+
+function orderTotals(items, shippingAmountCents = 0) {
+  const subtotalCents = items.reduce(
+    (sum, item) => orderInt(sum + orderInt(item.lineTotalCentsSnapshot)), 0,
+  );
+  const totalWeightGrams = items.reduce(
+    (sum, item) => orderInt(sum + orderInt(item.unitWeightGramsSnapshot * item.quantity)), 0,
+  );
+  const totalCents = orderInt(subtotalCents + orderInt(shippingAmountCents ?? 0));
+  return { subtotalCents, totalWeightGrams, totalCents };
 }
 
 async function writeInventory(
@@ -205,19 +228,13 @@ export async function createOrder(input, user) {
       const snapshots = items.map((item) =>
         snapshotItem(variants.get(item.variantId), item.quantity),
       );
-      const subtotalCents = snapshots.reduce(
-        (sum, item) => sum + item.lineTotalCentsSnapshot,
-        0,
-      );
-      const totalWeightGrams = snapshots.reduce(
-        (sum, item) => sum + item.unitWeightGramsSnapshot * item.quantity,
-        0,
-      );
+      const { subtotalCents, totalWeightGrams } = orderTotals(snapshots);
       const quote = calculateShipping({
         method: input.delivery.method,
         postalCode: input.delivery.postalCode,
         totalWeightGrams,
       });
+      const { totalCents } = orderTotals(snapshots, quote.amountCents);
       const order = await tx.order.create({
         data: {
           publicNumber: publicOrderNumber(),
@@ -230,7 +247,7 @@ export async function createOrder(input, user) {
           shippingAmountCents: quote.amountCents,
           shippingDetail: quote.detail,
           subtotalCents,
-          totalCents: subtotalCents + (quote.amountCents ?? 0),
+          totalCents,
           note: input.note ?? null,
           items: { create: snapshots },
         },
@@ -278,146 +295,145 @@ export async function createOrder(input, user) {
   return order;
 }
 
-export async function updateOrder(orderId, input, actor) {
-  let statusChange = null;
-  const updatedOrder = await serializableTransaction(
-    prisma,
-    async (tx) => {
-      const order = await tx.order.findFirst({
-        where: { id: orderId, archivedAt: null },
-        include: { items: true },
-      });
-      if (!order) throw notFound("Pedido não encontrado.");
-      const before = {
-        status: order.status,
-        paidAmountCents: order.paidAmountCents,
-        itemCount: order.items.length,
-      };
-      let effectiveItems = order.items;
-      const itemIds = new Set(order.items.map((item) => item.productVariantId));
-      const requested = input.items ? aggregateItems(input.items) : null;
-      if (
-        requested &&
-        requested.reduce((total, item) => total + item.quantity, 0) < MIN_ORDER_QUANTITY
-      ) {
+async function updateOrderInTransaction(tx, orderId, input, actor) {
+  const order = await tx.order.findFirst({
+    where: { id: orderId, archivedAt: null },
+    include: { items: true },
+  });
+  if (!order) throw notFound("Pedido não encontrado.");
+  const before = {
+    status: order.status,
+    paidAmountCents: order.paidAmountCents,
+    itemCount: order.items.length,
+  };
+  let effectiveItems = order.items;
+  const itemIds = new Set(order.items.map((item) => item.productVariantId));
+  const requested = input.items ? aggregateItems(input.items) : null;
+  if (
+    requested &&
+    requested.reduce((total, item) => total + item.quantity, 0) < MIN_ORDER_QUANTITY
+  ) {
+    throw new AppError(
+      422,
+      "MINIMUM_ORDER",
+      `O pedido mínimo é de ${MIN_ORDER_QUANTITY} peças.`,
+    );
+  }
+  requested?.forEach((item) => itemIds.add(item.variantId));
+  const stock = await lockInventories(tx, [...itemIds]);
+
+  if (requested) {
+    if (order.status === "CONCLUIDO")
+      throw new AppError(
+        409,
+        "ORDER_LOCKED",
+        "Pedidos concluídos não podem ter itens alterados.",
+      );
+    const variants = await loadActiveVariants(tx, requested);
+    const oldByVariant = new Map(
+      order.items.map((item) => [item.productVariantId, item]),
+    );
+    const requestedByVariant = new Map(
+      requested.map((item) => [item.variantId, item.quantity]),
+    );
+    const snapshots = requested.map((item) =>
+      snapshotItem(
+        variants.get(item.variantId), item.quantity, oldByVariant.get(item.variantId),
+      ),
+    );
+    // Validate every persisted amount before inventory, item or audit writes.
+    orderTotals(snapshots, order.shippingAmountCents);
+    orderInt(input.paidAmountCents ?? order.paidAmountCents);
+    for (const variantId of itemIds) {
+      const oldQuantity = oldByVariant.get(variantId)?.quantity ?? 0;
+      const newQuantity = requestedByVariant.get(variantId) ?? 0;
+      const delta = newQuantity - oldQuantity;
+      if (!delta || order.status === "CANCELADO") continue;
+      const level = stock.get(variantId);
+      if (!level)
         throw new AppError(
-          422,
-          "MINIMUM_ORDER",
-          `O pedido mínimo é de ${MIN_ORDER_QUANTITY} peças.`,
+          409,
+          "MISSING_INVENTORY",
+          "Estoque de uma variação não foi configurado.",
         );
-      }
-      requested?.forEach((item) => itemIds.add(item.variantId));
-      const stock = await lockInventories(tx, [...itemIds]);
-
-      if (requested) {
-        if (order.status === "CONCLUIDO")
-          throw new AppError(
-            409,
-            "ORDER_LOCKED",
-            "Pedidos concluídos não podem ter itens alterados.",
-          );
-        const variants = await loadActiveVariants(tx, requested);
-        const oldByVariant = new Map(
-          order.items.map((item) => [item.productVariantId, item]),
-        );
-        const requestedByVariant = new Map(
-          requested.map((item) => [item.variantId, item.quantity]),
-        );
-        for (const variantId of itemIds) {
-          const oldQuantity = oldByVariant.get(variantId)?.quantity ?? 0;
-          const newQuantity = requestedByVariant.get(variantId) ?? 0;
-          const delta = newQuantity - oldQuantity;
-          if (!delta || order.status === "CANCELADO") continue;
-          const level = stock.get(variantId);
-          if (!level)
-            throw new AppError(
-              409,
-              "MISSING_INVENTORY",
-              "Estoque de uma variação não foi configurado.",
-            );
-          const inventoryNext =
-            order.status === "NOVO"
-              ? { onHand: level.onHand, reserved: level.reserved + delta }
-              : { onHand: level.onHand - delta, reserved: level.reserved };
-          const movementType =
-            delta > 0
-              ? order.status === "NOVO"
-                ? "ORDER_RESERVE"
-                : "ORDER_CONSUME"
-              : order.status === "NOVO"
-                ? "ORDER_RELEASE"
-                : "ORDER_RESTORE";
-          const movementDelta =
-            order.status === "NOVO"
-              ? { onHand: 0, reserved: delta }
-              : { onHand: -delta, reserved: 0 };
-          await writeInventory(
-            tx,
-            variantId,
-            inventoryNext,
-            movementDelta,
-            movementType,
-            order.id,
-            actor.id,
-            "Ajuste de itens do pedido",
-          );
-          stock.set(variantId, inventoryNext);
-        }
-        const snapshots = requested.map((item) =>
-          snapshotItem(
-            variants.get(item.variantId),
-            item.quantity,
-            oldByVariant.get(item.variantId),
-          ),
-        );
-        await tx.orderItem.deleteMany({ where: { orderId: order.id } });
-        await tx.orderItem.createMany({
-          data: snapshots.map((item) => ({ ...item, orderId: order.id })),
-        });
-        effectiveItems = snapshots;
-      }
-
-      const targetStatus = input.status ?? order.status;
-      await moveForStatus(
+      const inventoryNext =
+        order.status === "NOVO"
+          ? { onHand: level.onHand, reserved: level.reserved + delta }
+          : { onHand: level.onHand - delta, reserved: level.reserved };
+      const movementType =
+        delta > 0
+          ? order.status === "NOVO"
+            ? "ORDER_RESERVE"
+            : "ORDER_CONSUME"
+          : order.status === "NOVO"
+            ? "ORDER_RELEASE"
+            : "ORDER_RESTORE";
+      const movementDelta =
+        order.status === "NOVO"
+          ? { onHand: 0, reserved: delta }
+          : { onHand: -delta, reserved: 0 };
+      await writeInventory(
         tx,
-        order.status,
-        targetStatus,
-        effectiveItems,
-        stock,
+        variantId,
+        inventoryNext,
+        movementDelta,
+        movementType,
         order.id,
         actor.id,
+        "Ajuste de itens do pedido",
       );
-      const subtotalCents = effectiveItems.reduce(
-        (sum, item) => sum + item.lineTotalCentsSnapshot,
-        0,
-      );
-      const updated = await tx.order.update({
-        where: { id: order.id },
-        data: {
-          status: targetStatus,
-          paidAmountCents: input.paidAmountCents ?? order.paidAmountCents,
-          note: input.note === undefined ? order.note : input.note,
-          subtotalCents,
-          totalCents: subtotalCents + (order.shippingAmountCents ?? 0),
-        },
-        include: { items: true },
-      });
-      await writeAudit(tx, {
-        actorId: actor.id,
-        orderId: order.id,
-        entityType: "ORDER",
-        entityId: order.id,
-        action: "UPDATED",
-        beforeJson: before,
-        afterJson: {
-          status: updated.status,
-          paidAmountCents: updated.paidAmountCents,
-          itemCount: updated.items.length,
-        },
-      });
-      statusChange = { from: before.status, to: updated.status };
-      return updated;
+      stock.set(variantId, inventoryNext);
+    }
+    await tx.orderItem.deleteMany({ where: { orderId: order.id } });
+    await tx.orderItem.createMany({
+      data: snapshots.map((item) => ({ ...item, orderId: order.id })),
+    });
+    effectiveItems = snapshots;
+  }
+
+  const targetStatus = input.status ?? order.status;
+  const { subtotalCents, totalCents } = orderTotals(effectiveItems, order.shippingAmountCents);
+  const paidAmountCents = orderInt(input.paidAmountCents ?? order.paidAmountCents);
+  await moveForStatus(
+    tx,
+    order.status,
+    targetStatus,
+    effectiveItems,
+    stock,
+    order.id,
+    actor.id,
+  );
+  const updated = await tx.order.update({
+    where: { id: order.id },
+    data: {
+      status: targetStatus,
+      paidAmountCents,
+      note: input.note === undefined ? order.note : input.note,
+      subtotalCents,
+      totalCents,
     },
+    include: { items: true },
+  });
+  await writeAudit(tx, {
+    actorId: actor.id,
+    orderId: order.id,
+    entityType: "ORDER",
+    entityId: order.id,
+    action: "UPDATED",
+    beforeJson: before,
+    afterJson: {
+      status: updated.status,
+      paidAmountCents: updated.paidAmountCents,
+      itemCount: updated.items.length,
+    },
+  });
+  return { updated, statusChange: { from: before.status, to: updated.status } };
+}
+
+export async function updateOrder(orderId, input, actor) {
+  const { updated: updatedOrder, statusChange } = await serializableTransaction(
+    prisma,
+    (tx) => updateOrderInTransaction(tx, orderId, input, actor),
   );
   if (statusChange && statusChange.from !== statusChange.to)
     logInfo("order.status_changed", `Pedido ${updatedOrder?.publicNumber ?? updatedOrder?.id}: ${statusChange.from} → ${statusChange.to}`, {
@@ -428,13 +444,14 @@ export async function updateOrder(orderId, input, actor) {
 }
 
 export async function archiveOrder(orderId, actor) {
-  const existing = await prisma.order.findFirst({
-    where: { id: orderId, archivedAt: null },
-  });
-  if (!existing) throw notFound("Pedido não encontrado.");
-  if (existing.status === "NOVO" || existing.status === "CONFIRMADO")
-    await updateOrder(orderId, { status: "CANCELADO" }, actor);
-  const archived = await prisma.$transaction(async (tx) => {
+  const { archived, statusChange } = await serializableTransaction(prisma, async (tx) => {
+    const existing = await tx.order.findFirst({
+      where: { id: orderId, archivedAt: null },
+    });
+    if (!existing) throw notFound("Pedido não encontrado.");
+    let statusChange = null;
+    if (existing.status === "NOVO" || existing.status === "CONFIRMADO")
+      ({ statusChange } = await updateOrderInTransaction(tx, orderId, { status: "CANCELADO" }, actor));
     const archivedOrder = await tx.order.update({
       where: { id: orderId },
       data: { archivedAt: new Date(), archivedById: actor.id },
@@ -446,8 +463,13 @@ export async function archiveOrder(orderId, actor) {
       entityId: orderId,
       action: "ARCHIVED",
     });
-    return archivedOrder;
+    return { archived: archivedOrder, statusChange };
   });
+  if (statusChange)
+    logInfo("order.status_changed", `Pedido ${archived?.publicNumber ?? orderId}: ${statusChange.from} → ${statusChange.to}`, {
+      actorId: actor.id,
+      data: { orderId: archived?.id ?? orderId, ...statusChange },
+    });
   logInfo("order.archived", `Pedido ${archived?.publicNumber ?? orderId} arquivado`, {
     actorId: actor.id,
     data: { orderId: archived?.id ?? orderId, publicNumber: archived?.publicNumber ?? null },

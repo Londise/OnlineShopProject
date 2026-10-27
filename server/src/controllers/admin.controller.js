@@ -2,12 +2,11 @@ import argon2 from "argon2";
 import { prisma } from "../db/prisma.js";
 import { lockInventories } from "../db/inventory.js";
 import { serializableTransaction } from "../db/transaction.js";
-import { asyncHandler } from "../lib/async-handler.js";
 import { AppError, notFound } from "../lib/errors.js";
 import { normalizeEmail } from "../lib/security.js";
 import { writeAudit } from "../services/audit.service.js";
 
-export const catalogMetadata = asyncHandler(async (_req, res) => {
+export const catalogMetadata = async (_req, res) => {
   const [categories, options, sizes] = await Promise.all([
     prisma.category.findMany({ orderBy: { sortOrder: "asc" } }),
     prisma.variantOption.findMany({
@@ -16,71 +15,75 @@ export const catalogMetadata = asyncHandler(async (_req, res) => {
     prisma.size.findMany({ orderBy: { sortOrder: "asc" } }),
   ]);
   res.json({ categories, options, sizes });
-});
+};
 
-export const createCategory = asyncHandler(async (req, res) => {
-  const category = await prisma.category.create({ data: req.body });
-  await prisma.$transaction((tx) =>
-    writeAudit(tx, {
+export const createCategory = async (req, res) => {
+  const category = await prisma.$transaction(async (tx) => {
+    const created = await tx.category.create({ data: req.body });
+    await writeAudit(tx, {
       actorId: req.user.id,
       entityType: "CATEGORY",
-      entityId: category.id,
+      entityId: created.id,
       action: "CREATED",
-      afterJson: { name: category.name },
-    }),
-  );
+      afterJson: { name: created.name },
+    });
+    return created;
+  });
   res.status(201).json({ category });
-});
+};
 
-export const updateCategory = asyncHandler(async (req, res) => {
-  const category = await prisma.category.update({
-    where: { id: req.params.id },
-    data: req.body,
-  });
-  await prisma.$transaction((tx) =>
-    writeAudit(tx, {
+export const updateCategory = async (req, res) => {
+  const category = await prisma.$transaction(async (tx) => {
+    const updated = await tx.category.update({
+      where: { id: req.params.id },
+      data: req.body,
+    });
+    await writeAudit(tx, {
       actorId: req.user.id,
       entityType: "CATEGORY",
-      entityId: category.id,
+      entityId: updated.id,
       action: "UPDATED",
       afterJson: req.body,
-    }),
-  );
-  res.json({ category });
-});
-
-export const createVariantOption = asyncHandler(async (req, res) => {
-  const option = await prisma.variantOption.create({ data: req.body });
-  await prisma.$transaction((tx) =>
-    writeAudit(tx, {
-      actorId: req.user.id,
-      entityType: "VARIANT_OPTION",
-      entityId: option.id,
-      action: "CREATED",
-      afterJson: { name: option.name, type: option.type },
-    }),
-  );
-  res.status(201).json({ option });
-});
-
-export const updateVariantOption = asyncHandler(async (req, res) => {
-  const option = await prisma.variantOption.update({
-    where: { id: req.params.id },
-    data: req.body,
+    });
+    return updated;
   });
-  await prisma.$transaction((tx) =>
-    writeAudit(tx, {
+  res.json({ category });
+};
+
+export const createVariantOption = async (req, res) => {
+  const option = await prisma.$transaction(async (tx) => {
+    const created = await tx.variantOption.create({ data: req.body });
+    await writeAudit(tx, {
       actorId: req.user.id,
       entityType: "VARIANT_OPTION",
-      entityId: option.id,
+      entityId: created.id,
+      action: "CREATED",
+      afterJson: { name: created.name, type: created.type },
+    });
+    return created;
+  });
+  res.status(201).json({ option });
+};
+
+export const updateVariantOption = async (req, res) => {
+  const option = await prisma.$transaction(async (tx) => {
+    const updated = await tx.variantOption.update({
+      where: { id: req.params.id },
+      data: req.body,
+    });
+    await writeAudit(tx, {
+      actorId: req.user.id,
+      entityType: "VARIANT_OPTION",
+      entityId: updated.id,
       action: "UPDATED",
       afterJson: req.body,
-    }),
-  );
+    });
+    return updated;
+  });
   res.json({ option });
-});
+};
 
-export const listInventory = asyncHandler(async (_req, res) => {
+export const listInventory = async (_req, res) => {
   const variants = await prisma.productVariant.findMany({
     include: {
       size: true,
@@ -109,9 +112,9 @@ export const listInventory = asyncHandler(async (_req, res) => {
         (variant.inventory?.onHand ?? 0) - (variant.inventory?.reserved ?? 0),
     })),
   });
-});
+};
 
-export const adjustInventory = asyncHandler(async (req, res) => {
+export const adjustInventory = async (req, res) => {
   const { variantId } = req.params;
   const { delta, reason } = req.body;
   const level = await serializableTransaction(prisma, async (tx) => {
@@ -149,25 +152,26 @@ export const adjustInventory = asyncHandler(async (req, res) => {
   res.json({
     inventory: { ...level, available: level.onHand - level.reserved },
   });
-});
+};
 
-export const createStaff = asyncHandler(async (req, res) => {
+export const createStaff = async (req, res) => {
   const email = normalizeEmail(req.body.email);
   const passwordHash = await argon2.hash(req.body.password, {
     type: argon2.argon2id,
   });
-  const user = await prisma.user.create({
-    data: { name: req.body.name, email, passwordHash, role: "STAFF" },
-  });
-  await prisma.$transaction((tx) =>
-    writeAudit(tx, {
+  const user = await prisma.$transaction(async (tx) => {
+    const created = await tx.user.create({
+      data: { name: req.body.name, email, passwordHash, role: "STAFF" },
+    });
+    await writeAudit(tx, {
       actorId: req.user.id,
       entityType: "USER",
-      entityId: user.id,
+      entityId: created.id,
       action: "STAFF_CREATED",
-      afterJson: { email: user.email, role: user.role },
-    }),
-  );
+      afterJson: { email: created.email, role: created.role },
+    });
+    return created;
+  });
   res
     .status(201)
     .json({
@@ -178,9 +182,9 @@ export const createStaff = asyncHandler(async (req, res) => {
         role: user.role,
       },
     });
-});
+};
 
-export const listStaff = asyncHandler(async (_req, res) => {
+export const listStaff = async (_req, res) => {
   const users = await prisma.user.findMany({
     where: { role: { in: ["STAFF", "ADMIN"] } },
     select: {
@@ -194,17 +198,16 @@ export const listStaff = asyncHandler(async (_req, res) => {
     orderBy: { createdAt: "desc" },
   });
   res.json({ users });
-});
+};
 
-export const listAdminBanners = asyncHandler(async (_req, res) =>
+export const listAdminBanners = async (_req, res) =>
   res.json({
     banners: await prisma.siteBanner.findMany({
       include: { asset: true },
       orderBy: { sortOrder: "asc" },
     }),
-  }),
-);
-export const createBanner = asyncHandler(async (req, res) => {
+  });
+export const createBanner = async (req, res) => {
   const banner = await prisma.$transaction(async (tx) => {
     const created = await tx.siteBanner.create({
       data: req.body,
@@ -220,13 +223,13 @@ export const createBanner = asyncHandler(async (req, res) => {
     return created;
   });
   res.status(201).json({ banner });
-});
-export const updateBanner = asyncHandler(async (req, res) => {
+};
+export const updateBanner = async (req, res) => {
   const banner = await prisma.$transaction(async (tx) => {
     const before = await tx.siteBanner.findUnique({
       where: { id: req.params.id },
     });
-    if (!before) throw notFound("Banner nÃ£o encontrado.");
+    if (!before) throw notFound("Banner não encontrado.");
     const updated = await tx.siteBanner.update({
       where: { id: before.id },
       data: req.body,
@@ -243,4 +246,4 @@ export const updateBanner = asyncHandler(async (req, res) => {
     return updated;
   });
   res.json({ banner });
-});
+};

@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Documentación técnica y operativa consolidada de Ferchu Modas: arquitectura, desarrollo, pedidos, seguridad, datos, despliegue y logs.">
+  <title>Ferchu Modas — documentación del proyecto</title>
+  <style>
+    :root{color-scheme:light;--bg:#f5f5ef;--paper:#fff;--ink:#20362e;--muted:#4b6258;--line:#cbd8cf;--accent:#075a43;--warn:#fff3d6}
+    *{box-sizing:border-box}html{scroll-padding-top:2rem}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.7 system-ui,-apple-system,"Segoe UI",sans-serif}a{color:var(--accent);text-underline-offset:.2em}a:hover{text-decoration-thickness:3px}a:focus-visible{outline:3px solid #a54800;outline-offset:4px}header,footer{max-width:1280px;margin:auto;padding:2rem}header p{max-width:80ch}h1{font-size:clamp(2rem,5vw,3.5rem);line-height:1.15}h2{font-size:1.8rem;line-height:1.3}h3{font-size:1.25rem;line-height:1.4;margin-top:2rem}.layout{display:grid;grid-template-columns:245px minmax(0,1fr);gap:2rem;max-width:1280px;margin:auto;padding:0 2rem}nav{position:sticky;top:1rem;align-self:start;max-height:calc(100vh - 2rem);overflow:auto;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:1rem}nav h2{font-size:1rem;margin:0 0 .5rem}nav ol{margin:0;padding-left:1.4rem}nav li{margin:.4rem 0}main{min-width:0}section{background:var(--paper);padding:clamp(1rem,3vw,2rem);border:1px solid var(--line);border-radius:12px;margin-bottom:1.5rem;scroll-margin-top:1rem}section>h2:first-child{margin-top:0}p,li{overflow-wrap:anywhere}li{margin:.35rem 0}code{font: .88em/1.6 Consolas,ui-monospace,monospace;background:#eaf0eb;padding:.1rem .3rem;border-radius:4px;overflow-wrap:anywhere}pre{background:#163c2e;color:#f5fff8;padding:1rem;border-radius:8px;white-space:pre-wrap;overflow-wrap:anywhere;font: .85rem/1.7 Consolas,ui-monospace,monospace}pre code{background:none;color:inherit;padding:0}.note,.warning{border-left:4px solid var(--accent);background:#eaf3ed;padding:1rem;margin:1.2rem 0}.warning{background:var(--warn);border-color:#956000}.table{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:.94rem}caption{text-align:left;font-weight:700;margin:.5rem 0}th,td{border-bottom:1px solid var(--line);padding:.7rem;text-align:left;vertical-align:top}th{background:#edf3ee}.small{font-size:.9rem;color:var(--muted)}.skip{position:absolute;left:1rem;top:-10rem;background:white;padding:.7rem;z-index:10}.skip:focus{top:1rem}footer{font-size:.9rem;color:var(--muted)}
+    @media(max-width:850px){header,footer{padding:1.25rem}.layout{display:block;padding:0 1rem}nav{top:0;z-index:2;max-height:25vh;margin-bottom:1rem;border-radius:0 0 10px 10px}nav ol{display:flex;flex-wrap:wrap;gap:.3rem 1.2rem;list-style:none;padding:0}nav li{margin:0}html{scroll-padding-top:28vh}section{scroll-margin-top:28vh}h2{font-size:1.5rem}}
+    @media print{body{background:white;color:black;font-size:11pt}.layout{display:block;padding:0}nav,.skip,.back{display:none}section{border:0;border-radius:0;padding:0;break-inside:auto}header,footer{padding:0}pre{background:#eee;color:black}a{color:black}h2,h3{break-after:avoid}tr{break-inside:avoid}}
+  </style>
+</head>
+<body>
+<a class="skip" href="#contenido">Saltar al contenido</a>
+<header id="inicio">
+  <p class="small">FERCHU MODAS · REFERENCIA DEL REPOSITORIO · 16/10/2026</p>
+  <h1>Documentación del proyecto</h1>
+  <p>Guía única de la tienda, su API y su operación. Explica tanto el recorrido de un clic como los comandos, las reglas de negocio y los cuidados necesarios para mantener datos reales.</p>
+  <div class="warning"><strong>Alcance:</strong> contenido contrastado con archivos locales, sin consultar servicios ni ejecutar operaciones remotas. Las referencias históricas de pruebas no certifican disponibilidad, configuración ni seguridad actuales. Los ejemplos con marcadores no contienen credenciales reales. Este HTML se puede leer sin conexión, sin JavaScript, fuentes, imágenes ni estilos externos.</div>
+</header>
+<div class="layout">
+<nav aria-label="Índice de documentación">
+  <h2>Contenido</h2>
+  <ol>
+    <li><a href="#arquitectura">1. Arquitectura y mapa</a></li>
+    <li><a href="#desarrollo">2. Desarrollo y comandos</a></li>
+    <li><a href="#configuracion">3. Configuración</a></li>
+    <li><a href="#sesiones">4. Peticiones y sesiones</a></li>
+    <li><a href="#dominio">5. Catálogo, pedidos y stock</a></li>
+    <li><a href="#base">6. Base y migraciones</a></li>
+    <li><a href="#imagenes">7. Imágenes</a></li>
+    <li><a href="#seguridad">8. Seguridad</a></li>
+    <li><a href="#despliegue">9. Render y Vercel</a></li>
+    <li><a href="#logs">10. Logs y auditoría</a></li>
+    <li><a href="#operacion">11. Diagnóstico y verificación</a></li>
+    <li><a href="#historial">12. Antecedentes y fuentes</a></li>
+  </ol>
+</nav>
+<main id="contenido" tabindex="-1">
+<section id="arquitectura">
+  <h2>1. Arquitectura y mapa del proyecto</h2>
+  <pre aria-label="Recorrido de una solicitud">Navegador: React 19 / Vite 6
+  → Vercel: frontend + proxy /api/*
+  → Render: Node 22 / Express 5
+  → Prisma 6.19.3 → PostgreSQL, schema privado app
+  → Supabase Storage: archivos del bucket storefront-images</pre>
+  <p>En producción el navegador solicita datos al mismo dominio de la tienda, por ejemplo <code>/api/v1/products</code>. Vercel autentica el salto hacia Render; Express valida la solicitud, consulta PostgreSQL y devuelve JSON. El navegador sí puede descargar imágenes directamente del bucket público: no consulta directamente las tablas ni debe conocer secretos del servidor.</p>
+  <p>Supabase aloja PostgreSQL y Storage; no se usa Supabase Auth ni Edge Functions. El SDK de Storage se utiliza exclusivamente en el backend. Localmente se puede usar PostgreSQL propio y llamar a Express en <code>http://localhost:3001</code>.</p>
+  <div class="table"><table><caption>Responsabilidades y archivos</caption><thead><tr><th scope="col">Área</th><th scope="col">Ubicación</th><th scope="col">Función</th></tr></thead><tbody>
+    <tr><td>Entrada frontend</td><td><code>src/main.jsx → src/App.jsx → src/routes/AppRoutes.jsx</code></td><td>Router, layout y proveedores de sesión/carrito.</td></tr>
+    <tr><td>Páginas</td><td><code>src/pages/</code></td><td>Home (<code>/</code>), Checkout (<code>/checkout</code>), Account (<code>/account</code>), Management (<code>/management</code>).</td></tr>
+    <tr><td>Estado y UI</td><td><code>src/contexts/</code>, <code>src/hooks/</code>, <code>src/components/</code></td><td>AuthContext, CartContext, hooks y componentes; LogsPanel contiene la consulta de logs.</td></tr>
+    <tr><td>Cliente HTTP</td><td><code>src/services/api.js</code>, <code>src/services/http.js</code></td><td>Adaptador por módulos, cookies, errores, trazas, timeout y reintentos de lecturas.</td></tr>
+    <tr><td>Composición HTTP</td><td><code>server/src/app.js</code></td><td>Middlewares y routers; no abre un puerto al importarse.</td></tr>
+    <tr><td>Proceso</td><td><code>server/src/server.js</code>, <code>server/src/lib/shutdown.js</code></td><td>Escucha en 0.0.0.0, señales, cierre HTTP, logs y Prisma.</td></tr>
+    <tr><td>API</td><td><code>server/src/routes/</code>, <code>controllers/</code>, <code>schemas/</code>, <code>services/</code></td><td>Rutas, handlers, validación Zod y negocio. Servicios: sesión, pedidos, envío, Storage y auditoría.</td></tr>
+    <tr><td>Datos</td><td><code>server/src/db/</code>, <code>server/prisma/</code></td><td>Prisma, bloqueos y transacciones; schema, migraciones, seed y manifiesto de imágenes.</td></tr>
+    <tr><td>Infraestructura</td><td><code>middleware.js</code>, <code>vercel.mjs</code>, <code>deploy/vercel-config.js</code>, <code>render.yaml</code></td><td>Proxy autenticado, reescrituras, caché y receta opcional de Render.</td></tr>
+  </tbody></table></div>
+  <h3>Organización del estado</h3>
+  <p>El estado y su lógica deben permanecer lo más cerca posible del componente que los necesita. Compartir sesión y carrito mediante contextos tiene sentido porque los consumen varias pantallas; no convertir detalles de un modal o filtro en estado global sin necesidad.</p>
+  <p>Los handlers son funciones async nativas: Express 5 deriva sus rechazos al middleware central de errores. Se retiró el envoltorio manual redundante; un test HTTP verifica tanto errores inesperados como errores de negocio, JSON y contexto de traza.</p>
+  <p class="back"><a href="#inicio">Volver al inicio</a></p>
+</section>
+<section id="desarrollo">
+  <h2>2. Desarrollo local y comandos</h2>
+  <p>Hay <strong>dos paquetes Node independientes</strong>, cada uno con su instalación y lockfile. Ejecutar comandos en el directorio indicado. El backend declara <code>&gt;=22.23.4 &lt;23</code>; Render fija <code>22.23.4</code> en <code>server/.node-version</code> y en <code>NODE_VERSION</code> del Blueprint. La variable del Dashboard tiene prioridad sobre el archivo: comprobarla al desplegar. No confundir <code>npm start</code> del backend con los scripts del frontend.</p>
+  <div class="table"><table><caption>Paquete raíz: React/Vite</caption><thead><tr><th scope="col">Comando</th><th scope="col">Uso</th></tr></thead><tbody>
+    <tr><td><code>npm ci</code></td><td>Instalar versiones del lockfile.</td></tr>
+    <tr><td><code>npm run dev</code></td><td>Servidor Vite local, normalmente puerto 5173.</td></tr>
+    <tr><td><code>npm run build</code></td><td>Generar <code>dist/</code>.</td></tr>
+    <tr><td><code>npm run preview</code></td><td>Previsualizar el build, no reemplaza un hosting productivo.</td></tr>
+    <tr><td><code>npm test</code></td><td>Node tests del adaptador HTTP y configuración de despliegue.</td></tr>
+  </tbody></table></div>
+  <p>No existen scripts de lint ni de typecheck. No inventarlos como pasos disponibles.</p>
+  <div class="table"><table><caption>Paquete server/: Express/Prisma</caption><thead><tr><th scope="col">Comando</th><th scope="col">Uso y precauciones</th></tr></thead><tbody>
+    <tr><td><code>npm ci</code></td><td>Instalar dependencias del backend; para el build de Render usar <code>--include=dev</code> por el CLI de Prisma.</td></tr>
+    <tr><td><code>npm run dev</code> / <code>npm start</code></td><td>Watch local / proceso sin watch.</td></tr>
+    <tr><td><code>npm test</code></td><td>Tests Node, configuración, transacciones y SQL con PostgreSQL aislado en memoria (PGlite), sin utilizar la base configurada en .env.</td></tr>
+    <tr><td><code>npm run prisma:validate</code></td><td>Validar el schema.</td></tr>
+    <tr><td><code>npm run prisma:generate</code></td><td>Generar el cliente; no crea tablas ni importa datos.</td></tr>
+    <tr><td><code>npm run prisma:migrate -- --name &lt;nombre&gt;</code></td><td>Prisma migrate dev, solo desarrollo descartable, con shadow database apropiada.</td></tr>
+    <tr><td><code>npm run prisma:deploy</code></td><td>Aplicar todas las migraciones versionadas pendientes con conexión owner protegida.</td></tr>
+    <tr><td><code>npm run prisma:seed</code></td><td>Solo base nueva y vacía de desarrollo; necesita ADMIN_EMAIL y ADMIN_PASSWORD.</td></tr>
+    <tr><td><code>npm run db:check</code></td><td>Consulta de solo lectura de la base configurada: acceso Prisma y conteos. Sí conecta al destino real configurado.</td></tr>
+    <tr><td><code>npm run media:migrate -- --verify</code></td><td>Verificar descargas y registros del manifiesto; sí accede a recursos configurados.</td></tr>
+  </tbody></table></div>
+  <h3>Preparar una base local nueva</h3>
+  <ol>
+    <li>Instalar ambos paquetes en sus respectivos directorios.</li>
+    <li>Copiar <code>server/.env.example</code> a <code>server/.env</code> <strong>solo si no existe</strong>. Conservar las credenciales locales existentes; completar URLs y origen sin compartir valores.</li>
+    <li>Preparar PostgreSQL y una conexión administrativa; ejecutar validate, generate y deploy desde <code>server/</code>. La cuenta de migración debe poder crear el grupo técnico.</li>
+    <li>Provisionar mediante herramienta administrativa segura un LOGIN dedicado y conceder <code>GRANT ferchu_backend TO &lt;login_backend&gt;</code>. La migración crea un grupo NOLOGIN sin contraseña, no la cuenta runtime. Usar la URL del LOGIN restringido en DATABASE_URL.</li>
+    <li>Ejecutar db:check; únicamente si la base es nueva, vacía y de desarrollo, configurar las variables de admin y ejecutar seed.</li>
+    <li>Configurar el frontend con <code>VITE_API_URL=http://localhost:3001/api/v1</code>. Arrancar backend y frontend en terminales separadas.</li>
+  </ol>
+  <div class="warning">Estas instrucciones describen procedimientos, no autorizan ejecutarlos contra producción. Los tests aislados no reemplazan comprobar conectividad, API y concurrencia en un entorno controlado. No ejecutar seed, migrate dev, db push ni migrate reset sobre datos reales.</div>
+</section>
+<section id="configuracion">
+  <h2>3. Configuración y conexiones</h2>
+  <h3>PostgreSQL: runtime y administración separados</h3>
+  <p>Obtener el host real desde Connect → ORM → Prisma. Para el servidor persistente: conexión directa si la red soporta IPv6; con IPv4, Session pooler en 5432. No usar Transaction pooler (6543) para migraciones. Codificar la contraseña en la URL, usar <code>schema=app</code> y <code>sslmode=require</code> para remoto; validar el certificado según el entorno. Limitar conexiones, por ejemplo <code>connection_limit=5</code>.</p>
+  <pre><code># Plantillas, no valores utilizables; no incluirlas en el bundle del frontend.
+DATABASE_URL="postgresql://LOGIN_RESTRINGIDO:CLAVE_CODIFICADA@HOST:5432/postgres?schema=app&amp;sslmode=require&amp;connection_limit=5"
+DIRECT_URL="postgresql://LOGIN_OWNER:CLAVE_CODIFICADA@HOST:5432/postgres?schema=app&amp;sslmode=require"</code></pre>
+  <p><code>DATABASE_URL</code> pertenece al login miembro de <code>ferchu_backend</code>, no a <code>postgres</code>. <code>DIRECT_URL</code> es la conexión owner usada por Prisma Migrate y debe quedar fuera del runtime productivo. Si Prisma generate requiere DIRECT_URL en Render, repetir allí la URL restringida de runtime: no ejecutar migraciones con ella.</p>
+  <p>El pool limita conexiones abiertas, no cantidad de visitantes. El README anterior citaba 60 conexiones directas y 200 clientes de pooler para Nano/Micro: son cifras históricas orientativas, no límites garantizados del proyecto actual. Consultar Compute and Disk y Observability → Database del proveedor antes de dimensionar. Auth, Storage y PostgREST también pueden consumir conexiones directas. Si el pooler se agota puede rechazar nuevas conexiones hasta que se liberen; aumentar compute cambia límites, pero no reemplaza controlar el pool.</p>
+  <div class="table"><table><caption>Variables del backend, según server/src/config/env.js</caption><thead><tr><th scope="col">Variable</th><th scope="col">Valor predeterminado / requisito</th></tr></thead><tbody>
+    <tr><td><code>NODE_ENV</code></td><td>development; admite test y production.</td></tr>
+    <tr><td><code>PORT</code></td><td>3001 local; Render asigna su propia PORT.</td></tr>
+    <tr><td><code>FRONTEND_ORIGIN</code></td><td>http://localhost:5173 local; en producción origen HTTPS exacto, sin ruta ni barra final.</td></tr>
+    <tr><td><code>ORIGIN_PROXY_SECRET</code></td><td>Obligatorio en producción, token aleatorio de 32–256 caracteres alfanuméricos, guion o guion bajo. Igual en Render y Vercel.</td></tr>
+    <tr><td><code>SESSION_COOKIE_NAME</code> / <code>SESSION_TTL_DAYS</code></td><td>ferchu_session / 14 días (rango 1–90).</td></tr>
+    <tr><td><code>SUPABASE_URL</code> / <code>SUPABASE_SECRET_KEY</code></td><td>Storage del backend; clave secreta con prefijo sb_secret_. No son URLs PostgreSQL. Sin ellas no se configura correctamente la capacidad de uploads.</td></tr>
+    <tr><td><code>ADMIN_EMAIL</code> / <code>ADMIN_PASSWORD</code></td><td>Solo seed de desarrollo, no credenciales para el despliegue habitual.</td></tr>
+    <tr><td><code>MEDIA_UPLOAD_CONCURRENCY</code></td><td>1 (rango 1–4), límite de uploads completos concurrentes.</td></tr>
+    <tr><td><code>LOG_*</code></td><td>Ver <a href="#logs">tabla de logs</a>; límites y descartes forman parte de la operación normal.</td></tr>
+  </tbody></table></div>
+  <p>En Vercel, <code>RENDER_BACKEND_URL</code> es el origen HTTPS real del backend, sin credenciales, ruta, query, hash ni puerto explícito; <code>ORIGIN_PROXY_SECRET</code> es server-only. <code>VITE_API_URL=/api/v1</code> es público por diseño. <strong>Lo que nunca puede tener prefijo VITE_ es un secreto</strong>; no es correcto decir que ninguna variable puede usarlo. Las claves publicables y variables VITE_SUPABASE_* no sustituyen una conexión PostgreSQL.</p>
+</section>
+<section id="sesiones">
+  <h2>4. Recorrido de una petición y sesión</h2>
+  <p><code>app.use()</code> registra middlewares en orden. Cada uno puede enriquecer <code>req</code>, responder o llamar <code>next()</code> para continuar. No todos los requests recorren todo el pipeline: una protección puede terminarlos antes.</p>
+  <ol>
+    <li>Trace y request logger crean el contexto; Helmet aplica cabeceras y <code>/api</code> recibe políticas no-store.</li>
+    <li><code>/health</code> consulta <code>SELECT 1</code> y responde <code>{"status":"ok"}</code> si la base responde; está antes de la protección del proxy y de la sesión.</li>
+    <li>En <code>/api</code>, requireProxyOrigin valida secreto e IP cuando se configura el proxy. Luego CORS admite el origen configurado y credenciales.</li>
+    <li><code>express.json()</code> limita JSON a 100 KB; <code>cookieParser()</code> interpreta el header Cookie y completa <code>req.cookies</code>.</li>
+    <li><code>verifySameOrigin()</code> omite GET/HEAD/OPTIONS y rechaza un Origin presente que no coincida con FRONTEND_ORIGIN. Actualmente no rechaza por sí solo una mutación sin Origin: no presentarlo como una verificación universal de CSRF.</li>
+    <li><code>attachUser()</code> toma el token del cookie, calcula su hash y busca sesión no revocada y no vencida con usuario activo. Solo entonces asigna el usuario de la base a <code>req.user</code> y actorId al contexto de traza.</li>
+    <li>Se aplican limitadores, router, validadores, autorización y controller; al final, manejadores de 404/errores.</li>
+  </ol>
+  <h3>Ejemplo: GET /api/v1/auth/me</h3>
+  <pre><code>Cookie con token opaco → hash → auth_sessions + users
+  → req.user (si la sesión sigue siendo válida)
+  → authRouter.get('/me', me)
+  → publicUser(req.user) o null
+  → JSON { user: ... }
+  → api.auth.me() → AuthContext → React actualiza la interfaz</code></pre>
+  <p><strong>Corrección de las notas originales:</strong> el cookie no contiene el objeto del usuario ni su rol. El servidor recupera esos datos desde la base. PublicUser devuelve solo id, name, email y role, nunca passwordHash ni tokenHash. Una visita a /me sin sesión válida devuelve <code>{"user":null}</code>, no equivale necesariamente a un error de conexión.</p>
+  <p>El registro crea cuentas CUSTOMER; las contraseñas se almacenan con Argon2id. Login valida usuario activo y hash, sin diferenciar públicamente entre cuenta inexistente y contraseña incorrecta. Las sesiones guardan solo el hash del token. El cookie es HttpOnly, SameSite=Lax, path=/ y Secure en producción, con plazo configurado (14 días por defecto). Logout revoca la sesión en la base y borra el cookie; responde 204.</p>
+  <h3>Permisos reales</h3>
+  <ul>
+    <li>Públicos: catálogo, banners y site-media; POST /orders admite pedido invitado. El proxy no vuelve privado el catálogo para usuarios de la tienda.</li>
+    <li>Autenticado: GET /orders/me devuelve pedidos asociados a la cuenta. Un pedido invitado no se vincula automáticamente por compartir email.</li>
+    <li>STAFF o ADMIN: API administrativa de pedidos e inventario.</li>
+    <li>Solo ADMIN: gestión de catálogo, categorías, opciones, staff, imágenes, banners y logs.</li>
+    <li>El frontend <code>/management</code> exige ADMIN. Que la API permita ciertas operaciones a STAFF no significa que esa página les dé acceso.</li>
+  </ul>
+  <h3>Transporte y reintentos</h3>
+  <p>El cliente HTTP usa <code>credentials:'include'</code>, genera x-trace-id y conserva el trace de la respuesta. Timeout por intento: 95 segundos; GET/HEAD pueden reintentarse una vez, con espera de 1 segundo, ante fallas reintentables (red, timeout, 502/503/504 o determinadas respuestas inválidas). POST/PATCH/DELETE no se repiten automáticamente. Un HTML de arranque del hosting no se convierte en catálogo vacío ni en cierre de sesión exitoso.</p>
+</section>
+<section id="dominio">
+  <h2>5. Dominio: catálogo, carrito, pedidos y stock</h2>
+  <h3>Catálogo y medios</h3>
+  <p>Una categoría agrupa productos; un producto tiene opciones de color o estampa (COLOR/PRINT); cada combinación de opción y talle crea una variante con SKU y stock propio. El precio de variante puede sobrescribir el del producto. Las cantidades monetarias usan centavos enteros y los pesos, gramos. El catálogo, sus galerías y categorías vienen de la base; Home carga banners y favicon desde la API. Si falla la carga se muestra error/placeholder, no productos ficticios locales.</p>
+  <p>Tablas modeladas: users, auth_sessions, media_assets, categories, products, variant_options, product_options, sizes, product_variants, inventory_levels, orders, order_items, inventory_movements, product_images, site_banners y audit_logs. Los logs operativos se agregan por SQL y no forman parte del schema Prisma.</p>
+  <p>Listado y detalle públicos filtran categorías, productos, opciones globales, opciones de producto, variantes y talles activos. La administración puede consultar registros inactivos para gestionarlos; no confundir ocultar de la tienda con borrar historial.</p>
+  <h3>Stock y carrito no son lo mismo</h3>
+  <p><code>disponible = onHand − reserved</code>. El carrito del navegador no reserva stock en la base. Para el modal, además se descuentan las unidades de esa variante que ya están en el carrito: si el disponible publicado es 10 y el carrito contiene 2, puede agregar otras 8. Si el 10 fuese stock físico con reservas pendientes, primero habría que descontar esas reservas. El dato de pantalla es orientativo y puede quedar desactualizado; el backend siempre vuelve a validar al crear el pedido. Los carritos persistidos reconcilian imágenes, sin inventar productos de respaldo.</p>
+  <h3>Creación de pedidos</h3>
+  <p>El carrito persistido valida cada línea y rechaza cantidades no enteras seguras o datos corruptos. La selección usa talles del catálogo y el precio de cada variante. Una entrada vacía de inventario no significa cero: se rechaza también al pulsar Enter. Las respuestas de una pestaña administrativa abandonada no pueden sobrescribir la pestaña actual.</p>
+  <p>Después de recibir la confirmación de creación, Checkout muestra el número del pedido, retira del carrito las cantidades enviadas y ofrece un enlace normal para abrir WhatsApp; abrirlo no crea otro pedido ni depende de un popup tras una espera. Si se agregaron otras piezas durante la espera, no se borra todo el carrito. La protección contra doble envío vale durante ese montaje, no es idempotencia durable: una respuesta perdida sigue requiriendo conciliación antes de repetir la compra. Cambiar CEP o peso invalida la estimación anterior.</p>
+  <ol>
+    <li>Validar entrada y agrupar líneas repetidas de una misma variante.</li>
+    <li>Exigir mínimo total de <strong>15 piezas</strong>, único mínimo de negocio, también al editar ítems.</li>
+    <li>Cargar variantes activas, opciones/productos/talles activos y bloquear inventarios en orden determinístico.</li>
+    <li>Calcular precios, peso y envío en servidor, no aceptar los totales del carrito como autoridad.</li>
+    <li>Crear pedido NOVO con snapshots de nombre, opción, talle, URL de imagen, precio y peso; registrar reserva y auditoría dentro de la misma transacción.</li>
+  </ol>
+  <p>Se asocia userId si quien compra es CUSTOMER; para invitado o personal no se crea esa asociación de cliente. Las transacciones Serializable tienen como máximo tres intentos ante conflictos reintentables; no introducir llamadas externas ni efectos irreversibles dentro de su función. Los constraints impiden onHand/reserved negativos y reserved mayor que onHand.</p>
+  <p>Crear y editar pedidos validan también la aritmética agregada: cantidades repetidas, importes de línea, subtotal, peso, envío, total y pagos deben ser enteros seguros dentro de <code>0…2147483647</code>. Un desborde responde <code>422 ORDER_AMOUNT_OVERFLOW</code> antes de las escrituras; no se amplían columnas ni se reescriben migraciones para aceptar importes inválidos.</p>
+  <h3>Decisiones comerciales que requieren confirmación</h3>
+  <ul><li>Al editar artículos, el subtotal se recalcula pero la cotización de envío existente se conserva. Si cambia el peso, puede dejar de coincidir con la estimación actual: decidir si se debe recotizar o tratarla como precio acordado antes de cambiar esta regla.</li><li>Los pedidos invitados reservan stock sin caducidad automática. Definir vencimiento, conciliación y comunicación al cliente antes de añadir cancelaciones automáticas; por ahora liberar mediante el flujo administrativo de cancelación.</li><li>Un timeout de creación puede ocultar un pedido ya guardado. La prevención de doble clic no reemplaza una futura política de idempotencia y recuperación.</li></ul>
+  <div class="table"><table><caption>Transiciones y movimientos por cada cantidad q</caption><thead><tr><th scope="col">Cambio</th><th scope="col">Efecto</th></tr></thead><tbody>
+    <tr><td>Crear NOVO</td><td>reserved += q (ORDER_RESERVE).</td></tr>
+    <tr><td>NOVO → CONFIRMADO</td><td>onHand -= q y reserved -= q (ORDER_CONSUME).</td></tr>
+    <tr><td>NOVO → CANCELADO</td><td>reserved -= q (ORDER_RELEASE).</td></tr>
+    <tr><td>CONFIRMADO → CANCELADO</td><td>onHand += q (ORDER_RESTORE).</td></tr>
+    <tr><td>CANCELADO → NOVO</td><td>Vuelve a reservar q si hay disponibilidad suficiente.</td></tr>
+    <tr><td>CONFIRMADO → CONCLUIDO</td><td>No mueve nuevamente stock. CONCLUIDO no tiene transición de salida.</td></tr>
+  </tbody></table></div>
+  <p>Repetir el mismo estado no duplica el movimiento. Editar ítems ajusta reservas si está NOVO o existencia consumida si está CONFIRMADO; CANCELADO no mueve stock y CONCLUIDO no permite editar ítems. Se conservan los snapshots previos de variantes existentes; nuevas líneas toman datos vigentes. Cambiar el catálogo no reescribe pedidos históricos.</p>
+  <p>Archivar no borra el pedido: lo marca con archivedAt/archivedById y registra auditoría. Si estaba NOVO o CONFIRMADO se cancela, liberando/restaurando inventario; cancelación, movimientos, auditorías y archivo se confirman en una sola transacción Serializable. Ya no existe un intervalo entre dos confirmaciones donde otro operador pueda reabrirlo y dejar reservas en un pedido archivado. No se documenta como restauración reversible desde el panel: no hay aquí una ruta de desarchivado. Las pruebas nuevas de intercalado y rollback usan un adapter en memoria; no sustituyen una prueba de concurrencia del motor PostgreSQL.</p>
+  <h3>Envíos y pagos: límites de lo implementado</h3>
+  <p>CORREIOS valida CEP de 8 dígitos y calcula un <strong>PAC estimado local</strong> según primer dígito y peso, redondeado a intervalos de 0,5 kg con mínimo 0,5 kg. No es una cotización de una integración externa con Correios. EXCURSAO deja el importe de envío en null para confirmarlo después; el total suma cero hasta que haya importe aplicable. El peso y monto de envío se fijan al crear; la edición de ítems no recalcula automáticamente ese envío.</p>
+  <p><code>paidAmountCents</code> es un importe registrado al administrar el pedido. No demuestra que haya cobro automático ni webhook de proveedor implementado. Los ejemplos anteriores de <code>payment.webhook_failed</code>, reintentos de pago y <code>shipping.quoted</code> eran ilustraciones, no funciones reales de esta tienda; no se usan como evidencia ni como procedimiento operativo.</p>
+</section>
+<section id="base">
+  <h2>6. PostgreSQL, migraciones e importación</h2>
+  <p>Todos los modelos y enums declaran explícitamente <code>@@schema("app")</code>. Mantener <strong>app privado y fuera de los schemas expuestos por la Data API</strong>. No gestionar las mismas tablas con migraciones Prisma y Supabase CLI simultáneamente.</p>
+  <div class="table"><table><caption>Historia activa completa: server/prisma/migrations/</caption><thead><tr><th scope="col">Migración (orden)</th><th scope="col">Qué aporta</th></tr></thead><tbody>
+    <tr><td><code>20261012000000_postgresql_init</code></td><td>Schema app, enums, 16 tablas de negocio, relaciones e índices iniciales de PostgreSQL.</td></tr>
+    <tr><td><code>20261012000100_backend_security</code></td><td>Grupo ferchu_backend sin login ni privilegios administrativos, revocación de accesos públicos/anon/authenticated, RLS y políticas técnicas; constraints de stock/importes/cantidades y email único sin distinguir mayúsculas.</td></tr>
+    <tr><td><code>20261012000200_foreign_key_indexes</code></td><td>Índices explícitos de claves foráneas; PostgreSQL no crea automáticamente los índices que MySQL aportaba implícitamente.</td></tr>
+    <tr><td><code>20261013000000_storage_media</code></td><td>Metadatos Storage, checksum, tamaño/MIME/propósito; unicidad de objetos e imágenes y una sola portada por producto. Bloquea si aún hay public_id externos antes de quitar esa columna.</td></tr>
+    <tr><td><code>20261013100000_log_system</code></td><td>log_entry particionada, log_dead, índices, grants, RLS, función de mantenimiento y programación pg_cron opcional.</td></tr>
+  </tbody></table></div>
+  <p>Una instalación necesita <strong>toda la secuencia</strong>, no solamente init ni solamente las tablas que Prisma modela. <code>npm run prisma:deploy</code> aplica las pendientes versionadas. No editar una migración ya aplicada; generar una nueva para cada cambio. Toda tabla nueva necesita grants explícitos restringidos y RLS apropiado: los grants iniciales no cubren mágicamente tablas futuras.</p>
+  <h3>Historia MySQL preservada</h3>
+  <p><code>server/prisma/history/mysql/</code> contiene las migraciones originales sin alterar, solo como registro de la estructura de origen. No son migraciones activas, no implican soporte MySQL en el runtime y no se aplican en PostgreSQL. No importar la antigua <code>_prisma_migrations</code>. Esta política también se conserva en <code>AGENTS.md</code>.</p>
+  <h3>Importar datos reales a otro ambiente</h3>
+  <div class="warning">Crear estructura no copia clientes, hashes, sesiones ni pedidos. No ejecutar seed sobre datos migrados. No crear otra base ni migrar datos simplemente por mover Express de hosting.</div>
+  <ol>
+    <li>Obtener acceso a origen/destino y backup recuperable. Ensayar sobre destino vacío, fuera del runtime.</li>
+    <li>Preservar IDs, hashes de contraseña, sesiones, snapshots, vínculos de medios y relaciones. No reemplazar autenticación ni reiniciar contraseñas como parte de una copia.</li>
+    <li>Revisar zona horaria de origen (destino usa timestamptz), unicidades, cantidades, totales, reservas y cada campo; no ocultar inconsistencias rechazadas por constraints.</li>
+    <li>Pausar escrituras, copiar versión final, reconciliar y probar login/pedidos/inventario antes de cambiar la conexión publicada.</li>
+    <li>Conservar origen hasta validar copia y respaldo. No desinstalar servicios que puedan alojar bases de otros proyectos. Las herramientas temporales de transferencia no pertenecen a dependencias del backend.</li>
+  </ol>
+  <p>Volver a la conexión antigua después de nuevas ventas puede perder pedidos: un rollback exige copiar/reconciliar las nuevas escrituras. Las sesiones propias pueden sobrevivir si se preservan registros, token del navegador y las condiciones de cookie, origen y plazo. Ver <a href="#historial">antecedentes</a> para distinguir la migración documentada anteriormente de una comprobación actual.</p>
+</section>
+<section id="imagenes">
+  <h2>7. Imágenes en Supabase Storage</h2>
+  <p>Bucket público <code>storefront-images</code>: lectura pública, escritura exclusivamente a través de Express con sesión ADMIN y controles de origen/proxy. No conceder escritura pública ni modificar objetos mediante SQL en el schema storage. SUPABASE_SECRET_KEY vive solo en secretos del backend.</p>
+  <ul>
+    <li>Gestión → Imágenes permite subir para producto, categoría, banner o favicon, y ordenar/elegir portada.</li>
+    <li>JPEG, PNG y WebP no animados; hasta 5 MB y 16 megapíxeles. Se decodifica el contenido, no se confía solo en la extensión/MIME declarado.</li>
+    <li>POST <code>/api/v1/admin/uploads</code>: multipart con file, purpose, targetId cuando corresponda, optionId opcional para producto, primary, sortOrder y altText.</li>
+    <li>GET <code>/api/v1/admin/media-assets</code> lista la biblioteca; PATCH <code>/api/v1/admin/product-images/:id</code> actualiza portada/orden.</li>
+    <li>Rutas de objetos inmutables: cambiar portada no sobrescribe archivos anteriores. No hay eliminación de objetos desde el panel. Una URL vieja puede estar en snapshots de pedidos: no borrarla ni sobrescribirla.</li>
+    <li><code>MEDIA_UPLOAD_CONCURRENCY=1</code> limita el trabajo completo para reducir memoria, especialmente en instancias de 512 MB. Exceso devuelve 503; no repetir automáticamente POST.</li>
+  </ul>
+  <h3>Manifiesto y transición de medios</h3>
+  <p><code>server/prisma/data/storage-images.json</code> conserva el mapa público sin claves. El registro anterior describe 27 imágenes originales migradas sin recompresión y verificadas por SHA-256; no equivale a una verificación hecha ahora. <code>npm run media:migrate -- --verify</code>, ejecutado desde server y con autorización para acceder al destino, vuelve a comprobar descargas y registros.</p>
+  <p><code>server/scripts/migrate-images.js</code> necesita los archivos originales para importar; tras retirarlos de los assets locales se utiliza --verify. No borrar objetos existentes si una importación falla. Cloudinary no es dependencia del runtime ni el importador local migra automáticamente una cuenta Cloudinary.</p>
+  <div class="warning">Antes de aplicar storage_media en otro ambiente, inspeccionar media_assets.public_id. Si existen identificadores externos, la migración aborta para evitar pérdida: primero copiar/verificar archivos, conservar IDs y relaciones y actualizar referencias en una transición específica. No quitar el bloqueo ni marcar la migración como aplicada sin hacer esa transición.</div>
+</section>
+<section id="seguridad">
+  <h2>8. Seguridad y límites de confianza</h2>
+  <h3>Proxy de producción</h3>
+  <p>Vercel <code>middleware.js</code> obtiene el IP verificado por la plataforma y sobrescribe <code>x-ferchu-client-ip</code> junto con <code>x-ferchu-proxy-secret</code> en los headers de la solicitud upstream, no de la respuesta al navegador. Render primero autentica el secreto y luego valida exclusivamente ese IP personalizado. El visitante no puede decidir qué IP debe usar el rate limit enviando una cadena arbitraria.</p>
+  <p>Express mantiene <code>trust proxy=false</code>. No arreglar INVALID_PROXY_IP confiando en x-forwarded-for, x-real-ip o conteos de saltos: el ingress puede reescribirlos. En local sin secreto se usa el socket; el agrupamiento IPv6 evita tratar direcciones equivalentes como visitantes ilimitados.</p>
+  <p>El secreto restringe el camino de acceso, pero <strong>no reemplaza sesión ni roles</strong>. Sin él el catálogo directo en Render también devuelve 403 en producción; eso es intencional. No es correcto afirmar que sin proxy cualquier persona podría leer clientes/pedidos privados: esas rutas siguen requiriendo autorización de aplicación. Nunca debilitarla para ocultar un 403.</p>
+  <h3>Capas de protección</h3>
+  <ul>
+    <li>CORS permite el origen exacto configurado con credenciales; no equivale a autenticación. La comprobación de Origin tiene el alcance descrito en <a href="#sesiones">el pipeline</a>.</li>
+    <li>Cookies HttpOnly/Secure/SameSite, contraseñas Argon2id, sesiones revocables y autorización Express por CUSTOMER/STAFF/ADMIN.</li>
+    <li>Limitadores independientes sobre /api/v1/auth y /api/v1/orders: 20 requests por 15 minutos por clave de cliente en cada montaje, no solo 20 contraseñas erróneas. Son memoria del proceso, no una cuota distribuida persistente.</li>
+    <li>Validación Zod, límites JSON y de medios, SQL parametrizado y transacciones con invariantes de inventario.</li>
+    <li>Cuenta PostgreSQL técnica restringida, schema privado, revocaciones a roles de navegador y RLS como defensa adicional. ferchu_backend no es un usuario CUSTOMER/STAFF/ADMIN: la autorización por persona queda en Express, no en auth.uid().</li>
+    <li>No cachear respuestas /api. No exponer secretos, URLs con contraseña, cookies ni hashes en frontend, documentación, screenshots o logs.</li>
+  </ul>
+  <h3>Dependencias</h3>
+  <p>La revisión local del 16/10/2026 ejecutó <code>npm audit</code> en ambos paquetes: cero avisos después de corregir la dependencia transitiva deepmerge-ts. Prisma y su cliente permanecen en 6.19.3; un override acotado a <code>@prisma/config</code> fija <code>deepmerge-ts 8.0.2</code>. Las pruebas verifican la carga real de configuración Prisma y el manejo de grafos circulares; se validó el schema sin conectar a una base. Revisar este override cuando Prisma incorpore la corrección. No usar <code>npm audit fix --force</code> ciegamente: puede proponer un downgrade incompatible. Ausencia de avisos, tests y build no sustituyen una auditoría exhaustiva ni certifican seguridad de producción.</p>
+</section>
+<section id="despliegue">
+  <h2>9. Despliegue: Render + Vercel</h2>
+  <p>Trasladar el proceso Express no traslada PostgreSQL ni Storage. Conservar base, usuarios, sesiones e imágenes existentes. No ejecutar seed, migrate dev, db push/reset ni importación de medios para cambiar de hosting. No crear una base nueva para esa operación.</p>
+  <div class="table"><table><caption>Configuración declarada en el repositorio</caption><thead><tr><th scope="col">Render</th><th scope="col">Valor</th></tr></thead><tbody>
+    <tr><td>Tipo / raíz</td><td>Web Service Node / server</td></tr>
+    <tr><td>Node</td><td>22.23.4 (.node-version y NODE_VERSION del Blueprint)</td></tr>
+    <tr><td>Build</td><td><code>npm ci --include=dev &amp;&amp; npm run prisma:generate</code></td></tr>
+    <tr><td>Inicio</td><td><code>npm start</code></td></tr>
+    <tr><td>Health</td><td><code>/health</code>, público e incluye consulta al banco.</td></tr>
+    <tr><td>Blueprint opcional</td><td>render.yaml declara ferchumodas-api, Free, virginia y autoDeployTrigger: off; no crea una base ni recursos pagos. Eso no certifica la configuración actual del panel.</td></tr>
+  </tbody></table></div>
+  <h3>Secuencia de publicación segura</h3>
+  <ol>
+    <li>Revisar backups, compatibilidad y migraciones pendientes. Aplicarlas separadamente con owner protegido antes del deploy compatible; no durante start/build ni con el login runtime. Render Free no dispone de pre-deploy command.</li>
+    <li>Configurar NODE_ENV=production, DATABASE_URL restringida, FRONTEND_ORIGIN HTTPS exacto (dominio histórico: <code>https://ferchumodas.shop</code>), secreto compartido y claves de Storage en Render. No copiar PORT=3001: Render provee la suya.</li>
+    <li>Si el tooling lo necesita, configurar DIRECT_URL con la misma URL restringida solo para generate. Mantener la URL owner fuera del proceso.</li>
+    <li>Configurar RENDER_BACKEND_URL con el origen real en Vercel y el mismo ORIGIN_PROXY_SECRET. El navegador usa VITE_API_URL=/api/v1; revisar valores por Production/Preview/Development según el entorno, no asumir que todos comparten origen.</li>
+    <li>Publicar las versiones correspondientes; si auto-deploy está desactivado, publicar backend manualmente. Verificar las políticas reales de integración Git antes de asumir que main publica automáticamente.</li>
+    <li>Comprobar con una lista controlada health, catálogo, cookies, login/refresh/logout, permisos, no-store e IPs; coordinar toda prueba que cree pedidos o medios.</li>
+  </ol>
+  <p><code>vercel.mjs</code> delega a deploy/vercel-config.js. La configuración exige origen backend válido y secreto: sin ellos el nuevo deploy falla antes de reemplazar el frontend vigente. Genera dist, reescribe /api hacia Render y las demás rutas a index.html para React Router. No introducir rutas legacy que salten el middleware.</p>
+  <p>Al rotar el secreto guardar el mismo valor en los dos proveedores y publicar versiones coherentes en ambos; contemplar una ventana de indisponibilidad mientras no coincidan. Nunca enviar la clave al navegador para probarla ni registrar sus valores.</p>
+  <h3>Disponibilidad, memoria y apagado</h3>
+  <p>El plan Free descrito duerme tras unos 15 minutos sin tráfico; el primer request puede demorar mientras despierta. Los tiempos son orientativos, no SLA ni medición actual. No usar pings para evitar esa restricción. Para ventas, evaluar un plan apropiado en lugar de prometer disponibilidad del Free. La interfaz muestra carga/errores de arranque; el timeout y el reintento de lectura no convierten al servicio en siempre disponible.</p>
+  <p>El apagado gracioso deja de aceptar conexiones, espera solicitudes y drena lote activo/cola de logs antes de desconectar Prisma. El deadline local es de 25 segundos, anterior a los 30 segundos considerados para Render. Un proceso terminado abruptamente o un deadline vencido puede perder logs; no prometer que Ctrl+C o un deploy jamás los pierden. Mantener concurrencia de uploads y límites de cola adecuados para memoria limitada.</p>
+</section>
+<section id="logs">
+  <h2>10. Logs operativos y auditoría</h2>
+  <p>La telemetría describe salud HTTP, errores y eventos; la auditoría en <code>audit.service.js</code>/<code>app.audit_logs</code> registra actor, entidad y acción, con datos anteriores/posteriores cuando el comando los aporta. No todas las modificaciones guardan una copia completa del antes/después. Son sistemas distintos: no reemplazar auditoría transaccional por un log asíncrono.</p>
+  <p>Las escrituras de categorías, opciones globales, productos, opciones/variantes/imágenes de producto y creación de STAFF se confirman junto con su auditoría en una única transacción. Una falla al registrar auditoría aborta también ese cambio; no se responde con error después de haberlo confirmado fuera de la transacción. Los tests nuevos de coordinación usan un adapter transaccional en memoria y no afirman reproducir concurrencia de PostgreSQL real.</p>
+  <h3>Usar Gestión → Logs (ADMIN)</h3>
+  <ol>
+    <li>Seleccionar nivel y servicio; se aplican al cambiar. La lista muestra primero los registros más nuevos.</li>
+    <li>Escribir una búsqueda de evento/mensaje (ejemplo: order.created) y pulsar Filtrar o Enter. No busca dentro de todo el JSON ni es un campo de traceId.</li>
+    <li>Ao vivo actualiza cada 3 segundos por polling, no por streaming. No garantiza mostrar todos los eventos entre consultas ni anuncia todos los fallos del polling.</li>
+    <li>Abrir una fila para ver traceId, requestId, actorId, route, status, durationMs, data y stack.</li>
+    <li>Ver trace completo aplica filtro traceId a la lista; el chip permite quitarlo. <strong>La UI conserva orden descendente</strong>; no cambia a cronológico ascendente. La ruta específica /trace/:id sí responde ascendente.</li>
+    <li>Carregar mais usa cursor para avanzar hacia registros más antiguos. El panel pide 60 por página; no es una exportación ilimitada.</li>
+  </ol>
+  <p>El selector ofrece api/storefront/worker como valores; su existencia no prueba que haya workers o emisión de telemetría frontend implementados. El valor habitual del logger es api. Obtener x-trace-id y x-request-id desde Network en el navegador para soporte, sin copiar cookies ni Authorization. Consultar un trace pegado mediante el parámetro traceId de la API, o desde una fila del panel, no mediante búsqueda textual q.</p>
+  <div class="table"><table><caption>Niveles numéricos estilo pino</caption><thead><tr><th scope="col">Nivel</th><th scope="col">Interpretación</th></tr></thead><tbody>
+    <tr><td>10 trace</td><td>Detalle fino, solo si el mínimo lo permite; no justifica registrar payloads sensibles.</td></tr>
+    <tr><td>20 debug</td><td>Diagnóstico sometido a muestreo. Con LOG_LEVEL=info se descarta todo debug antes de muestrear.</td></tr>
+    <tr><td>30 info</td><td>Operación normal: order.created, order.status_changed, auth.registered, api.started, http.request.</td></tr>
+    <tr><td>40 warn</td><td>Anomalía o 4xx, por ejemplo auth.login_failed.</td></tr>
+    <tr><td>50 error</td><td>Falla/5xx, por ejemplo http.unhandled; consultar stack cuando exista.</td></tr>
+    <tr><td>60 fatal</td><td>Gravedad extrema disponible para el emisor; no asumir un monitor automático de desconexión de base.</td></tr>
+  </tbody></table></div>
+  <h3>Flujo, límites y garantías reales</h3>
+  <p><code>server/src/lib/logger.js</code> recibe log(level,event,message,ctx) y helpers logInfo/logWarn/logError, etc. AsyncLocalStorage hereda traza, request y actor desde el contexto; los servicios no necesitan propagar IDs manualmente. Un trace es correlación, no una prueba de identidad ni de que se haya instrumentado cada paso.</p>
+  <p>Antes de encolar, el logger oculta claves sensibles (password/pass, token, secret, authorization, cookie, senha, API key) y patrones de email, CPF, tarjeta, credenciales en URL, Bearer y ciertos tokens. Limita profundidad, arrays, strings y tamaño de data. <strong>No es una garantía de detectar toda PII</strong>: no enviar secretos ni datos personales innecesarios y no incluirlos en nombres de eventos.</p>
+  <p>Los eventos filtrados se reflejan como JSON redactado en stdout fuera de test. La cola en memoria se escribe por lotes con SQL parametrizado en app.log_entry. Si falla intenta app.log_dead; si el mismo banco no está disponible, también puede fallar ese segundo intento: se descarta el lote y se emite logger.persistence_failed. Al saturarse la cola descarta nuevas entradas y emite logger.queue_full con contador. No es una cola durable ni promete entrega exactamente una vez.</p>
+  <div class="table"><table><caption>Parámetros de logs</caption><thead><tr><th scope="col">Variable</th><th scope="col">Predeterminado</th><th scope="col">Rango / función</th></tr></thead><tbody>
+    <tr><td>LOG_LEVEL</td><td>info</td><td>trace/debug/info/warn/error/fatal: nivel mínimo.</td></tr>
+    <tr><td>LOG_DEBUG_SAMPLE</td><td>0.1</td><td>0–1: fracción debug retenida si supera el filtro mínimo.</td></tr>
+    <tr><td>LOG_BUFFER_MAX</td><td>100</td><td>1–1000: umbral para flush y tamaño de lote, no techo total de cola.</td></tr>
+    <tr><td>LOG_FLUSH_MS</td><td>2000</td><td>250–30000 ms: intervalo de disparo, no plazo máximo de persistencia cuando el destino se bloquea.</td></tr>
+    <tr><td>LOG_QUEUE_MAX_ENTRIES</td><td>1000</td><td>100–10000: techo de entradas sumando cola y lote activo.</td></tr>
+    <tr><td>LOG_QUEUE_MAX_BYTES</td><td>2097152</td><td>65536–16777216: techo de bytes serializados sumando cola y lote activo; no equivale a todo el heap del proceso.</td></tr>
+  </tbody></table></div>
+  <p>En desarrollo se puede diagnosticar con LOG_LEVEL=debug y LOG_DEBUG_SAMPLE=1, controlando volumen. Un crash puede perder más que los últimos dos segundos si el sink estaba bloqueado o la cola atrasada. El cierre drena con deadline, no con garantía absoluta.</p>
+  <h3>API de consulta</h3>
+  <ul>
+    <li>GET <code>/api/v1/admin/logs</code>: filtros level (lista exacta, p. ej. error,fatal), service, event, traceId, q, from, to, cursor y limit. Un level=error no incluye fatal por sí solo; sin from/to no se limita a hoy.</li>
+    <li>Devuelve entries y nextCursor; orden ts DESC, id DESC. q busca texto en evento/mensaje, event es igualdad exacta y traceId filtra UUID.</li>
+    <li>GET <code>/api/v1/admin/logs/trace/:id</code>: orden ascendente, máximo 500 entradas; no prometer un trace ilimitado.</li>
+    <li>GET <code>/api/v1/admin/logs/dead</code>: hasta 50 lotes fallidos recientes, solo ADMIN.</li>
+  </ul>
+  <pre><code># Rutas de ejemplo para una herramienta con sesión ADMIN ya autenticada.
+# En producción usar el dominio de la tienda, nunca Render directo.
+GET /api/v1/admin/logs?level=error,fatal&amp;limit=50
+GET /api/v1/admin/logs?event=order.status_changed&amp;limit=60
+GET /api/v1/admin/logs?traceId=UUID_VALIDO
+GET /api/v1/admin/logs?q=order&amp;cursor=CURSOR_DEVUELTO&amp;limit=100
+GET /api/v1/admin/logs/trace/UUID_VALIDO</code></pre>
+  <p>Los marcadores UUID_VALIDO/CURSOR_DEVUELTO deben reemplazarse. No copiar tokens de sesión a comandos o tickets. Para reproducir localmente usar la API local; no llevar el secreto del proxy al navegador.</p>
+  <h3>Recetas de diagnóstico</h3>
+  <ul>
+    <li><strong>“Falló mi pedido”:</strong> pedir hora y trace; revisar también warn/4xx y red, no solo error. Un request bloqueado antes de Express no aparecerá en sus logs. Correlacionar con pedido real antes de reenviar POST para evitar duplicados.</li>
+    <li><strong>“¿Intentan entrar?”:</strong> buscar auth.login_failed y patrones por tiempo/ruta. Muchas fallas no prueban por sí solas un ataque; un mismo trace tampoco equivale a un mismo visitante. Revisar rate limiting e IPs autenticados sin recolectar PII innecesaria.</li>
+    <li><strong>“La tienda va lenta”:</strong> http.request, route y durationMs permiten localizar operaciones lentas, no identificar por sí solos la causa (base, red, arranque o CPU).</li>
+    <li><strong>“¿Quién cambió el estado?”:</strong> order.status_changed aporta actorId y data.from/to; consultar audit_logs para los datos adicionales capturados por ese comando, sin asumir snapshots completos para cualquier entidad.</li>
+  </ul>
+  <h3>Emitir eventos al desarrollar</h3>
+  <pre><code>import { logInfo } from '../lib/logger.js';
+
+// Patrón ilustrativo, no agregar un segundo evento donde ya se emite.
+logInfo('order.created', 'Pedido creado', {
+  data: { orderId: order.id, totalCents: order.totalCents },
+});</code></pre>
+  <p>Usar dominio.verbo en minúsculas, mensaje corto y detalles en data; centavos en totalCents y milisegundos en durationMs. Para errores pasar stack cuando corresponda sin secretos. Evitar INFO en loops calientes, no llamar al logger desde su propio flush/dead-letter, y no sustituirlo por console.log para telemetría de aplicación. El stdout interno del logger se usa deliberadamente para diagnosticar su propia falla.</p>
+  <h3>Particiones, retención y dead-letter</h3>
+  <p>La migración log_system crea app.log_entry por RANGE mensual y una partición DEFAULT, más mes anterior, actual y siguiente al aplicar. app.log_dead conserva lotes fallidos. No están en schema.prisma porque Prisma no modela el particionado; no borrarlas por esa diferencia.</p>
+  <p><code>app.log_entry_maintenance()</code> crea los próximos dos meses y elimina particiones mensuales según un corte de 90 días calculado desde el inicio del mes. La retención es <strong>aproximada, por particiones</strong>, no un borrado exacto de cada fila a los 90 días. DEFAULT nunca se elimina y log_dead no tiene limpieza automática en esa función. Si DEFAULT contiene filas de un rango futuro, la creación de su partición puede requerir revisión administrativa y reubicación controlada; no asumir que siempre se mantendrá sola.</p>
+  <p>Se intenta instalar pg_cron y programar semanalmente el trabajo log-entry-maintenance (domingo 03:17 según horario del scheduler). Falta de extensión/permisos produce avisos y puede dejarlo sin agenda. Comprobar que el trabajo existe y termina correctamente; sin agenda, un administrador debe ejecutar periódicamente la función. Es SECURITY DEFINER, con search_path fijado y EXECUTE revocado a PUBLIC; no convertirla en un endpoint público ni conceder privilegios owner al runtime para operarla.</p>
+  <pre><code>-- Operación de mantenimiento con permisos administrativos; MODIFICA datos/particiones.
+-- No ejecutada para redactar esta documentación.
+SELECT app.log_entry_maintenance();</code></pre>
+  <pre><code>-- Consultas de diagnóstico de SOLO LECTURA, con acceso autorizado.
+SELECT ts, event, message, route, duration_ms
+FROM app.log_entry
+WHERE level &gt;= 50 AND ts &gt; now() - interval '24 hours'
+ORDER BY ts DESC LIMIT 100;
+
+SELECT route, count(*) AS requests,
+       percentile_cont(0.95) WITHIN GROUP (ORDER BY duration_ms) AS p95_ms
+FROM app.log_entry
+WHERE event = 'http.request' AND ts &gt; now() - interval '1 day'
+GROUP BY route ORDER BY p95_ms DESC;
+
+SELECT failed_at, fail_reason, jsonb_array_length(payload) AS entradas
+FROM app.log_dead ORDER BY failed_at DESC LIMIT 20;</code></pre>
+  <p>Un crecimiento de log_dead requiere revisar permisos, base y particiones. Tras resolver la causa, cualquier reinserción de payload es una operación administrativa revisada: no hay replay automático ni garantía de ausencia de duplicados. Conservar evidencia y aplicar una política explícita de retención de dead-letter/stdout según necesidades de privacidad y soporte.</p>
+</section>
+<section id="operacion">
+  <h2>11. Diagnóstico y lista de verificación</h2>
+  <div class="table"><table><caption>Errores y acciones seguras</caption><thead><tr><th scope="col">Síntoma</th><th scope="col">Revisar</th></tr></thead><tbody>
+    <tr><td>Deploy Vercel rechaza configuración</td><td>RENDER_BACKEND_URL y ORIGIN_PROXY_SECRET server-only, formato y entorno de despliegue. No introducir localhost como fallback productivo.</td></tr>
+    <tr><td>403 PROXY_AUTH_MISSING / PROXY_AUTH_INVALID</td><td>Camino a través de Vercel, middleware y secreto consistente en ambos deploys. No imprimirlo. En Render directo, el rechazo es esperado.</td></tr>
+    <tr><td>400 INVALID_PROXY_IP</td><td>Header x-ferchu-client-ip sobrescrito con IP verificado de Vercel y autenticado con secreto. No confiar en cadenas estándar para ocultar el error.</td></tr>
+    <tr><td>401 en administración</td><td>Sesión, expiración, revocación, cookie/origen y usuario activo.</td></tr>
+    <tr><td>403 en Logs / sin pestaña</td><td>ADMIN requerido; STAFF no tiene acceso a logs. Distinguir autorización de usuario y protección de proxy.</td></tr>
+    <tr><td>Catálogo tarda o devuelve HTML/502/503/504</td><td>Arranque del servicio, health, disponibilidad y logs del hosting. No reemplazar errores por catálogo vacío.</td></tr>
+    <tr><td>Debug no aparece</td><td>LOG_LEVEL y muestreo, también saturación/descartes y destino. info bloquea debug incluso con sample=1.</td></tr>
+    <tr><td>Logs faltantes</td><td>stdout, logger.queue_full/persistence_failed, log_dead, permisos/particiones y reinicios. Buffer asíncrono no garantiza entrega durable.</td></tr>
+    <tr><td>Datos personales ocultos</td><td>Es intencional. Correlacionar por IDs autorizados, no desactivar la redacción para soporte.</td></tr>
+  </tbody></table></div>
+  <h3>Verificar una versión sin asumir resultados</h3>
+  <ul>
+    <li>Ejecutar tests de ambos paquetes y build frontend en local; revisar por separado dependencias. La revisión del 16/10/2026 pasó 27 tests frontend, 105 backend y build, también repitiéndolos con Node 22.23.3 fijado para despliegue mediante <code>npm exec --yes --package=node@22.23.3 -- node</code>. Se validó el schema y generó el cliente Prisma sin conexión a una base real. El Node predeterminado local sigue siendo 22.11.0: esa ejecución temporal no cambia la instalación del sistema.</li>
+    <li>En un entorno autorizado comprobar health y respuestas JSON de products/banners/site-media. No publicar conteos de catálogo como constantes del sistema.</li>
+    <li>Probar registro/login/refresh/logout con cuentas de prueba, sin divulgar contraseñas; revisar HttpOnly/Secure/SameSite, /me y permisos por rol.</li>
+    <li>Comprobar no-store en API y que cookie, secreto e IP privado no se filtren en respuestas. Intentos de falsificar headers no deben cambiar la identidad del rate limit.</li>
+    <li>Verificar IPs distintos mediante conexiones realmente distintas y bloqueos autenticados; un header arbitrario no sustituye esa prueba.</li>
+    <li>Pedidos: solo con autorización, crear/cancelar en pruebas controladas, reconciliar reservas y snapshots. No repetir una compra por un timeout sin consultar su resultado.</li>
+    <li>Uploads: probar con una imagen útil autorizada o en un bucket de prueba, porque no hay borrado desde UI; preservar referencias históricas.</li>
+    <li>Confirmar agenda de mantenimiento, límites de cola, dead-letter y comportamiento de apagado en un entorno seguro; revisar cold start al ocurrir naturalmente, sin pings de evasión.</li>
+  </ul>
+  <p>Endpoints históricos para reconocer la instalación, <strong>no comprobados en esta tarea</strong>: tienda <code>https://ferchumodas.shop</code> y backend <code>https://ferchumodas-api.onrender.com</code>. Un health exitoso confirma consulta básica en ese instante, no toda la lógica de negocio, Storage ni la cadena completa de proxies.</p>
+  <p>Verificación de navegador local con métodos de transporte simulados, sin crear pedidos ni modificar stock remoto: doble clic produjo una sola llamada de creación, mostró confirmación y vació el carrito; Enter con dos campos de stock vacíos produjo cero ajustes; una respuesta tardía de Pedidos no sustituyó Inventario. Esto prueba interacción local, no el flujo productivo completo.</p>
+</section>
+<section id="historial">
+  <h2>12. Antecedentes, correcciones y fuentes</h2>
+  <p>Este documento integra el README del servidor (incluidas sus notas finales), las guías de Render y logs, y las notas de historia de Prisma. Sustituye esos cuatro archivos documentales; <strong>AGENTS.md sigue siendo el archivo de instrucciones del repositorio</strong>. La revisión también corrige código y agrega tests; no cambia ni ejecuta migraciones remotas.</p>
+  <h3>Registros históricos conservados, no revalidados</h3>
+  <ul>
+    <li>El README anterior registraba que se aplicaron migraciones PostgreSQL y se copiaron/confrontaron campo a campo las 16 tablas del origen, sin seed y con login restringido. Se conserva como antecedente, no como certificado sobre el destino actual.</li>
+    <li>Registraba 27 imágenes copiadas sin recompresión y cotejadas con SHA-256; el manifiesto y --verify permiten una nueva comprobación autorizada.</li>
+    <li>La guía anterior fechada 16/10/2026 reportaba catálogo con 8 productos, banners/site-media, login ADMIN, refresh de sesión, logs y logout; también acceso directo rechazado por secreto ausente/incorrecto.</li>
+    <li>Reportaba el pedido interno <code>FM-20261016-6EFA1E93</code>, 15 piezas, R$ 525,00, luego cancelado (reservado 15 → 0, disponible 25 → 40). Son datos del relato anterior; no se consultó ni modificó ese pedido ahora. No afirmar que hoy el stock tiene esos valores.</li>
+    <li>Incidentes documentados: configuración obligatoria ausente en Vercel, secreto desigual tras rotación e INVALID_PROXY_IP por cabeceras estándar reescritas en ingress. La solución arquitectónica registrada usa secreto consistente y x-ferchu-client-ip verificado, no relajar confianza.</li>
+    <li>Quedaban pendientes pruebas reales de upload, medición de cold start y separación del rate limit entre dos redes. La consolidación no las da por completadas.</li>
+    <li>El Blueprint declara backend manual y Free en Virginia; la guía reportaba frontend publicado desde main. Políticas reales, planes y regiones pueden haber cambiado fuera del repo y requieren confirmar en los paneles.</li>
+  </ul>
+  <h3>Actualización de seguridad — 26/10/2026</h3>
+  <p>Dependencias fijadas: Vite 6.4.5, Multer 2.5.0 y Zod 4.6.7 en ambos paquetes. Express 5.2.1 conserva su versión y resuelve body-parser 2.4.0 en el lockfile. El override de Zod bajo @vercel/cli-config elimina la resolución vulnerable 4.1.11 sin degradar @vercel/functions. Prisma y su override de deepmerge-ts no cambian.</p>
+  <p>Zod 4 comprueba límites de colecciones antes de validar elementos. Las variantes de una opción de producto tienen un máximo de 80; los pedidos conservan su máximo de 80 líneas. Los schemas PATCH de categorías, opciones y banners eliminan los defaults de creación antes de aplicar partial, para que un campo omitido no reactive registros ni restablezca su orden. El formato de errores 422 se conserva.</p>
+  <p>Las regresiones de HTTP se ejecutan en un proceso desechable limitado a loopback, sin persistencia real: cuerpos gzip/Brotli con bytes sobrantes, límite JSON después de descomprimir, uploads abortados, callbacks asíncronos de Multer tras un teardown y PATCH sin defaults. No enviar estos payloads a producción. Las pruebas se ejecutan con Node 22.23.4; usar una distribución temporal no actualiza el Node global del sistema.</p>
+  <p>Referencias primarias: <a href="https://nodejs.org/en/blog/vulnerability/october-2026-security-releases">Node.js, publicación del 21/10</a> · <a href="https://github.com/expressjs/body-parser/security/advisories/GHSA-27r3-jxmh-p828">body-parser</a> · <a href="https://github.com/expressjs/multer/security/advisories/GHSA-q7qp-rjg7-q26m">Multer</a> · <a href="https://github.com/advisories/GHSA-mrhx-c7xc-m3w5">Zod</a> · <a href="https://github.com/vitejs/vite/security/advisories/GHSA-8g5g-mxqh-grgj">Vite 6.4.5</a>. La configuración local actualizada no certifica que Render o Vercel ya ejecuten la revisión corregida; verificar despliegue y runtime real por separado.</p>
+  <h3>Correcciones importantes de interpretación</h3>
+  <p>Cookie de sesión es token, no datos del usuario; GET /auth/me lee usuario de la base. El carrito no reserva stock. La protección de proxy no sustituye permisos. Health incluye una consulta al banco. Archivar no se presenta como desarchivado disponible. La UI de trace no invierte su orden. No hay promesas de entrega durable de logs ni retención exacta de 90 días. Los ejemplos de pagos/webhooks de la vieja guía no acreditan integración real. El build correcto incluye <code>npm run prisma:generate</code> y dependencias de desarrollo. VITE_API_URL sí es una variable pública válida, los secretos no.</p>
+  <h3>Fuentes locales de referencia</h3>
+  <p>Estas rutas son texto para consulta dentro del repositorio, no dependencias para visualizar el HTML offline: <code>AGENTS.md</code>, <code>package.json</code>, <code>server/package.json</code>, <code>server/.env.example</code>, <code>server/src/config/env.js</code>, <code>server/src/app.js</code>, <code>server/src/middlewares/</code>, <code>server/src/services/</code>, <code>server/src/controllers/logs.controller.js</code>, <code>server/src/lib/logger.js</code>, <code>server/prisma/schema.prisma</code>, <code>server/prisma/migrations/</code>, <code>src/services/http.js</code>, <code>src/routes/AppRoutes.jsx</code>, <code>src/components/LogsPanel.jsx</code>, <code>render.yaml</code> y los archivos del proxy.</p>
+  <h3>Referencias externas opcionales</h3>
+  <p>Requieren conexión, no son necesarias para leer este documento: <a href="https://render.com/docs/web-services">Render Web Services</a> · <a href="https://render.com/docs/free">Render Free</a> · <a href="https://vercel.com/docs/project-configuration/vercel-ts">Configuración Vercel</a> · <a href="https://supabase.com/docs/guides/database/prisma">Prisma y Supabase</a> · <a href="https://supabase.com/docs/guides/platform/compute-and-disk">Compute y disco</a>.</p>
+  <p class="back"><a href="#inicio">Volver al inicio</a></p>
+</section>
+</main>
+</div>
+<footer>Ferchu Modas · documentación consolidada en español · mantener junto con los cambios del repositorio. No contiene secretos ni certifica estado remoto actual.</footer>
+</body>
+</html>

@@ -1,6 +1,5 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../db/prisma.js';
-import { asyncHandler } from '../lib/async-handler.js';
 import { AppError } from '../lib/errors.js';
 import { LOG_LEVELS } from '../lib/logger.js';
 
@@ -28,7 +27,7 @@ function decodeCursor(cursor) {
 
 const escapeLike = (value) => value.replace(/[\\%_]/g, (char) => `\\${char}`);
 
-export const listLogs = asyncHandler(async (req, res) => {
+export const listLogs = async (req, res) => {
   const { level, service, event, traceId, q, from, to, cursor, limit } = req.validatedQuery;
   const conditions = [];
   if (level?.length) {
@@ -59,11 +58,11 @@ export const listLogs = asyncHandler(async (req, res) => {
   const entries = rows.slice(0, limit).map(serialize);
   const last = rows.length > limit ? rows[limit - 1] : null;
   res.json({ entries, nextCursor: last ? encodeCursor(last.ts, last.id) : null });
-});
+};
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export const getLogsByTrace = asyncHandler(async (req, res) => {
+export const getLogsByTrace = async (req, res) => {
   const { traceId } = req.params;
   if (!UUID_RE.test(traceId)) {
     throw new AppError(422, 'VALIDATION_ERROR', 'Trace inválido.');
@@ -72,13 +71,13 @@ export const getLogsByTrace = asyncHandler(async (req, res) => {
     Prisma.sql`${SELECT_COLUMNS} WHERE trace_id = ${traceId}::uuid ORDER BY ts ASC, id ASC LIMIT 500`,
   );
   res.json({ entries: rows.map(serialize) });
-});
+};
 
-export const listDeadLogs = asyncHandler(async (_req, res) => {
+export const listDeadLogs = async (_req, res) => {
   const rows = await prisma.$queryRaw`
     SELECT id, failed_at AS "failedAt", fail_reason AS "failReason", payload
     FROM app.log_dead
     ORDER BY failed_at DESC
     LIMIT 50`;
   res.json({ batches: rows.map(serialize) });
-});
+};

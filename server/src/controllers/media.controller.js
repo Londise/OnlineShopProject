@@ -4,7 +4,6 @@ import { rateLimit } from "express-rate-limit";
 import { z } from "zod";
 import { prisma } from "../db/prisma.js";
 import { env } from "../config/env.js";
-import { asyncHandler } from "../lib/async-handler.js";
 import { AppError, notFound } from "../lib/errors.js";
 import { inspectImage, MAX_IMAGE_BYTES } from "../lib/images.js";
 import { putImage, removeNewImage, STORAGE_BUCKET } from "../services/storage.service.js";
@@ -56,13 +55,13 @@ export function receiveImage(req, res, next) {
   });
 }
 
-export const listMedia = asyncHandler(async (_req, res) => {
+export const listMedia = async (_req, res) => {
   const assets = await prisma.mediaAsset.findMany({ orderBy: { createdAt: "desc" }, take: 200,
     include: { productImages: { include: { product: { select: { name: true } } }, orderBy: { sortOrder: "asc" } } } });
   res.json({ assets });
-});
+};
 
-export const uploadImage = asyncHandler(async (req, res) => {
+export const uploadImage = async (req, res) => {
   try {
   const parsed = formSchema.safeParse(req.body);
   if (!parsed.success) throw new AppError(422, "INVALID_UPLOAD", "Verifique os dados do upload.", parsed.error.flatten());
@@ -110,9 +109,9 @@ export const uploadImage = asyncHandler(async (req, res) => {
   } finally {
     req.releaseUploadSlot?.();
   }
-});
+};
 
-export const updateImage = asyncHandler(async (req, res) => {
+export const updateImage = async (req, res) => {
   const patch = z.object({ primary: z.boolean().optional(), sortOrder: z.number().int().min(0).max(999).optional() }).strict().safeParse(req.body);
   if (!patch.success || !Object.keys(patch.data).length) throw new AppError(422, "INVALID_IMAGE_PATCH", "Informe capa ou ordem.");
   const image = await prisma.$transaction(async tx => {
@@ -126,9 +125,9 @@ export const updateImage = asyncHandler(async (req, res) => {
     return updated;
   });
   res.json({ image });
-});
+};
 
-export const siteMedia = asyncHandler(async (_req, res) => {
+export const siteMedia = async (_req, res) => {
   const favicon = await prisma.mediaAsset.findFirst({ where: { purpose: "favicon" }, orderBy: [{ createdAt: "desc" }, { id: "desc" }] });
   res.json({ faviconUrl: favicon?.url ?? null });
-});
+};

@@ -47,15 +47,9 @@ export default function Home() {
   const { user } = auth;
 
   const {
-    lines,
     cartOpen,
     setCartOpen,
-    addToCart,
-    changeLine,
-    removeLine,
     qtyTotal,
-    orderTotal,
-    totalWeight,
   } = useCartContext();
 
   /*

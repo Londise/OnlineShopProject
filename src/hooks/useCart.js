@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 // Funções utilitárias para o tratamento do estoque
-import { getVariant, getAvailableToAdd } from "../utils/domainFunctions";
+import { getAvailableToAdd } from "../utils/domainFunctions";
+import { sanitizeCartLines, addCartLines, changeCartLine, removeSubmittedCartLines } from "../utils/cart.js";
 import { api } from "../services/api";
 import { IMAGE_PLACEHOLDER } from "../config/media";
 
@@ -18,7 +19,7 @@ export default function useCart() {
 
       const parsed = JSON.parse(stored);
 
-      return Array.isArray(parsed) ? parsed : [];
+      return sanitizeCartLines(parsed);
     } catch (error) {
       console.error("Não foi possível carregar o carrinho:", error);
 
@@ -120,85 +121,7 @@ export default function useCart() {
    */
 
   const addToCart = (product, color, quantities) => {
-    setLines((old) => {
-      const next = old.map((line) => ({
-        ...line,
-      }));
-
-      Object.entries(quantities).forEach(([size, quantity]) => {
-        if (!quantity || quantity <= 0) {
-          return;
-        }
-        
-        // Coleta o nome do objeto
-        const colorName = color.name;
-
-        // Procura e coleta a variante selecionada do banco de dados
-        const selectedVariant = getVariant(color, size);
-
-        // Se a variante não existir, não adiciona no carrinho e sai da função
-        if (!selectedVariant) {
-          return
-        }
-
-        // a chave do produto a ser adicionado será a ID da variante
-        const keyOfProductToBeAdded = selectedVariant.id;
-
-        // A disponibilidade da variante será a da variante selecionada
-        const available = selectedVariant.available;
-
-        const existing = next.find(
-          (line) => line.key === keyOfProductToBeAdded,
-        );
-
-        if (existing) {
-          const remainingStock = getAvailableToAdd(
-            available,
-            existing.quantity,
-          );
-
-          const quantityToAdd = Math.min(quantity, remainingStock);
-
-          if (quantityToAdd > 0) {
-            existing.quantity += quantityToAdd;
-          }
-
-          return;
-        }
-
-        if (available <= 0) {
-          return;
-        }
-
-        const quantityToAdd = Math.min(quantity, available);
-
-        next.push({
-          key: keyOfProductToBeAdded,
-
-          productId: product.id,
-
-          variantId: selectedVariant.id,
-
-          name: product.name,
-
-          color: colorName,
-
-          size,
-
-          quantity: quantityToAdd,
-
-          price: product.price,
-
-          weight: product.weight,
-
-          image: product.image,
-
-          available,
-        });
-      });
-
-      return next;
-    });
+    setLines(old => addCartLines(old, product, color, quantities));
   };
 
   /*
@@ -208,32 +131,7 @@ export default function useCart() {
    */
 
   const changeLine = (key, rawQuantity) =>
-    setLines((old) => {
-      let quantity = Number(rawQuantity);
-
-      if (!Number.isFinite(quantity)) {
-        quantity = 0;
-      }
-
-      quantity = Math.max(0, quantity);
-
-      return old
-        .map((line) => {
-          if (line.key !== key) {
-            return line;
-          }
-
-          if (Number.isFinite(line.available)) {
-            quantity = Math.min(quantity, line.available);
-          }
-
-          return {
-            ...line,
-            quantity,
-          };
-        })
-        .filter((line) => line.quantity > 0);
-    });
+    setLines(old => changeCartLine(old, key, rawQuantity));
 
   /*
    * ============================================================
@@ -251,13 +149,12 @@ export default function useCart() {
    * ============================================================
    */
 
-  const clearCart = () => {
-    setLines([]);
+  const clearCart = (submittedLines) => {
+    setLines(old => submittedLines ? removeSubmittedCartLines(old, submittedLines) : []);
   };
 
   return {
     lines,
-    setLines,
 
     cartOpen,
     setCartOpen,

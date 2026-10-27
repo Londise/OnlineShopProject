@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   ChevronDown,
@@ -17,6 +17,7 @@ import {
 import { api } from "../services/api";
 import MediaManager from "../components/MediaManager";
 import LogsPanel from "../components/LogsPanel";
+import { parseInventoryQuantity } from "../utils/inventory";
 
 import { useNavigate } from "react-router-dom";
 import { useAuthContext } from "../contexts/AuthContext";
@@ -146,6 +147,22 @@ export default function Management() {
 
   const [tab, setTab] = useState("orders");
 
+  // Each visit has its own identity, even when returning to the same tab.
+  const viewRef = useRef({ active: true, generation: 0 });
+  const view = viewRef.current;
+  const isCurrentView = () => viewRef.current === view && view.active;
+
+  const changeTab = (nextTab) => {
+    if (nextTab === tab) return;
+    view.active = false;
+    viewRef.current = { active: true, generation: 0 };
+    setData([]);
+    setError("");
+    setLoading(true);
+    setEditingOrder(null);
+    setTab(nextTab);
+  };
+
   const [data, setData] = useState([]);
 
   const [error, setError] = useState("");
@@ -221,6 +238,9 @@ export default function Management() {
    */
 
   const load = async () => {
+    if (!isCurrentView()) return;
+    const generation = ++view.generation;
+    const isCurrentLoad = () => isCurrentView() && generation === view.generation;
     // A aba de logs gerencia a própria carga (filtros, paginação e live tail).
     if (tab === "logs") {
       setLoading(false);
@@ -242,16 +262,24 @@ export default function Management() {
 
       const result = await loaders[tab]();
 
+      if (!isCurrentLoad()) return;
       setData(result[tab] ?? result.variants ?? result.assets ?? []);
     } catch (err) {
-      setError(err?.message || "Não foi possível carregar os dados.");
+      if (isCurrentLoad()) {
+        setError(err?.message || "Não foi possível carregar os dados.");
+      }
     } finally {
-      setLoading(false);
+      if (isCurrentLoad()) setLoading(false);
     }
   };
 
   useEffect(() => {
+    view.active = true;
     load();
+    return () => {
+      view.active = false;
+      view.generation += 1;
+    };
   }, [tab]);
 
   /*
@@ -266,7 +294,9 @@ export default function Management() {
 
       await load();
     } catch (err) {
-      setError(err?.message || "Não foi possível alterar o status.");
+      if (isCurrentView()) {
+        setError(err?.message || "Não foi possível alterar o status.");
+      }
     }
   };
 
@@ -311,11 +341,14 @@ export default function Management() {
         items,
       });
 
+      if (!isCurrentView()) return;
       setEditingOrder(null);
 
       await load();
     } catch (err) {
-      setError(err?.message || "Não foi possível salvar o pedido.");
+      if (isCurrentView()) {
+        setError(err?.message || "Não foi possível salvar o pedido.");
+      }
     }
   };
 
@@ -331,13 +364,16 @@ export default function Management() {
     try {
       await api.admin.archiveOrder(order.id);
 
+      if (!isCurrentView()) return;
       if (editingOrder?.id === order.id) {
         setEditingOrder(null);
       }
 
       await load();
     } catch (err) {
-      setError(err?.message || "Não foi possível arquivar o pedido.");
+      if (isCurrentView()) {
+        setError(err?.message || "Não foi possível arquivar o pedido.");
+      }
     }
   };
 
@@ -450,9 +486,9 @@ export default function Management() {
       return;
     }
 
-    const newValue = Number(adjustments[variant.id]);
+    const newValue = parseInventoryQuantity(adjustments[variant.id]);
 
-    if (!Number.isInteger(newValue) || newValue < 0) {
+    if (newValue === null) {
       setError("Informe uma quantidade inteira maior ou igual a zero.");
       return;
     }
@@ -492,6 +528,7 @@ export default function Management() {
         reason: "Alteração de estoque realizada no painel",
       });
 
+      if (!isCurrentView()) return;
       setData((current) =>
         current.map((item) => {
           if (item.id !== variant.id) {
@@ -507,7 +544,9 @@ export default function Management() {
         [variant.id]: "",
       }));
     } catch (err) {
-      setError(err?.message || "Não foi possível alterar o estoque.");
+      if (isCurrentView()) {
+        setError(err?.message || "Não foi possível alterar o estoque.");
+      }
     } finally {
       setSavingVariants((current) => ({
         ...current,
@@ -538,9 +577,9 @@ export default function Management() {
       return;
     }
 
-    const newValue = Number(batchAdjustments[key]);
+    const newValue = parseInventoryQuantity(batchAdjustments[key]);
 
-    if (!Number.isInteger(newValue) || newValue < 0) {
+    if (newValue === null) {
       setError("Informe uma quantidade inteira maior ou igual a zero.");
       return;
     }
@@ -597,6 +636,7 @@ export default function Management() {
         ),
       );
 
+      if (!isCurrentView()) return;
       const successfulResults = new Map();
 
       const failedOperations = [];
@@ -650,7 +690,9 @@ export default function Management() {
         );
       }
     } catch (err) {
-      setError(err?.message || "Não foi possível concluir o ajuste em lote.");
+      if (isCurrentView()) {
+        setError(err?.message || "Não foi possível concluir o ajuste em lote.");
+      }
     } finally {
       setSavingBatches((current) => ({
         ...current,
@@ -679,7 +721,9 @@ export default function Management() {
 
       await load();
     } catch (err) {
-      setError(err?.message || "Não foi possível atualizar o registro.");
+      if (isCurrentView()) {
+        setError(err?.message || "Não foi possível atualizar o registro.");
+      }
     }
   };
 
@@ -728,7 +772,7 @@ export default function Management() {
               <button
                 key={item.id}
                 className={tab === item.id ? "active" : ""}
-                onClick={() => setTab(item.id)}
+                onClick={() => changeTab(item.id)}
               >
                 <Icon size={17} />
                 {item.label}
@@ -1094,11 +1138,9 @@ export default function Management() {
                                                   className="button dark"
                                                   disabled={
                                                     isSaving ||
-                                                    inputValue === "" ||
-                                                    !Number.isInteger(
-                                                      Number(inputValue),
-                                                    ) ||
-                                                    Number(inputValue) < 0
+                                                    parseInventoryQuantity(
+                                                      inputValue,
+                                                    ) === null
                                                   }
                                                   onClick={() =>
                                                     adjust(variant)
@@ -1206,16 +1248,9 @@ export default function Management() {
                                             className="button dark"
                                             disabled={
                                               isSavingBatch ||
-                                              batchAdjustments[colorKey] ===
-                                                "" ||
-                                              !Number.isInteger(
-                                                Number(
-                                                  batchAdjustments[colorKey],
-                                                ),
-                                              ) ||
-                                              Number(
+                                              parseInventoryQuantity(
                                                 batchAdjustments[colorKey],
-                                              ) < 0
+                                              ) === null
                                             }
                                             onClick={() =>
                                               adjustColorBatch(product, color)

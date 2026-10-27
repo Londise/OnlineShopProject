@@ -37,5 +37,5 @@ export default function useCatalog() {
   }, [attempt]);
   const categories = useMemo(() => [...new Map(products.map(product => [product.category,
     { name: product.category, image: product.categoryImage ?? product.image }])).values()], [products]);
-  return { products, categories, error, loading, reload, usingApi: true };
+  return { products, categories, error, loading, reload };
 }
