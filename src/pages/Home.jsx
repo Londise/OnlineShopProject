@@ -14,6 +14,7 @@ import BuilderModal from "../components/BuilderModalButton";
 
 import useCatalog from "../hooks/useCatalog";
 import useStorefrontLoading from "../hooks/useStorefrontLoading";
+import { buildWhatsAppUrl } from "../utils/whatsapp";
 
 import { useCartContext } from "../contexts/CartContext";
 import { useAuthContext } from "../contexts/AuthContext";
@@ -460,7 +461,7 @@ export default function Home() {
             <small>Siga nossos looks</small>
           </a>
 
-          <a href="https://wa.me/" target="_blank" rel="noreferrer">
+          <a href={buildWhatsAppUrl()} target="_blank" rel="noreferrer">
             <span>
               <Send />
             </span>
@@ -640,7 +641,7 @@ export default function Home() {
           </div>
 
           <a
-            href="https://wa.me/"
+            href={buildWhatsAppUrl()}
             target="_blank"
             rel="noreferrer"
             className="button cream"

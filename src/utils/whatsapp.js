@@ -1,3 +1,5 @@
+import { resolveApiUrl } from "../services/http.js";
+
 export function buildOrderMessage({
   lines,
   qtyTotal,
@@ -52,9 +54,11 @@ export function buildOrderMessage({
   return message;
 }
 
-export function buildWhatsAppUrl(message, phone = import.meta.env?.VITE_WHATSAPP_NUMBER) {
+export function buildWhatsAppUrl(message = "") {
+  const baseUrl = resolveApiUrl(import.meta.env?.VITE_API_URL, {
+    production: import.meta.env?.PROD,
+  });
   const params = new URLSearchParams();
-  if (phone != null && String(phone).trim()) params.set("phone", String(phone).trim());
-  params.set("text", message);
-  return `https://api.whatsapp.com/send?${params}`;
+  if (message) params.set("text", message);
+  return `${baseUrl}/whatsapp${params.size ? `?${params}` : ""}`;
 }

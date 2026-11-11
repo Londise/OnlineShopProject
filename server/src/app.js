@@ -15,6 +15,7 @@ import { adminRouter } from './routes/admin.routes.js';
 import { authRouter } from './routes/auth.routes.js';
 import { orderRouter } from './routes/order.routes.js';
 import { publicRouter } from './routes/public.routes.js';
+import { AppError } from './lib/errors.js';
 
 // Composition is separate from listen/signals so HTTP tests can start an
 // isolated app without starting the real process or contacting a real DB.
@@ -60,6 +61,18 @@ export function createApp({ config = env, database = prisma, attachSession = att
   app.use('/api/v1/auth', limiter(), authRouter);
   app.use('/api/v1/orders', limiter(), orderRouter);
   app.use('/api/v1/admin', adminRouter);
+  app.get('/api/v1/whatsapp', (req, res, next) => {
+    if (!config.WHATSAPP_NUMBER) {
+      return next(new AppError(503, 'WHATSAPP_UNAVAILABLE', 'O contato pelo WhatsApp está indisponível no momento.'));
+    }
+    const text = req.query.text ?? '';
+    if (typeof text !== 'string' || text.length > 20_000) {
+      return next(new AppError(400, 'INVALID_WHATSAPP_MESSAGE', 'Mensagem de WhatsApp inválida.'));
+    }
+    const params = new URLSearchParams({ phone: config.WHATSAPP_NUMBER });
+    if (text) params.set('text', text);
+    res.redirect(302, `https://api.whatsapp.com/send?${params}`);
+  });
   app.use('/api/v1', publicRouter);
   app.use(notFoundHandler);
   app.use(errorHandler);

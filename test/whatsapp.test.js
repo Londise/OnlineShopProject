@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildOrderMessage, buildWhatsAppUrl } from "../src/utils/whatsapp.js";
+import { buildOrderMessage } from "../src/utils/whatsapp.js";
 
 test("order message preserves grouping, totals, delivery and order number", () => {
   const message = buildOrderMessage({
@@ -25,20 +25,4 @@ test("prototype-like product names and sizes are ordinary grouping keys", () => 
   for (const key of keys) assert.ok(message.includes(`📦 ${key.toUpperCase()}\n`));
   assert.equal(message.match(/• Preto: 1/g).length, 9);
   assert.deepEqual(Object.getOwnPropertyDescriptors(Object.prototype), before);
-});
-
-test("WhatsApp URL encodes message and phone without requiring window", () => {
-  const message = "Olá! Pedido #1 & + 2\n📦 Camiseta?";
-  const url = new URL(buildWhatsAppUrl(message, "+5511999999999"));
-  assert.equal(url.origin, "https://api.whatsapp.com");
-  assert.equal(url.pathname, "/send");
-  assert.equal(url.searchParams.get("text"), message);
-  assert.equal(url.searchParams.get("phone"), "+5511999999999");
-  assert.ok(url.href.includes("%26"));
-  for (const phone of [undefined, null, "", "   "]) {
-    const fallback = new URL(buildWhatsAppUrl(message, phone));
-    assert.equal(fallback.searchParams.has("phone"), false);
-    assert.equal(fallback.searchParams.get("text"), message);
-    assert.equal(fallback.href.includes("undefined"), false);
-  }
 });

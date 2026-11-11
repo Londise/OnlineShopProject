@@ -5,6 +5,8 @@ import { databaseUrlSchema } from './database.js';
 const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(3001),
+  WHATSAPP_NUMBER: z.preprocess(value => value || undefined,
+    z.string().regex(/^[1-9]\d{7,14}$/, 'Use apenas os dígitos do país, DDD e número.').optional()),
   DATABASE_URL: databaseUrlSchema,
   FRONTEND_ORIGIN: z.string().url().refine(value => {
     const url = new URL(value);

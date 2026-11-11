@@ -1,6 +1,7 @@
 import React from "react";
 import Logo from "./Logo";
 import { Instagram, Facebook, Send } from "lucide-react";
+import { buildWhatsAppUrl } from "../utils/whatsapp";
 
 export default function Footer({ onHome }) {
   return (
@@ -25,7 +26,7 @@ export default function Footer({ onHome }) {
           <Facebook />
         </a>
         <a
-          href="https://wa.me/"
+          href={buildWhatsAppUrl()}
           target="_blank"
           rel="noreferrer"
           aria-label="WhatsApp"
