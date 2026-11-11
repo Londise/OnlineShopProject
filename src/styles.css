@@ -1728,7 +1728,7 @@ footer small {
     }
 
     .header-account {
-        font-size: 12px;
+        font-size: 14px;
     }
 
     .logo {
@@ -1751,12 +1751,13 @@ footer small {
 
         width: 100%;
         justify-content: center;
-        gap: 16px;
+        gap: 24px;
 
-        padding: 10px 0;
+        padding: 8px 0;
         border-top: 1px solid var(--line);
         background: var(--white);
-        font-size: 12px;
+        font-size: 13px;
+        font-weight: 500;
     }
 
     .header-order {
@@ -1819,16 +1820,19 @@ footer small {
     }
 
     .benefits b {
-        font-size: 9px;
+        font-size: 11px;
+        line-height: 1.35;
         letter-spacing: 0
     }
 
     .benefits small {
-        font-size: 9px
+        font-size: 10.5px;
+        line-height: 1.45
     }
 
     .section {
-        padding: 68px 18px 0
+        margin: 40px auto;
+        padding: 20px 18px 0
     }
 
     .section-head {
@@ -1849,10 +1853,6 @@ footer small {
         margin-top: 9px
     }
 
-    .highlights {
-        padding-top: 75px
-    }
-
     .highlight-grid {
         display: flex;
         overflow: auto;
@@ -1868,7 +1868,7 @@ footer small {
     }
 
     .products {
-        padding-bottom: 65px
+        padding-bottom: 40px
     }
 
     .catalog-tools {
