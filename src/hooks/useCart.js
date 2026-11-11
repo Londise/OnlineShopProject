@@ -31,8 +31,9 @@ export default function useCart() {
 
   // Reconcile only presentation URLs; never discard saved quantities or orders.
   useEffect(() => {
+    if (!lines.length) return;
     let active = true;
-    api.catalog.products().then(({ products }) => {
+    api.catalog.sharedProducts().then(({ products }) => {
       if (!active) return;
       const images = new Map();
       for (const product of products) {
@@ -42,6 +43,8 @@ export default function useCart() {
       setLines(old => old.map(line => ({ ...line, image: images.get(line.variantId) ?? IMAGE_PLACEHOLDER })));
     }).catch(() => {});
     return () => { active = false; };
+    // The saved cart is reconciled only on startup. Products added later
+    // already receive their image from the active catalog.
   }, []);
 
   /*

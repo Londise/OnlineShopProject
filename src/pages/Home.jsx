@@ -4,6 +4,7 @@ import Logo from "../components/Logo";
 import { IMAGE_PLACEHOLDER } from "../config/media";
 import { api } from "../services/api";
 import ProductCard from "../components/ProductCard";
+import ResponsiveImage from "../components/ResponsiveImage";
 import Cart from "../components/Cart";
 import Footer from "../components/Footer";
 import AuthDialog from "../components/AuthDialog";
@@ -30,6 +31,12 @@ import {
   Zap,
 } from "lucide-react";
 
+const HERO_IMAGE_WIDTHS = [640, 960, 1280, 1600, 1920];
+const HIGHLIGHT_IMAGE_SIZES =
+  "(max-width: 768px) 74vw, (max-width: 1200px) 33vw, 370px";
+const CATEGORY_IMAGE_SIZES =
+  "(max-width: 768px) 50vw, (max-width: 1200px) 25vw, 280px";
+
 export default function Home() {
   /*
    * ============================================================
@@ -46,11 +53,7 @@ export default function Home() {
   const auth = useAuthContext();
   const { user } = auth;
 
-  const {
-    cartOpen,
-    setCartOpen,
-    qtyTotal,
-  } = useCartContext();
+  const { cartOpen, setCartOpen, qtyTotal } = useCartContext();
 
   /*
    * O catálogo é responsabilidade da Home.
@@ -70,39 +73,59 @@ export default function Home() {
    */
 
   // Produto atualmente aberto no BuilderModal.
-  const [currentProduct, setCurrentProduct] =
-    useState(null);
+  const [currentProduct, setCurrentProduct] = useState(null);
 
   // Controla a abertura do modal de autenticação.
-  const [authOpen, setAuthOpen] =
-    useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
 
   // Mensagem temporária exibida no toast.
-  const [toast, setToast] =
-    useState(null);
+  const [toast, setToast] = useState(null);
 
   // Banner atual.
-  const [slide, setSlide] =
-    useState(0);
+  const [slide, setSlide] = useState(0);
   const [banners, setBanners] = useState([]);
-  const heroSlides = banners.length ? banners : [{ id: "placeholder", imageUrl: IMAGE_PLACEHOLDER }];
+  const heroSlides = banners.length
+    ? banners
+    : [{ id: "placeholder", imageUrl: IMAGE_PLACEHOLDER }];
   const activeSlide = Math.min(slide, heroSlides.length - 1);
   useEffect(() => {
     let active = true;
-    api.catalog.banners().then(({ banners }) => { if (active) { setBanners(banners); setSlide(0); } }).catch(() => {});
-    api.catalog.siteMedia().then(({ faviconUrl }) => {
-      if (active && faviconUrl) document.querySelector('link[rel="icon"]')?.setAttribute("href", faviconUrl);
-    }).catch(() => {});
-    return () => { active = false; };
+    api.catalog
+      .banners()
+      .then(({ banners }) => {
+        if (active) {
+          setBanners(banners);
+          setSlide(0);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
   }, []);
 
+  useEffect(() => {
+    if (catalogLoading) return;
+    let active = true;
+    api.catalog
+      .siteMedia()
+      .then(({ faviconUrl }) => {
+        if (active && faviconUrl)
+          document
+            .querySelector('link[rel="icon"]')
+            ?.setAttribute("href", faviconUrl);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [catalogLoading]);
+
   // Categoria selecionada.
-  const [filter, setFilter] =
-    useState("Todos");
+  const [filter, setFilter] = useState("Todos");
 
   // Texto da busca.
-  const [search, setSearch] =
-    useState("");
+  const [search, setSearch] = useState("");
 
   /*
    * ============================================================
@@ -198,11 +221,9 @@ export default function Home() {
    */
 
   const scrollProducts = () => {
-    document
-      .querySelector("#produtos")
-      ?.scrollIntoView({
-        behavior: "smooth",
-      });
+    document.querySelector("#produtos")?.scrollIntoView({
+      behavior: "smooth",
+    });
   };
 
   /*
@@ -213,21 +234,13 @@ export default function Home() {
 
   const displayed = products.filter(
     (product) =>
-      (filter === "Todos" ||
-        product.category === filter) &&
+      (filter === "Todos" || product.category === filter) &&
       product.name
         .toLocaleLowerCase("pt-BR")
-        .includes(
-          search.toLocaleLowerCase("pt-BR"),
-        ),
+        .includes(search.toLocaleLowerCase("pt-BR")),
   );
 
-  const allFilters = [
-    "Todos",
-    ...categories.map(
-      ({ name }) => name,
-    ),
-  ];
+  const allFilters = ["Todos", ...categories.map(({ name }) => name)];
 
   /*
    * ============================================================
@@ -264,63 +277,52 @@ export default function Home() {
           HEADER
       ========================================================= */}
 
-      <header>
-        <Logo />
-
-        <nav>
-          <a href="#inicio">
-            Início
-          </a>
-
-          <button onClick={scrollProducts}>
-            Produtos
-          </button>
-        </nav>
-
-        <div className="header-actions">
-          {/* Pedido */}
-          <button
-            type="button"
-            className="header-order"
-            onClick={() => setCartOpen(true)}
-          >
-            <ShoppingBag size={18} />
-
-            <span>
-              Pedido
-            </span>
-
-            <b>
-              {qtyTotal}
-            </b>
-          </button>
-
-          {/* Conta / Login */}
-          {user ? (
+      <header className="storefront-header">
+        <div className="storefront-header-main">
+          
+          <Logo />
+          
+          <div className="header-actions">
+            {/* Pedido */}
             <button
               type="button"
-              className="header-account"
-              onClick={() =>
-                navigate("/account")
-              }
+              className="header-order"
+              onClick={() => setCartOpen(true)}
             >
-              Olá,{" "}
-              {user.name.split(" ")[0]}
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="header-account"
-              onClick={() =>
-                setAuthOpen(true)
-              }
-            >
-              Entrar
+              <ShoppingBag size={18} />
 
-              <User size={20} />
+              <span>Pedido</span>
+
+              <b>{qtyTotal}</b>
             </button>
-          )}
+
+            {/* Conta / Login */}
+            {user ? (
+              <button
+                type="button"
+                className="header-account"
+                onClick={() => navigate("/account")}
+              >
+                Olá, {user.name.split(" ")[0]}
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="header-account"
+                onClick={() => setAuthOpen(true)}
+              >
+                Entrar
+                <User size={20} />
+              </button>
+            )}
+          </div>
         </div>
+
+        <nav className="storefront-nav">
+          <a href="#inicio">Início</a>
+
+          <button onClick={scrollProducts}>Produtos</button>
+        </nav>
       </header>
 
       {/* ========================================================
@@ -349,10 +351,7 @@ export default function Home() {
               ))}
             </p>
 
-            <button
-              className="button outline"
-              onClick={retryStorefront}
-            >
+            <button className="button outline" onClick={retryStorefront}>
               Tentar novamente
             </button>
           </div>
@@ -371,44 +370,51 @@ export default function Home() {
               }%)`,
             }}
           >
-            {heroSlides.map(
-              (item) => (
-                <div
-                  className="hero-slide"
-                  key={item.id}
-                  style={{
-                    width: `${100 / heroSlides.length}%`, flexShrink: 0,
-                    backgroundImage: `linear-gradient(90deg, rgba(37,17,30,.72), rgba(37,17,30,.1)), url(${item.imageUrl})`,
-                  }}
-                >
-                  <div>
-                    <span className="eyebrow light">
-                      FABRICAÇÃO PRÓPRIA
-                    </span>
+            {heroSlides.map((item, index) => (
+              <div
+                className="hero-slide"
+                key={item.id}
+                style={{
+                  width: `${100 / heroSlides.length}%`,
+                  flexShrink: 0,
+                }}
+              >
+                {index === activeSlide && (
+                  <ResponsiveImage
+                    className="hero-slide-media"
+                    src={item.imageUrl}
+                    sourceWidth={item.width}
+                    sourceHeight={item.height}
+                    variantWidth={1600}
+                    widths={HERO_IMAGE_WIDTHS}
+                    sizes="100vw"
+                    alt={item.altText ?? ""}
+                    loading="eager"
+                    fetchPriority={index === 0 ? "high" : "auto"}
+                    decoding="async"
+                  />
+                )}
+                <div>
+                  <span className="eyebrow light">FABRICAÇÃO PRÓPRIA</span>
 
-                    <h1>
-                      Ferchu
-                      <br />
-                      <em>Modas</em>
-                    </h1>
+                  <h1>
+                    Ferchu
+                    <br />
+                    <em>Modas</em>
+                  </h1>
 
-                    <p>
-                      {item.subtitle ?? "Peças confortáveis e modelos variados para revender."}
-                    </p>
+                  <p>
+                    {item.subtitle ??
+                      "Peças confortáveis e modelos variados para revender."}
+                  </p>
 
-                    <button
-                      className="button cream"
-                      onClick={
-                        scrollProducts
-                      }
-                    >
-                      Ver produtos
-                      <ArrowRight size={18} />
-                    </button>
-                  </div>
+                  <button className="button cream" onClick={scrollProducts}>
+                    Ver produtos
+                    <ArrowRight size={18} />
+                  </button>
                 </div>
-              ),
-            )}
+              </div>
+            ))}
           </div>
 
           <button
@@ -425,35 +431,21 @@ export default function Home() {
 
           <button
             className="hero-arrow right"
-            onClick={() =>
-              setSlide(
-                (activeSlide + 1) % heroSlides.length,
-              )
-            }
+            onClick={() => setSlide((activeSlide + 1) % heroSlides.length)}
             aria-label="Próximo banner"
           >
             <ChevronRight />
           </button>
 
           <div className="slider-dots">
-            {heroSlides.map(
-              (item, index) => (
-                <button
-                  key={item.id}
-                  aria-label={`Ir para banner ${
-                    index + 1
-                  }`}
-                  className={
-                    activeSlide === index
-                      ? "active"
-                      : ""
-                  }
-                  onClick={() =>
-                    setSlide(index)
-                  }
-                />
-              ),
-            )}
+            {heroSlides.map((item, index) => (
+              <button
+                key={item.id}
+                aria-label={`Ir para banner ${index + 1}`}
+                className={activeSlide === index ? "active" : ""}
+                onClick={() => setSlide(index)}
+              />
+            ))}
           </div>
         </section>
 
@@ -462,40 +454,24 @@ export default function Home() {
         ======================================================= */}
 
         <section className="benefits">
-          <a
-            href="https://instagram.com"
-            target="_blank"
-            rel="noreferrer"
-          >
+          <a href="https://instagram.com" target="_blank" rel="noreferrer">
             <span>
               <Instagram />
             </span>
 
-            <b>
-              Instagram
-            </b>
+            <b>Instagram</b>
 
-            <small>
-              Siga nossos looks
-            </small>
+            <small>Siga nossos looks</small>
           </a>
 
-          <a
-            href="https://wa.me/"
-            target="_blank"
-            rel="noreferrer"
-          >
+          <a href="https://wa.me/" target="_blank" rel="noreferrer">
             <span>
               <Send />
             </span>
 
-            <b>
-              WhatsApp
-            </b>
+            <b>WhatsApp</b>
 
-            <small>
-              Fale com a gente
-            </small>
+            <small>Fale com a gente</small>
           </a>
 
           <div>
@@ -503,13 +479,9 @@ export default function Home() {
               <PackageCheck />
             </span>
 
-            <b>
-              Somente atacado
-            </b>
+            <b>Somente atacado</b>
 
-            <small>
-              Pedido mínimo 15 peças
-            </small>
+            <small>Pedido mínimo 15 peças</small>
           </div>
 
           <div>
@@ -517,13 +489,9 @@ export default function Home() {
               <Truck />
             </span>
 
-            <b>
-              Entrega rápida
-            </b>
+            <b>Entrega rápida</b>
 
-            <small>
-              Via Correios ou excursão
-            </small>
+            <small>Via Correios ou excursão</small>
           </div>
         </section>
 
@@ -534,54 +502,42 @@ export default function Home() {
         <section className="section categories">
           <div className="section-head">
             <div>
-              <span className="eyebrow">
-                ENCONTRE SEU ESTILO
-              </span>
+              <span className="eyebrow">ENCONTRE SEU ESTILO</span>
 
-              <h2>
-                Feito para vestir bem.
-              </h2>
+              <h2>Feito para vestir bem.</h2>
             </div>
 
-            <button
-              className="text-button"
-              onClick={
-                scrollProducts
-              }
-            >
+            <button className="text-button" onClick={scrollProducts}>
               Ver todos
               <ArrowRight size={16} />
             </button>
           </div>
 
           <div className="category-grid">
-            {categories.map(
-              (category) => (
-                <button
-                  key={category.name}
-                  onClick={() => {
-                    setFilter(
-                      category.name,
-                    );
+            {categories.map((category) => (
+              <button
+                key={category.name}
+                onClick={() => {
+                  setFilter(category.name);
 
-                    scrollProducts();
-                  }}
-                >
-                  <img
-                    src={category.image}
-                    alt={`Categoria ${category.name}`}
-                  />
+                  scrollProducts();
+                }}
+              >
+                <ResponsiveImage
+                  src={category.image}
+                  sourceWidth={category.imageWidth}
+                  sourceHeight={category.imageHeight}
+                  sizes={CATEGORY_IMAGE_SIZES}
+                  alt={`Categoria ${category.name}`}
+                  loading="lazy"
+                  decoding="async"
+                />
 
-                  <strong>
-                    {category.name}
-                  </strong>
+                <strong>{category.name}</strong>
 
-                  <span>
-                    Ver modelos
-                  </span>
-                </button>
-              ),
-            )}
+                <span>Ver modelos</span>
+              </button>
+            ))}
           </div>
         </section>
 
@@ -592,30 +548,21 @@ export default function Home() {
         <section className="section highlights">
           <div className="section-head">
             <div>
-              <span className="eyebrow">
-                OS MAIS PEDIDOS
-              </span>
+              <span className="eyebrow">OS MAIS PEDIDOS</span>
 
-              <h2>
-                Destaques
-              </h2>
+              <h2>Destaques</h2>
             </div>
           </div>
 
           <div className="highlight-grid">
-            {products
-              .slice(0, 3)
-              .map(
-                (product) => (
-                  <ProductCard
-                    product={product}
-                    onBuild={
-                      openBuilder
-                    }
-                    key={product.id}
-                  />
-                ),
-              )}
+            {products.slice(0, 3).map((product) => (
+              <ProductCard
+                product={product}
+                sizes={HIGHLIGHT_IMAGE_SIZES}
+                onBuild={openBuilder}
+                key={product.id}
+              />
+            ))}
           </div>
         </section>
 
@@ -623,48 +570,28 @@ export default function Home() {
             CATÁLOGO
         ======================================================= */}
 
-        <section
-          className="section products"
-          id="produtos"
-        >
+        <section className="section products" id="produtos">
           <div className="section-head product-title">
             <div>
-              <span className="eyebrow">
-                CATÁLOGO
-              </span>
+              <span className="eyebrow">CATÁLOGO</span>
 
-              <h2>
-                Monte seu pedido.
-              </h2>
+              <h2>Monte seu pedido.</h2>
 
-              <p>
-                Selecione cores e distribua
-                as quantidades por tamanho.
-              </p>
+              <p>Selecione cores e distribua as quantidades por tamanho.</p>
             </div>
           </div>
 
           <div className="catalog-tools">
             <div className="filters">
-              {allFilters.map(
-                (item) => (
-                  <button
-                    key={item}
-                    onClick={() =>
-                      setFilter(
-                        item,
-                      )
-                    }
-                    className={
-                      filter === item
-                        ? "active"
-                        : ""
-                    }
-                  >
-                    {item}
-                  </button>
-                ),
-              )}
+              {allFilters.map((item) => (
+                <button
+                  key={item}
+                  onClick={() => setFilter(item)}
+                  className={filter === item ? "active" : ""}
+                >
+                  {item}
+                </button>
+              ))}
             </div>
 
             <label className="search">
@@ -673,11 +600,7 @@ export default function Home() {
               <input
                 type="search"
                 value={search}
-                onChange={(event) =>
-                  setSearch(
-                    event.target.value,
-                  )
-                }
+                onChange={(event) => setSearch(event.target.value)}
                 placeholder="Buscar modelo"
                 maxLength="60"
               />
@@ -685,24 +608,19 @@ export default function Home() {
           </div>
 
           <div className="catalog-grid">
-            {displayed.map(
-              (product) => (
-                <ProductCard
-                  className="product-card-catalog"
-                  product={product}
-                  onBuild={
-                    openBuilder
-                  }
-                  key={product.id}
-                />
-              ),
-            )}
+            {displayed.map((product) => (
+              <ProductCard
+                className="product-card-catalog"
+                product={product}
+                onBuild={openBuilder}
+                key={product.id}
+              />
+            ))}
           </div>
 
           {!displayed.length && (
             <p className="nothing">
-              Não encontramos esse modelo.
-              Tente outra busca.
+              Não encontramos esse modelo. Tente outra busca.
             </p>
           )}
         </section>
@@ -715,14 +633,9 @@ export default function Home() {
           <div>
             <Zap />
 
-            <span className="eyebrow light">
-              PRECISA DE AJUDA?
-            </span>
+            <span className="eyebrow light">PRECISA DE AJUDA?</span>
 
-            <h2>
-              Montou seu pedido? A gente
-              cuida do resto.
-            </h2>
+            <h2>Montou seu pedido? A gente cuida do resto.</h2>
           </div>
 
           <a
@@ -765,11 +678,7 @@ export default function Home() {
           TOAST
       ========================================================= */}
 
-      {toast && (
-        <div className="toast-success">
-          {toast}
-        </div>
-      )}
+      {toast && <div className="toast-success">{toast}</div>}
 
       {/* ========================================================
           AUTH DIALOG
@@ -778,12 +687,8 @@ export default function Home() {
       {authOpen && (
         <AuthDialog
           auth={auth}
-          onClose={() =>
-            setAuthOpen(false)
-          }
-          onAuthenticated={
-            handleAuthenticated
-          }
+          onClose={() => setAuthOpen(false)}
+          onAuthenticated={handleAuthenticated}
         />
       )}
     </>

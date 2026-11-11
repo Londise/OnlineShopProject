@@ -391,11 +391,11 @@ export default function Checkout() {
 
   return (
     <div className="checkout">
-      <header>
+      <header className="checkout-header">
         <Logo onHome={() => navigate("/")} />
 
         <button
-          className="back-link"
+          className="back-link checkout-back-link"
           type="button"
           onClick={() => navigate("/")}
         >

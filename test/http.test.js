@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ApiError, createRequestClient, resolveApiUrl } from '../src/services/http.js';
+import { ApiError, createRequestClient, createSharedRequest, resolveApiUrl } from '../src/services/http.js';
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 const client = options => createRequestClient({ baseUrl: '/api/v1', sleep: async () => {}, ...options });
@@ -10,6 +10,34 @@ test('production defaults to same origin, never localhost', () => {
   assert.equal(resolveApiUrl(undefined), 'http://localhost:3001/api/v1');
   assert.throws(() => resolveApiUrl('http://localhost:3001/api/v1', { production: true }));
   assert.throws(() => resolveApiUrl('https://user:secret@example.test/api/v1'));
+});
+
+test('shared requests reuse only the in-flight promise and recover after failure', async () => {
+  let calls = 0;
+  let complete;
+  const shared = createSharedRequest(() => {
+    calls++;
+    return new Promise(resolve => { complete = resolve; });
+  });
+  const first = shared();
+  const second = shared();
+  assert.equal(calls, 1);
+  assert.strictEqual(first, second);
+  complete({ products: [] });
+  assert.deepEqual(await Promise.all([first, second]), [{ products: [] }, { products: [] }]);
+  const third = shared();
+  complete({ products: [1] });
+  assert.deepEqual(await third, { products: [1] });
+  assert.equal(calls, 2);
+
+  const recovering = createSharedRequest(async () => {
+    calls++;
+    if (calls === 3) throw new Error('temporary');
+    return { products: [] };
+  });
+  await assert.rejects(recovering(), /temporary/);
+  assert.deepEqual(await recovering(), { products: [] });
+  assert.equal(calls, 4);
 });
 
 test('JSON reads include credentials and a trace id', async () => {

@@ -5,11 +5,12 @@ import test from "node:test";
 process.env.DATABASE_URL = "postgresql://test:test@localhost:5432/test?schema=app";
 const { prisma } = await import("../src/db/prisma.js");
 const catalog = await import("../src/controllers/catalog.controller.js");
+const { listBanners } = await import("../src/controllers/public.controller.js");
 
 const product = {
   id: "product", slug: "dress", name: "Dress", active: true,
   priceCents: 1000, category: { id: "category", name: "Dresses", slug: "dresses" },
-  images: [{ id: "image", asset: { url: "https://example.test/image", altText: "Dress" } }],
+  images: [{ id: "image", asset: { url: "https://example.test/image", altText: "Dress", width: 1066, height: 1600 } }],
   options: [{
     id: "option", active: true, variantOption: { name: "Blue", type: "COLOR" },
     variants: [{ id: "variant", active: true, size: { code: "M" }, inventory: { onHand: 8, reserved: 3 } }],
@@ -55,6 +56,18 @@ test("public list/detail use identical active relation filters; admin includes i
   assert.equal(detail.body.product.options[0].variants[0].available, 5);
   assert.equal(detail.body.product.options[0].variants[0].priceCents, 1000);
   assert.equal(detail.body.product.images[0].url, product.images[0].asset.url);
+  assert.equal(detail.body.product.images[0].width, 1066);
+  assert.equal(detail.body.product.images[0].height, 1600);
+});
+
+test("public banners expose the dimensions needed for responsive images", async (t) => {
+  stub(t, prisma.siteBanner, "findMany", async () => [{
+    id: "banner", title: "Banner", subtitle: null, linkUrl: null, sortOrder: 0,
+    asset: { url: "https://example.test/banner", altText: "Banner", width: 1600, height: 750 },
+  }]);
+  const res = await invoke(listBanners);
+  assert.equal(res.body.banners[0].width, 1600);
+  assert.equal(res.body.banners[0].height, 750);
 });
 
 test("public detail returns not found when the filtered query finds nothing", async (t) => {

@@ -47,7 +47,7 @@ img {
     display: block
 }
 
-header {
+.storefront-header {
     height: 76px;
     display: flex;
     align-items: center;
@@ -55,7 +55,14 @@ header {
     padding: 0 max(4vw, 32px);
     background: var(--white);
     position: relative;
-    z-index: 20
+    z-index: 20;
+}
+
+.storefront-header-main {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
 }
 
 .logo {
@@ -76,29 +83,28 @@ header {
     margin: 7px 0 0 4px
 }
 
-nav {
+.storefront-nav {
     position: absolute;
     left: 50%;
-    transform: translate(-50%);
-
+    transform: translateX(-50%);
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 34px;
-
     font-size: 16px;
     font-weight: 600;
 }
 
-nav a,
-nav button {
+.storefront-nav a,
+.storefront-nav button {
     position: relative;
     background: none;
     padding: 8px 0;
-    color: var(--ink)
+    color: var(--ink);
 }
 
-nav a:after,
-nav button:after {
+.storefront-nav a:after,
+.storefront-nav button:after {
     content: '';
     position: absolute;
     left: 0;
@@ -106,12 +112,12 @@ nav button:after {
     width: 0;
     height: 1px;
     background: var(--wine);
-    transition: .2s
+    transition: .2s;
 }
 
-nav a:hover:after,
-nav button:hover:after {
-    width: 100%
+.storefront-nav a:hover:after,
+.storefront-nav button:hover:after {
+    width: 100%;
 }
 
 .header-actions {
@@ -173,17 +179,37 @@ nav button:hover:after {
 .media-grid img { width: 100%; height: 220px; object-fit: contain; }
 
 .hero-slide {
+    position: relative;
     width: 33.333%;
     height: 100%;
-    background-position: center;
-    background-size: cover;
     color: #fff;
     display: flex;
     align-items: center;
-    padding: 0 max(8vw, 60px)
+    padding: 0 max(8vw, 60px);
+    background: #351c2d
+}
+
+.hero-slide-media {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center
+}
+
+.hero-slide::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background: linear-gradient(90deg, rgba(37,17,30,.72), rgba(37,17,30,.1))
 }
 
 .hero-slide>div {
+    position: relative;
+    z-index: 2;
     max-width: 620px
 }
 
@@ -461,7 +487,7 @@ nav button:hover:after {
 }
 
 .benefits b {
-    font-size: 14px;
+    font-size: 16px;
     text-transform: uppercase;
     letter-spacing: .35px
 }
@@ -1190,9 +1216,41 @@ footer small {
     background: #faf7f3
 }
 
-.checkout header {
+.checkout .checkout-header {
+    min-height: 76px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px clamp(17px, 4vw, 64px);
     background: #fffdfa;
     border-bottom: 1px solid var(--line)
+}
+
+.checkout-header .logo {
+    flex: 0 0 auto;
+    align-items: flex-start;
+    font-size: clamp(25px, 3vw, 29px)
+}
+
+.checkout-header .checkout-back-link {
+    display: inline-flex;
+    flex: 0 0 auto;
+    justify-content: center;
+    min-height: 44px;
+    padding: 8px 0 8px 8px;
+    white-space: nowrap;
+    font-size: 13px;
+    line-height: 1.4
+}
+
+.checkout-back-link svg {
+    flex: 0 0 auto
+}
+
+.checkout-header button:focus-visible {
+    outline: 2px solid var(--wine);
+    outline-offset: 4px
 }
 
 .back-link {
@@ -1546,9 +1604,22 @@ footer small {
 }
 
 @media(max-width:700px) {
-    header {
+    .storefront-header {
+        height: auto;
+        padding: 0;
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .storefront-header-main {
+        width: 100%;
         height: 66px;
-        padding: 0 19px
+        flex: 0 0 66px;
+        padding: 0 19px;
+
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
     }
 
     .header-actions {
@@ -1572,9 +1643,19 @@ footer small {
         display: none
     }
 
-    nav {
+    .storefront-nav {
+        position: static;
+        left: auto;
+        transform: none;
+
+        width: 100%;
+        justify-content: center;
         gap: 16px;
-        font-size: 12px
+
+        padding: 10px 0;
+        border-top: 1px solid var(--line);
+        background: var(--white);
+        font-size: 12px;
     }
 
     .header-order {
@@ -1587,8 +1668,11 @@ footer small {
     }
 
     .hero-slide {
-        padding: 0 25px;
-        background-position: 60% center
+        padding: 0 25px
+    }
+
+    .hero-slide-media {
+        object-position: 60% center
     }
 
     .hero h1 {
@@ -1860,18 +1944,6 @@ footer small {
     .confirm-box .button {
         width: 100%;
         margin-top: 17px
-    }
-
-    .checkout header .logo {
-        font-size: 25px
-    }
-
-    .back-link {
-        font-size: 11px
-    }
-
-    .checkout header {
-        padding: 0 17px
     }
 
     .review-line {

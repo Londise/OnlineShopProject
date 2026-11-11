@@ -1,9 +1,10 @@
-import { createRequestClient, resolveApiUrl } from './http.js';
+import { createRequestClient, createSharedRequest, resolveApiUrl } from './http.js';
 export { ApiError } from './http.js';
 
 const request = createRequestClient({
   baseUrl: resolveApiUrl(import.meta.env.VITE_API_URL, { production: import.meta.env.PROD }),
 });
+const sharedCatalogProducts = createSharedRequest(() => request("/products"));
 
 export const api = {
 
@@ -18,6 +19,7 @@ export const api = {
 
   catalog: {
     products: (options) => request("/products", options),
+    sharedProducts: sharedCatalogProducts,
     banners: () => request("/banners"),
     siteMedia: () => request("/site-media"),
   },

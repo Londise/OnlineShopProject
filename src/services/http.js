@@ -25,6 +25,27 @@ const newTraceId = () => globalThis.crypto?.randomUUID?.() ??
   'xxxxxxxx-xxxx-4xxx-8xxx-xxxxxxxxxxxx'.replace(/x/g, () => Math.floor(Math.random() * 16).toString(16));
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 
+// Share only concurrent work. Successful data is not cached, so stock and other
+// volatile fields are fetched again on the next independent screen load.
+export function createSharedRequest(request) {
+  let pending = null;
+  return (...args) => {
+    if (!pending) {
+      let result;
+      try {
+        result = Promise.resolve(request(...args));
+      } catch (error) {
+        result = Promise.reject(error);
+      }
+      const shared = result.finally(() => {
+        if (pending === shared) pending = null;
+      });
+      pending = shared;
+    }
+    return pending;
+  };
+}
+
 // Reads may retry once; mutations never replay. Do not turn HTML (including a
 // Render startup page) into an empty successful catalog or a missing session.
 export function createRequestClient({ baseUrl, fetchImpl = globalThis.fetch, timeoutMs = 95_000,
