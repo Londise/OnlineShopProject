@@ -38,3 +38,12 @@ test('the hero starts invisible over a wine background and respects reduced moti
   assert.match(css, /\.hero-slide-media\.is-loaded\s*\{\s*opacity:\s*1/);
   assert.match(css, /prefers-reduced-motion: reduce\)\s*\{\s*\.storefront-loading-flower/);
 });
+
+test('loading dots grow one at a time in three equal phases', async () => {
+  const css = await readFile(new URL('../src/styles.css', import.meta.url), 'utf8');
+  assert.match(css, /animation: storefrontPulse 1\.5s ease-in-out infinite/);
+  assert.match(css, /\.storefront-loading-dots i:nth-child\(2\)\s*\{ animation-delay: \.5s;/);
+  assert.match(css, /\.storefront-loading-dots i:nth-child\(3\)\s*\{ animation-delay: 1s;/);
+  assert.match(css, /0%, 33\.333%, 100%\s*\{ opacity: \.3; transform: scale\(1\);/);
+  assert.match(css, /16\.667%\s*\{ opacity: 1; transform: scale\(1\.8\);/);
+});

@@ -275,21 +275,26 @@ img {
     height: 5px;
     border-radius: 50%;
     background: var(--rose);
+    opacity: .3;
     animation: storefrontPulse 1.5s ease-in-out infinite;
 }
-.storefront-loading-dots i:nth-child(2) { animation-delay: .18s; }
-.storefront-loading-dots i:nth-child(3) { animation-delay: .36s; }
+.storefront-loading-dots i:nth-child(2) { animation-delay: .5s; }
+.storefront-loading-dots i:nth-child(3) { animation-delay: 1s; }
 
 .product-skeleton { padding-bottom: 28px; }
 .product-skeleton div { aspect-ratio: 3 / 4; background: var(--sand); }
 .product-skeleton span { display: block; height: 12px; width: 70%; margin-top: 16px; background: var(--line); border-radius: 4px; }
 .product-skeleton span:last-child { width: 40%; }
 
-@keyframes storefrontPulse { 0%, 100% { opacity: .3; } 50% { opacity: 1; } }
+@keyframes storefrontPulse {
+    0%, 33.333%, 100% { opacity: .3; transform: scale(1); }
+    16.667% { opacity: 1; transform: scale(1.8); }
+}
 @keyframes storefrontBloom { 0%, 100% { opacity: .65; transform: scale(.94); } 50% { opacity: 1; transform: scale(1); } }
 
 @media (prefers-reduced-motion: reduce) {
     .storefront-loading-flower, .storefront-loading-dots i { animation: none; }
+    .storefront-loading-dots i { opacity: 1; }
     .hero-slide-media { transition: none; }
 }
 
