@@ -186,7 +186,7 @@ img {
     display: flex;
     align-items: center;
     padding: 0 max(8vw, 60px);
-    background: #351c2d
+    background: #65243f
 }
 
 .hero-slide-media {
@@ -195,7 +195,102 @@ img {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    object-position: center
+    object-position: center;
+    opacity: 0;
+    transition: opacity .35s ease
+}
+
+.hero-slide-media.is-loaded { opacity: 1; }
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+}
+
+.storefront-loading {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: grid;
+    place-items: center;
+    min-height: 100dvh;
+    padding: 32px;
+    background: radial-gradient(ellipse at 50% 42%, #fffdfa 0%, var(--cream) 58%, #eadbc9 150%);
+    color: var(--wine);
+}
+
+.storefront-loading-brand {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.storefront-loading-flower {
+    color: var(--rose);
+    font-size: 38px;
+    line-height: 1;
+    margin-bottom: 28px;
+    animation: storefrontBloom 3s ease-in-out infinite;
+}
+
+.storefront-loading-name {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: clamp(60px, 14vw, 92px);
+    font-weight: 600;
+    letter-spacing: -4px;
+    line-height: 1.1;
+}
+
+.storefront-loading-label {
+    margin: 12px 0 0 7px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 7px;
+}
+
+.storefront-loading-rule {
+    width: 36px;
+    height: 1px;
+    background: var(--rose);
+    margin: 30px 0 20px;
+}
+
+.storefront-loading-caption {
+    color: var(--muted);
+    font-size: 14px;
+    letter-spacing: .3px;
+}
+
+.storefront-loading-dots { display: flex; gap: 8px; margin-top: 32px; }
+.storefront-loading-dots i {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--rose);
+    animation: storefrontPulse 1.5s ease-in-out infinite;
+}
+.storefront-loading-dots i:nth-child(2) { animation-delay: .18s; }
+.storefront-loading-dots i:nth-child(3) { animation-delay: .36s; }
+
+.product-skeleton { padding-bottom: 28px; }
+.product-skeleton div { aspect-ratio: 3 / 4; background: var(--sand); }
+.product-skeleton span { display: block; height: 12px; width: 70%; margin-top: 16px; background: var(--line); border-radius: 4px; }
+.product-skeleton span:last-child { width: 40%; }
+
+@keyframes storefrontPulse { 0%, 100% { opacity: .3; } 50% { opacity: 1; } }
+@keyframes storefrontBloom { 0%, 100% { opacity: .65; transform: scale(.94); } 50% { opacity: 1; transform: scale(1); } }
+
+@media (prefers-reduced-motion: reduce) {
+    .storefront-loading-flower, .storefront-loading-dots i { animation: none; }
+    .hero-slide-media { transition: none; }
 }
 
 .hero-slide::after {

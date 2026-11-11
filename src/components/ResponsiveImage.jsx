@@ -10,6 +10,7 @@ export default function ResponsiveImage({
   sizes,
   alt,
   onError,
+  onFinalError,
   ...props
 }) {
   const [failedSource, setFailedSource] = useState(null);
@@ -27,6 +28,7 @@ export default function ResponsiveImage({
 
   const handleError = event => {
     if (!useOriginal && (optimizedSource !== src || srcSet)) setFailedSource(src);
+    else onFinalError?.(event);
     onError?.(event);
   };
 

@@ -1,16 +1,18 @@
 import React, { useEffect, useState } from "react";
 
 import Logo from "../components/Logo";
-import { IMAGE_PLACEHOLDER } from "../config/media";
 import { api } from "../services/api";
 import ProductCard from "../components/ProductCard";
 import ResponsiveImage from "../components/ResponsiveImage";
+import HeroImage from "../components/HeroImage";
+import StorefrontLoading from "../components/StorefrontLoading";
 import Cart from "../components/Cart";
 import Footer from "../components/Footer";
 import AuthDialog from "../components/AuthDialog";
 import BuilderModal from "../components/BuilderModalButton";
 
 import useCatalog from "../hooks/useCatalog";
+import useStorefrontLoading from "../hooks/useStorefrontLoading";
 
 import { useCartContext } from "../contexts/CartContext";
 import { useAuthContext } from "../contexts/AuthContext";
@@ -84,21 +86,29 @@ export default function Home() {
   // Banner atual.
   const [slide, setSlide] = useState(0);
   const [banners, setBanners] = useState([]);
+  const [bannersLoading, setBannersLoading] = useState(true);
+  const [settledBanner, setSettledBanner] = useState(null);
   const heroSlides = banners.length
     ? banners
-    : [{ id: "placeholder", imageUrl: IMAGE_PLACEHOLDER }];
+    : [{ id: "pending-banner", imageUrl: null }];
   const activeSlide = Math.min(slide, heroSlides.length - 1);
+  const initialLoading = useStorefrontLoading({
+    catalogLoading,
+    catalogError,
+    bannerReady: !bannersLoading && (!banners.length || settledBanner === banners[0].imageUrl),
+  });
   useEffect(() => {
     let active = true;
     api.catalog
       .banners()
       .then(({ banners }) => {
         if (active) {
-          setBanners(banners);
+          setBanners(Array.isArray(banners) ? banners : []);
           setSlide(0);
         }
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => { if (active) setBannersLoading(false); });
     return () => {
       active = false;
     };
@@ -273,6 +283,8 @@ export default function Home() {
 
   return (
     <>
+      {initialLoading && <StorefrontLoading />}
+      <div inert={initialLoading || undefined} aria-hidden={initialLoading || undefined}>
       {/* ========================================================
           HEADER
       ========================================================= */}
@@ -329,20 +341,7 @@ export default function Home() {
           CONTEÚDO PRINCIPAL
       ========================================================= */}
 
-      <main id="inicio">
-        {catalogLoading && (
-          <div className="storefront-notice" role="status">
-            <span className="storefront-notice-spinner" aria-hidden="true" />
-
-            <p>
-              <strong>Carregando catálogo…</strong>
-
-              <small>
-                O servidor pode levar alguns instantes para iniciar.
-              </small>
-            </p>
-          </div>
-        )}
+      <main id="inicio" aria-busy={catalogLoading}>
         {storefrontErrors.length > 0 && (
           <div className="storefront-notice error" role="alert">
             <p>
@@ -379,9 +378,9 @@ export default function Home() {
                   flexShrink: 0,
                 }}
               >
-                {index === activeSlide && (
-                  <ResponsiveImage
-                    className="hero-slide-media"
+                {index === activeSlide && item.imageUrl && (
+                  <HeroImage
+                    key={item.imageUrl}
                     src={item.imageUrl}
                     sourceWidth={item.width}
                     sourceHeight={item.height}
@@ -392,6 +391,7 @@ export default function Home() {
                     loading="eager"
                     fetchPriority={index === 0 ? "high" : "auto"}
                     decoding="async"
+                    onSettled={() => setSettledBanner(item.imageUrl)}
                   />
                 )}
                 <div>
@@ -608,6 +608,11 @@ export default function Home() {
           </div>
 
           <div className="catalog-grid">
+            {catalogLoading && !products.length && Array.from({ length: 4 }, (_, index) => (
+              <div className="product-skeleton" key={index} aria-hidden="true">
+                <div /><span /><span />
+              </div>
+            ))}
             {displayed.map((product) => (
               <ProductCard
                 className="product-card-catalog"
@@ -618,7 +623,7 @@ export default function Home() {
             ))}
           </div>
 
-          {!displayed.length && (
+          {!catalogLoading && !catalogError && !displayed.length && (
             <p className="nothing">
               Não encontramos esse modelo. Tente outra busca.
             </p>
@@ -691,6 +696,7 @@ export default function Home() {
           onAuthenticated={handleAuthenticated}
         />
       )}
+      </div>
     </>
   );
 }
