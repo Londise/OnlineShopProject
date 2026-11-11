@@ -6,6 +6,7 @@ import ProductCard from "../components/ProductCard";
 import ResponsiveImage from "../components/ResponsiveImage";
 import HeroImage from "../components/HeroImage";
 import StorefrontLoading from "../components/StorefrontLoading";
+import StorefrontNotice from "../components/StorefrontNotice";
 import Cart from "../components/Cart";
 import Footer from "../components/Footer";
 import AuthDialog from "../components/AuthDialog";
@@ -285,6 +286,14 @@ export default function Home() {
     <>
       {initialLoading && <StorefrontLoading />}
       <div inert={initialLoading || undefined} aria-hidden={initialLoading || undefined}>
+      {storefrontErrors.length > 0 && (
+        <StorefrontNotice
+          key={JSON.stringify(storefrontErrors)}
+          messages={storefrontErrors}
+          onRetry={retryStorefront}
+          retrying={catalogLoading || auth.loading}
+        />
+      )}
       {/* ========================================================
           HEADER
       ========================================================= */}
@@ -342,19 +351,6 @@ export default function Home() {
       ========================================================= */}
 
       <main id="inicio" aria-busy={catalogLoading}>
-        {storefrontErrors.length > 0 && (
-          <div className="storefront-notice error" role="alert">
-            <p>
-              {storefrontErrors.map((message) => (
-                <span key={message}>{message}</span>
-              ))}
-            </p>
-
-            <button className="button outline" onClick={retryStorefront}>
-              Tentar novamente
-            </button>
-          </div>
-        )}
         {/* ======================================================
             HERO
         ======================================================= */}

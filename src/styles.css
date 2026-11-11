@@ -401,25 +401,37 @@ img {
     }
 }
 
-/* Avisos da loja: carregamento do catálogo e falhas de sessão. */
+/* Avisos flutuantes: não deslocam o conteúdo da loja. */
 
 .storefront-notice {
-    display: flex;
+    position: fixed;
+    top: max(16px, env(safe-area-inset-top));
+    right: max(16px, env(safe-area-inset-right));
+    z-index: 900;
+    width: min(400px, calc(100vw - 32px));
+    max-height: calc(100dvh - 32px - env(safe-area-inset-top));
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: 1fr 44px;
     align-items: center;
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: 14px;
-    padding: 14px 20px;
+    gap: 8px;
+    padding: 12px 16px 16px;
     background: var(--cream);
-    border-bottom: 1px solid var(--line);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    box-shadow: 0 12px 36px rgba(55, 25, 42, .18);
     color: var(--ink);
     text-align: left;
 }
 
 .storefront-notice p {
+    grid-column: 1 / -1;
     margin: 0;
     display: grid;
-    gap: 2px;
+    gap: 8px;
+    font-size: 13px;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
 }
 
 .storefront-notice strong {
@@ -427,44 +439,33 @@ img {
     font-weight: 600;
 }
 
-.storefront-notice small {
-    color: var(--muted);
-    font-size: 12.5px;
-}
-
 .storefront-notice .button {
-    flex: none;
+    grid-column: 1 / -1;
+    justify-self: start;
     width: auto;
-    margin-top: 0;
+    margin-top: 6px;
 }
 
 .storefront-notice.error {
     background: #fdf1f2;
-    border-bottom-color: #f1d3d8;
+    border-color: #f1d3d8;
     color: #8c2532;
 }
 
-.storefront-notice-spinner {
-    flex: none;
-    width: 16px;
-    height: 16px;
-    border: 2px solid var(--sand);
-    border-top-color: var(--wine);
-    border-radius: 50%;
-    animation: storefrontSpin .8s linear infinite;
+.storefront-notice .notice-close {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    background: transparent;
+    color: inherit;
+    border-radius: 8px;
 }
 
-@keyframes storefrontSpin {
-    to {
-        transform: rotate(360deg);
-    }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .storefront-notice-spinner {
-        animation: none;
-        border-top-color: var(--sand);
-    }
+.storefront-notice .notice-close:hover { background: #f1d3d8; }
+.storefront-notice button:focus-visible {
+    outline: 2px solid var(--wine);
+    outline-offset: 2px;
 }
 
 .button:hover:not(:disabled) {

@@ -17,7 +17,7 @@ test('Home replaces the technical notice and never uses the unavailable-image SV
 });
 
 test('the loading screen renders accessible branding without technical messages or image dependencies', async () => {
-  const vite = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
+  const vite = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom', optimizeDeps: { noDiscovery: true, include: [] } });
   try {
     const { default: Loading } = await vite.ssrLoadModule('/src/components/StorefrontLoading.jsx');
     const html = renderToStaticMarkup(React.createElement(Loading));
@@ -46,4 +46,33 @@ test('loading dots grow one at a time in three equal phases', async () => {
   assert.match(css, /\.storefront-loading-dots i:nth-child\(3\)\s*\{ animation-delay: 1s;/);
   assert.match(css, /0%, 33\.333%, 100%\s*\{ opacity: \.3; transform: scale\(1\);/);
   assert.match(css, /16\.667%\s*\{ opacity: 1; transform: scale\(1\.8\);/);
+});
+
+test('storefront errors float at the top right rather than occupying the main content', async () => {
+  const home = await readFile(new URL('../src/pages/Home.jsx', import.meta.url), 'utf8');
+  const css = await readFile(new URL('../src/styles.css', import.meta.url), 'utf8');
+  assert.ok(home.indexOf('<StorefrontNotice') < home.indexOf('<main id="inicio"'));
+  assert.ok(!home.includes('<div className="storefront-notice'));
+  const styles = css.match(/\.storefront-notice\s*\{([^}]+)\}/)?.[1];
+  assert.match(styles, /position:\s*fixed/);
+  assert.match(styles, /top:/);
+  assert.match(styles, /right:/);
+  assert.match(styles, /width:\s*min\(400px, calc\(100vw - 32px\)\)/);
+});
+
+test('floating errors retain accessible dismissal and prevent repeated retry clicks', async () => {
+  const vite = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom', optimizeDeps: { noDiscovery: true, include: [] } });
+  try {
+    const { default: Notice } = await vite.ssrLoadModule('/src/components/StorefrontNotice.jsx');
+    const html = renderToStaticMarkup(React.createElement(Notice, {
+      messages: ['Falha temporária.'], onRetry: () => {}, retrying: true,
+    }));
+    assert.match(html, /role="alert"/);
+    assert.match(html, /aria-label="Fechar aviso"/);
+    assert.match(html, /Falha temporária/);
+    assert.match(html, /disabled=""/);
+    assert.match(html, /Tentando novamente/);
+  } finally {
+    await vite.close();
+  }
 });
