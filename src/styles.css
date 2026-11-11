@@ -848,19 +848,31 @@ img {
     padding: 42px 52px;
     display: flex;
     justify-content: space-between;
-    align-items: center
+    align-items: center;
+    gap: 28px
 }
 
 .help-banner>div {
+    min-width: 0;
     display: grid;
     grid-template-columns: 45px 1fr;
     column-gap: 15px
 }
 
-.help-banner svg {
+.help-banner>div>svg {
     grid-row: span 2;
     margin-top: 4px;
     color: #f3d6bd
+}
+
+.help-banner .button {
+    flex-shrink: 0;
+    white-space: nowrap
+}
+
+.help-banner .button svg {
+    flex-shrink: 0;
+    color: currentColor
 }
 
 .help-banner h2 {
