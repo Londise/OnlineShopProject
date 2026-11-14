@@ -1346,7 +1346,8 @@ footer small {
     .color-row {
         align-content: start;
         border: 0;
-        padding: 0
+        border-right: 1px solid var(--line);
+        padding: 0 10px 0 0
     }
 
     .color-heading {
@@ -1401,9 +1402,12 @@ footer small {
     margin-bottom: 14px
 }
 
+.color-heading>span,
 .sizes>div:first-child span {
     font-size: 13px;
-    font-weight: 700
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1.4
 }
 
 .sizes>div:first-child small {

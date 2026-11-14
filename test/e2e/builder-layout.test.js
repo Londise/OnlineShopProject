@@ -61,6 +61,22 @@ for (const [width, height, count, rows] of [[1366, 768, 10, 5], [1366, 650, 14, 
     const colors = await dialog.locator('.color-row').boundingBox();
     const sizes = await dialog.locator('.sizes').boundingBox();
     expect(sizes.x).toBeGreaterThanOrEqual(colors.x + colors.width);
+    const sectionStyles = await dialog.evaluate(el => {
+      const colors = getComputedStyle(el.querySelector('.color-row'));
+      const title = selector => {
+        const style = getComputedStyle(el.querySelector(selector));
+        return { color: style.color, fontSize: style.fontSize, fontWeight: style.fontWeight, lineHeight: style.lineHeight };
+      };
+      return {
+        divider: colors.borderRightWidth,
+        spacing: parseFloat(colors.paddingRight),
+        colorsTitle: title('.color-heading>span'),
+        sizesTitle: title('.sizes>div:first-child>span'),
+      };
+    });
+    expect(sectionStyles.divider).toBe('1px');
+    expect(sectionStyles.spacing).toBeGreaterThanOrEqual(10);
+    expect(sectionStyles.colorsTitle).toEqual(sectionStyles.sizesTitle);
     const button = dialog.getByRole('button', { name: 'Adicionar ao pedido', exact: true });
     const bounds = await button.boundingBox();
     const modal = await dialog.boundingBox();
