@@ -93,8 +93,7 @@ test('G3: batch retry does not repeat adjustments already accepted', async () =>
   ]);
 });
 
-test('G3: a reservation in any size blocks the entire batch, and unchanged sizes never produce adjustments', async () => {
-  await openInventory([inventory({ reserved: 0 }), inventory({ id: 'variant-2', sku: 'LINHO-PRETO-G', size: 'G', onHand: 40, reserved: 5, available: 35 })]);
+test('G3: a reservation in any size blocks the entire batch, and unchanged sizes never produce adjustments', async () => {  await openInventory([inventory({ reserved: 0 }), inventory({ id: 'variant-2', sku: 'LINHO-PRETO-G', size: 'G', onHand: 40, reserved: 5, available: 35 })]);
   const batch = screen.getByPlaceholderText('Novo estoque');
   await userEvent.type(batch, '4');
   await userEvent.click(screen.getByRole('button', { name: 'Definir lote' }));
@@ -107,4 +106,20 @@ test('G3: a reservation in any size blocks the entire batch, and unchanged sizes
   expect(mutations()).toHaveLength(1);
   expect(mutations()[0].url.pathname).toBe('/api/v1/admin/inventory/variant-2/adjust');
   expect(JSON.parse(mutations()[0].body).delta).toBe(-10);
+});
+
+test('G3: inactive variants stay out of the inventory grouping and summary counts', async () => {
+  respond('GET', '/api/v1/auth/me', { user: admin });
+  respond('GET', '/api/v1/admin/orders', { orders: [] });
+  respond('GET', '/api/v1/admin/inventory', { variants: [
+    inventory(),
+    inventory({ id: 'variant-2', sku: 'LINHO-CREME-M', option: 'Creme', active: false, available: 40 }),
+  ] });
+  renderPage(<Management />, { waitForSession: true });
+  await userEvent.click(await screen.findByRole('button', { name: 'Estoque' }));
+  expect(await screen.findByText(/1 cores/)).toBeVisible();
+  const summary = screen.getByText('variações').closest('.inventory-summary');
+  expect(summary.querySelector('strong')).toHaveTextContent('1');
+  await userEvent.click(screen.getByRole('button', { name: /Calça Linho/ }));
+  expect(screen.queryByRole('button', { name: /Creme/ })).not.toBeInTheDocument();
 });

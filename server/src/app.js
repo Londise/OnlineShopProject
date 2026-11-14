@@ -25,7 +25,17 @@ export function createApp({ config = env, database = prisma, attachSession = att
   app.set('trust proxy', false);
   app.use(traceMiddleware);
   app.use(requestLogger);
-  app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+  app.use(helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'none'"],
+        frameAncestors: ["'none'"],
+        baseUri: ["'none'"],
+        formAction: ["'none'"],
+      },
+    },
+  }));
   app.use('/api', (_req, res, next) => {
     res.set({ 'Cache-Control': 'no-store', 'CDN-Cache-Control': 'no-store', 'Vercel-CDN-Cache-Control': 'no-store' });
     next();
@@ -60,7 +70,16 @@ export function createApp({ config = env, database = prisma, attachSession = att
   });
   app.use('/api/v1/auth', limiter(), authRouter);
   app.use('/api/v1/orders', limiter(), orderRouter);
-  app.use('/api/v1/admin', adminRouter);
+  const adminMutationLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 60,
+    keyGenerator: clientRateLimitKey,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: { code: 'TOO_MANY_REQUESTS', message: 'Muitas alterações. Aguarde alguns minutos e tente novamente.' } },
+  });
+  app.use('/api/v1/admin', (req, res, next) =>
+    (['GET', 'HEAD', 'OPTIONS'].includes(req.method) ? next() : adminMutationLimiter(req, res, next)), adminRouter);
   app.get('/api/v1/whatsapp', (req, res, next) => {
     if (!config.WHATSAPP_NUMBER) {
       return next(new AppError(503, 'WHATSAPP_UNAVAILABLE', 'O contato pelo WhatsApp está indisponível no momento.'));

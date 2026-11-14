@@ -31,17 +31,18 @@ function upload(purpose = 'library', fields = {}, file = bytes) {
   return form;
 }
 
-for (const purpose of ['library', 'favicon', 'category', 'banner', 'product']) test(`U2: ${purpose} upload stores original bytes and creates the right persistent association`, async t => {
+for (const purpose of ['library', 'favicon', 'category', 'banner', 'product']) test(`U2: ${purpose} upload stores re-encoded bytes and creates the right persistent association`, async t => {
   const f = await catalogFixture(); const admin = await sessionFixture(); const api = await serve(); t.after(api.close);
   const fields = purpose === 'product' ? { targetId: f.product.id, optionId: f.productOption.id, primary: true }
     : purpose === 'category' ? { targetId: f.category.id } : {};
   const response = await api.request('/api/v1/admin/uploads', { method: 'POST', headers: { cookie: admin.cookie }, body: upload(purpose, fields) });
   assert.equal(response.status, 201);
   const { asset } = await response.json();
-  assert.equal(asset.width, 3); assert.equal(asset.height, 4); assert.equal(asset.byteSize, bytes.length);
+  const expected = await sharp(bytes).rotate().toFormat('png').toBuffer();
+  assert.equal(asset.width, 3); assert.equal(asset.height, 4); assert.equal(asset.byteSize, expected.length);
   assert.equal(asset.mimeType, 'image/png');
   assert.ok(asset.url.startsWith(storage.url));
-  assert.deepEqual(storage.objects.get(asset.storagePath), bytes);
+  assert.deepEqual(storage.objects.get(asset.storagePath), expected);
   assert.equal(storage.requests[0].upsert, 'false');
   assert.equal(storage.requests[0].contentType, 'image/png');
   assert.equal((await prisma.auditLog.findFirst({ where: { entityId: asset.id } })).actorId, admin.user.id);
@@ -170,8 +171,7 @@ test('U5: disconnect during Storage processing keeps capacity occupied until per
   assert.equal((await api.request('/api/v1/admin/uploads', { method: 'POST', headers: { cookie: admin.cookie }, body: upload() })).status, 201);
 });
 
-test('U6: concurrent cover patches commit at most one PRIMARY, preserve associations, and roll back failed audits', async t => {
-  const f = await catalogFixture(); const admin = await sessionFixture(); const api = await serve(); t.after(api.close);
+test('U6: concurrent cover patches commit at most one PRIMARY, preserve associations, and roll back failed audits', async t => {  const f = await catalogFixture(); const admin = await sessionFixture(); const api = await serve(); t.after(api.close);
   const images = [];
   for (let index = 0; index < 3; index++) {
     const asset = await prisma.mediaAsset.create({ data: { url: `https://images.example.test/${index}.png` } });
@@ -199,5 +199,47 @@ test('U6: concurrent cover patches commit at most one PRIMARY, preserve associat
   } finally {
     await owner.$executeRawUnsafe('DROP TRIGGER test_image_patch ON app.audit_logs');
     await owner.$executeRawUnsafe('DROP FUNCTION app.test_reject_image_patch()');
+  }
+});
+
+test('U7: only unreferenced images can be deleted; linked products and order snapshots stay protected', async t => {
+  const f = await catalogFixture(); const admin = await sessionFixture(); const staff = await sessionFixture('STAFF'); const api = await serve(); t.after(api.close);
+  const uploadRequest = fields => api.request('/api/v1/admin/uploads', { method: 'POST', headers: { cookie: admin.cookie }, body: upload('library', fields) });
+  const free = (await (await uploadRequest()).json()).asset;
+  const linked = (await (await api.request('/api/v1/admin/uploads', { method: 'POST', headers: { cookie: admin.cookie }, body: upload('product', { targetId: f.product.id, primary: true }) })).json()).asset;
+  const { createOrder } = await import('../../src/services/order.service.js');
+  const order = await createOrder({ customer: { name: 'Ana', whatsapp: '11999998888' }, delivery: { method: 'EXCURSAO' }, items: [{ variantId: f.variant.id, quantity: 15 }] });
+  assert.equal((await prisma.orderItem.findFirst({ where: { orderId: order.id } })).imageUrlSnapshot, linked.url, 'order snapshot must reference the cover');
+  assert.equal((await api.request(`/api/v1/admin/media-assets/${free.id}`, { method: 'DELETE', headers: { cookie: admin.cookie } })).status, 204);
+  assert.equal(await prisma.mediaAsset.findUnique({ where: { id: free.id } }), null);
+  assert.ok(!storage.objects.has(free.storagePath), 'unreferenced object must leave Storage');
+  assert.equal(await prisma.auditLog.count({ where: { entityId: free.id, action: 'DELETED' } }), 1);
+  for (const id of [linked.id]) {
+    const response = await api.request(`/api/v1/admin/media-assets/${id}`, { method: 'DELETE', headers: { cookie: admin.cookie } });
+    assert.equal(response.status, 409); assert.equal((await response.json()).error.code, 'MEDIA_IN_USE');
+  }
+  assert.ok(await prisma.mediaAsset.findUnique({ where: { id: linked.id } }));
+  assert.ok(storage.objects.has(linked.storagePath));
+  assert.equal((await api.request(`/api/v1/admin/media-assets/${free.id}`, { method: 'DELETE', headers: { cookie: staff.cookie } })).status, 403);
+  assert.equal((await api.request('/api/v1/admin/media-assets/cmissing000000000000000000', { method: 'DELETE', headers: { cookie: admin.cookie } })).status, 404);
+  assert.equal((await api.request(`/api/v1/admin/media-assets/${free.id}`, { method: 'DELETE' })).status, 401);
+});
+
+test('U8: the media list paginates, filters and validates query bounds', async t => {
+  const admin = await sessionFixture(); const api = await serve(); t.after(api.close);
+  for (let index = 0; index < 3; index++) {
+    const response = await api.request('/api/v1/admin/uploads', { method: 'POST', headers: { cookie: admin.cookie }, body: upload('library', { altText: `Foto ${index}` }) });
+    assert.equal(response.status, 201);
+  }
+  const page = await api.request('/api/v1/admin/media-assets?limit=2&offset=1', { headers: { cookie: admin.cookie } });
+  assert.equal(page.status, 200);
+  const { assets, total } = await page.json();
+  assert.equal(assets.length, 2); assert.equal(total, 3);
+  const filtered = await api.request('/api/v1/admin/media-assets?purpose=library&q=Foto', { headers: { cookie: admin.cookie } });
+  const found = await filtered.json();
+  assert.equal(found.total, 3);
+  for (const query of ['limit=501', 'limit=0', 'offset=-1', 'purpose=invoice', `q=${'x'.repeat(101)}`]) {
+    const invalid = await api.request(`/api/v1/admin/media-assets?${query}`, { headers: { cookie: admin.cookie } });
+    assert.equal(invalid.status, 422);
   }
 });

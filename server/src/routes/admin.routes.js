@@ -1,12 +1,12 @@
 import { Router } from 'express';
 import { addProductImage, addProductOption, createProduct, listAdminProducts, updateProduct, updateProductOption, updateProductVariant } from '../controllers/catalog.controller.js';
 import { adjustInventory, catalogMetadata, createBanner, createCategory, createStaff, createVariantOption, listAdminBanners, listInventory, listStaff, updateBanner, updateCategory, updateVariantOption } from '../controllers/admin.controller.js';
-import { listMedia, receiveImage, siteMedia, updateImage, uploadImage, uploadLimit } from '../controllers/media.controller.js';
+import { listMedia, deleteMedia, receiveImage, siteMedia, updateImage, uploadImage, uploadLimit } from '../controllers/media.controller.js';
 import { archive, getAdmin, listAdmin, update } from '../controllers/order.controller.js';
 import { logsRouter } from './logs.routes.js';
 import { requireRoles } from '../middlewares/auth.js';
-import { validate } from '../middlewares/validate.js';
-import { bannerPatchSchema, bannerSchema, categoryPatchSchema, categorySchema, createStaffSchema, inventoryAdjustmentSchema, productImageSchema, productOptionPatchSchema, productOptionSchema, productPatchSchema, productSchema, productVariantPatchSchema, variantOptionPatchSchema, variantOptionSchema } from '../schemas/admin.schemas.js';
+import { validate, validateQuery } from '../middlewares/validate.js';
+import { bannerPatchSchema, bannerSchema, categoryPatchSchema, categorySchema, createStaffSchema, inventoryAdjustmentSchema, mediaListSchema, productImageSchema, productOptionPatchSchema, productOptionSchema, productPatchSchema, productSchema, productVariantPatchSchema, variantOptionPatchSchema, variantOptionSchema } from '../schemas/admin.schemas.js';
 import { updateOrderSchema } from '../schemas/order.schemas.js';
 
 export const adminRouter = Router();
@@ -35,7 +35,8 @@ adminRouter.post('/products/:id/images', validate(productImageSchema), addProduc
 adminRouter.get('/users/staff', listStaff);
 adminRouter.post('/users/staff', validate(createStaffSchema), createStaff);
 adminRouter.post('/uploads', uploadLimit, receiveImage, uploadImage);
-adminRouter.get('/media-assets', listMedia);
+adminRouter.get('/media-assets', validateQuery(mediaListSchema), listMedia);
+adminRouter.delete('/media-assets/:id', deleteMedia);
 adminRouter.patch('/product-images/:id', updateImage);
 adminRouter.get('/site-media', siteMedia);
 adminRouter.get('/banners', listAdminBanners);

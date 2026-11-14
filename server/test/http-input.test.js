@@ -49,7 +49,7 @@ test('H9/U5: malformed HTTP and aborted multipart cannot crash or exhaust the di
   const ready = await message(child, 'ready', () => diagnostics, 30000);
   const base = `http://127.0.0.1:${ready.port}`;
   const request = (path, body, headers = {}) => fetch(`${base}${path}`, {
-    method: 'POST', body, headers, signal: AbortSignal.timeout(5000),
+    method: 'POST', body, headers: { Origin: 'http://localhost:5173', ...headers }, signal: AbortSignal.timeout(5000),
   });
   const health = async () => {
     const response = await fetch(`${base}/health`, { signal: AbortSignal.timeout(5000) });

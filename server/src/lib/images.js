@@ -13,11 +13,16 @@ export async function inspectImage(buffer) {
     const image = sharp(buffer, { limitInputPixels: 16_000_000, failOn: "error" });
     const meta = await image.metadata();
     if (!IMAGE_TYPES[meta.format] || (meta.pages ?? 1) > 1) throw new Error("Unsupported image");
-    // Decode the complete file: MIME headers and an image extension are not proof.
-    await image.raw().toBuffer();
+    // Re-encode the complete file: baking EXIF orientation, stripping metadata
+    // (GPS, camera, software) and normalizing bytes. MIME headers and an image
+    // extension are not proof; only sharp's full decode is.
+    const clean = await sharp(buffer, { limitInputPixels: 16_000_000, failOn: "error" })
+      .rotate()
+      .toFormat(meta.format)
+      .toBuffer();
     return { mimeType: IMAGE_TYPES[meta.format], extension: meta.format === "jpeg" ? "jpeg" : meta.format,
-      width: meta.width, height: meta.height, byteSize: buffer.length,
-      checksumSha256: createHash("sha256").update(buffer).digest("hex") };
+      width: meta.width, height: meta.height, byteSize: clean.length,
+      checksumSha256: createHash("sha256").update(clean).digest("hex"), buffer: clean };
   } catch {
     throw new AppError(422, "INVALID_IMAGE", "Use uma imagem JPEG, PNG ou WebP válida, não animada, de até 16 megapixels.");
   }

@@ -26,3 +26,19 @@ test('API proxy precedes SPA fallback, enables trusted middleware and disables c
   for (const url of ['/api', '/api/v1/products', '/api/v1/unknown']) assert.equal(new RegExp(`^${fallback.source}$`).test(url), false);
   assert.equal(new RegExp(`^${fallback.source}$`).test('/management'), true);
 });
+
+test('P6: static pages carry a strict CSP, while API responses stay uncached without one', () => {
+  const config = createVercelConfig(environment);
+  const [api, frontend] = config.headers;
+  const csp = Object.fromEntries(frontend.headers.map(({ key, value }) => [key, value]))['Content-Security-Policy'];
+  for (const directive of ["default-src 'self'", "script-src 'self'", "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com", "img-src 'self' data: blob: https://*.supabase.co", "connect-src 'self'",
+    "frame-ancestors 'none'", "form-action 'self'", "object-src 'none'", "base-uri 'self'"]) {
+    assert.ok(csp.includes(directive), `CSP deve conter ${directive}`);
+  }
+  assert.ok(!csp.includes("'unsafe-eval'"));
+  assert.equal(new RegExp(`^${frontend.source}$`).test('/management'), true);
+  assert.equal(new RegExp(`^${frontend.source}$`).test('/api/v1/products'), false);
+  assert.ok(!api.headers.some(({ key }) => key === 'Content-Security-Policy'), 'respostas da API não levam CSP estática');
+  assert.ok(api.headers.some(({ key }) => key === 'Cache-Control'));
+});

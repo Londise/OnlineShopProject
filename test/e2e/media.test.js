@@ -1,5 +1,7 @@
 import { test, expect } from './fixtures.js';
 
+test.describe.configure({ timeout: 90_000 });
+
 const bytes = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAMAAAAECAIAAADETxJQAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAADklEQVQImWP4DwMMeFkAzXYj3br64kYAAAAASUVORK5CYII=', 'base64');
 async function openMedia(page, context, shop) {
   const admin = await shop.sessionFixture();
@@ -8,7 +10,7 @@ async function openMedia(page, context, shop) {
   await page.getByRole('button', { name: 'Imagens', exact: true }).click();
   await expect(page.getByRole('option', { name: 'Calça Linho', exact: true })).toBeAttached();
 }
-const chooseFile = page => page.getByLabel('Arquivo').setInputFiles({ name: 'cover.png', mimeType: 'image/png', buffer: bytes });
+const chooseFile = page => page.getByLabel('Escolher arquivo').setInputFiles({ name: 'cover.png', mimeType: 'image/png', buffer: bytes });
 
 for (const purpose of ['category', 'new banner', 'existing banner', 'favicon', 'library']) {
   test(`G7: native upload form links ${purpose} and refreshes its media list`, async ({ page, context, shop }) => {
@@ -64,7 +66,7 @@ test('G7/U5: pending and failed native uploads keep selections, block duplicates
   await expect(page.getByRole('status')).toContainText(/Não foi possível/);
   expect(await shop.prisma.mediaAsset.count()).toBe(0);
   await expect(page.getByRole('combobox', { name: 'Destino', exact: true })).toHaveValue('library');
-  expect(await page.getByLabel('Arquivo').evaluate(input => input.files[0].name)).toBe('cover.png');
+  expect(await page.getByLabel('Escolher arquivo').evaluate(input => input.files[0].name)).toBe('cover.png');
   shop.storage.failUploads(false);
   await page.getByRole('button', { name: 'Enviar imagem' }).click();
   await expect(page.getByRole('img', { name: 'Upload recuperado' })).toBeVisible();

@@ -13,7 +13,7 @@ export const order = (overrides = {}) => ({
 });
 export const inventory = (overrides = {}) => ({
   id: 'variant-1', sku: 'LINHO-PRETO-M', product: 'Calça Linho', category: 'Calças',
-  option: 'Preto', size: 'M', onHand: 30, reserved: 5, available: 25, ...overrides,
+  option: 'Preto', size: 'M', active: true, onHand: 30, reserved: 5, available: 25, ...overrides,
 });
 export const logEntry = (id, message, overrides = {}) => ({
   id, ts: '2026-11-11T12:00:00.000Z', level: 30, service: 'api', event: 'order.created',

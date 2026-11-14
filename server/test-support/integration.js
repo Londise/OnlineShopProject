@@ -30,6 +30,7 @@ export async function serve(app = createApp(), { port = 0 } = {}) {
   const base = `http://127.0.0.1:${server.address().port}`;
   return {
     request: (path, options = {}) => fetch(`${base}${path}`, { ...options,
+      headers: { Origin: process.env.FRONTEND_ORIGIN, ...options.headers },
       signal: options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(5000)]) : AbortSignal.timeout(5000) }),
     close: async () => { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); },
   };

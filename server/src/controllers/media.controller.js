@@ -55,10 +55,50 @@ export function receiveImage(req, res, next) {
   });
 }
 
-export const listMedia = async (_req, res) => {
-  const assets = await prisma.mediaAsset.findMany({ orderBy: { createdAt: "desc" }, take: 200,
-    include: { productImages: { include: { product: { select: { name: true } } }, orderBy: { sortOrder: "asc" } } } });
-  res.json({ assets });
+export const listMedia = async (req, res) => {
+  const { limit, offset, purpose, q } = req.validatedQuery;
+  const where = {
+    purpose: purpose ?? undefined,
+    altText: q ? { contains: q, mode: "insensitive" } : undefined,
+  };
+  const [assets, total] = await Promise.all([
+    prisma.mediaAsset.findMany({ where, orderBy: { createdAt: "desc" }, take: limit, skip: offset,
+      include: {
+        productImages: { include: { product: { select: { name: true } } }, orderBy: { sortOrder: "asc" } },
+        categoryImages: { select: { name: true } },
+        banners: { select: { title: true } },
+        productOptionImages: { select: { id: true, product: { select: { name: true } }, variantOption: { select: { name: true } } } },
+      } }),
+    prisma.mediaAsset.count({ where }),
+  ]);
+  res.json({ assets, total });
+};
+
+export const deleteMedia = async (req, res) => {
+  const asset = await prisma.$transaction(async tx => {
+    const current = await tx.mediaAsset.findUnique({ where: { id: req.params.id } });
+    if (!current) throw notFound("Imagem não encontrada.");
+    const [productImages, categories, banners, optionImages, orderRefs] = await Promise.all([
+      tx.productImage.count({ where: { assetId: current.id } }),
+      tx.category.count({ where: { imageAssetId: current.id } }),
+      tx.siteBanner.count({ where: { assetId: current.id } }),
+      tx.productOption.count({ where: { imageAssetId: current.id } }),
+      tx.orderItem.findFirst({ where: { imageUrlSnapshot: current.url } }),
+    ]);
+    if (productImages || categories || banners || optionImages || orderRefs) {
+      throw new AppError(409, "MEDIA_IN_USE", "Esta imagem está em uso (produto, categoria, banner ou pedido) e não pode ser excluída.");
+    }
+    await tx.mediaAsset.delete({ where: { id: current.id } });
+    await writeAudit(tx, { actorId: req.user.id, entityType: "MEDIA_ASSET", entityId: current.id,
+      action: "DELETED", beforeJson: { url: current.url, storagePath: current.storagePath, purpose: current.purpose } });
+    return current;
+  });
+  try {
+    await removeNewImage(asset.storagePath);
+  } catch {
+    console.error("Media cleanup needs attention:", asset.storagePath);
+  }
+  res.status(204).end();
 };
 
 export const uploadImage = async (req, res) => {
@@ -76,7 +116,7 @@ export const uploadImage = async (req, res) => {
   }
   const info = await inspectImage(req.file.buffer);
   const path = `${input.purpose}/${input.targetId ?? "site"}/${randomUUID()}.${info.extension}`;
-  const url = await putImage(path, req.file.buffer, info.mimeType);
+  const url = await putImage(path, info.buffer, info.mimeType);
   let asset;
   try {
     asset = await prisma.$transaction(async tx => {

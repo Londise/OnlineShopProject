@@ -31,7 +31,15 @@ export const api = {
   },
   
   admin: {
-    media: () => request("/admin/media-assets"),
+    media: (params = {}) => {
+      const search = new URLSearchParams();
+      for (const [key, value] of Object.entries(params)) {
+        if (value !== undefined && value !== null && value !== "") search.set(key, String(value));
+      }
+      const suffix = search.toString();
+      return request(`/admin/media-assets${suffix ? `?${suffix}` : ""}`);
+    },
+    deleteMedia: (id) => request(`/admin/media-assets/${id}`, { method: "DELETE" }),
     metadata: () => request("/admin/catalog-metadata"),
     uploadImage: (body) => request("/admin/uploads", { method: "POST", body }),
     updateImage: (id, body) => request(`/admin/product-images/${id}`, { method: "PATCH", body: JSON.stringify(body) }),

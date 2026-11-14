@@ -80,9 +80,10 @@ try {
       const purpose=source==="hero.jpeg"?"banner":source==="logoferchumodas.jpeg"?"favicon":slug?"product":"library";
       const storagePath=`${purpose}/${slug?bySlug.get(slug).id:"site"}/${info.checksumSha256}.${info.extension}`;
       const existing=await prisma.mediaAsset.findUnique({where:{storageBucket_storagePath:{storageBucket:STORAGE_BUCKET,storagePath}}});
-      const url=existing?.url ?? await putImage(storagePath,buffer,info.mimeType);
+      const url=existing?.url ?? await putImage(storagePath,info.buffer,info.mimeType);
       const file={source,storagePath,url,purpose,...info};
       delete file.extension;
+      delete file.buffer;
       await verify(file);
       files.push(file);
     }

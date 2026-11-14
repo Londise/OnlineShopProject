@@ -12,6 +12,21 @@ export function createVercelConfig(environment) {
   if (!/^[A-Za-z0-9_-]{32,256}$/.test(environment.ORIGIN_PROXY_SECRET ?? '')) {
     throw new Error('Configure ORIGIN_PROXY_SECRET no Vercel e no Render (mesmo valor, mínimo 32 caracteres).');
   }
+  // Apenas o que o frontend realmente carrega: scripts/estilos próprios,
+  // fontes do Google, imagens do próprio domínio e do bucket público do
+  // Supabase, e prévias de upload em blob. Nenhum frame/objeto externo.
+  const CSP = [
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com",
+    "img-src 'self' data: blob: https://*.supabase.co",
+    "connect-src 'self'",
+    "frame-ancestors 'none'",
+    "form-action 'self'",
+    "object-src 'none'",
+    "base-uri 'self'",
+  ].join('; ');
   return {
     framework: 'vite',
     buildCommand: 'npm run build',
@@ -28,6 +43,10 @@ export function createVercelConfig(environment) {
         { key: 'Cache-Control', value: 'no-store' },
         { key: 'CDN-Cache-Control', value: 'no-store' },
         { key: 'x-vercel-enable-rewrite-caching', value: '0' },
+      ] },
+      { source: '/((?!api(?:/|$)).*)', headers: [
+        { key: 'Content-Security-Policy', value: CSP },
+        { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
       ] },
     ],
   };

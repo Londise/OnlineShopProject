@@ -11,6 +11,12 @@ export const productOptionPatchSchema = z.object({ imageAssetId: z.string().cuid
 export const productVariantPatchSchema = z.object({ sku: z.string().trim().min(2).max(100).optional(), priceCents: z.coerce.number().int().min(0).max(10_000_000).nullable().optional(), active: z.boolean().optional() }).refine((value) => Object.keys(value).length > 0);
 export const productImageSchema = z.object({ assetId: z.string().cuid(), productOptionId: z.string().cuid().nullable().optional(), type: z.enum(['PRIMARY', 'SECONDARY']).default('SECONDARY'), sortOrder: z.coerce.number().int().min(0).max(999).default(0) });
 export const categorySchema = z.object({ name: z.string().trim().min(2).max(100), slug: z.string().trim().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(120), imageAssetId: z.string().cuid().nullable().optional(), sortOrder: z.coerce.number().int().min(0).max(999).default(0), active: z.boolean().default(true) });
+export const mediaListSchema = z.object({
+  limit: z.coerce.number().int().min(1).max(500).default(200),
+  offset: z.coerce.number().int().min(0).default(0),
+  purpose: z.enum(["product", "category", "banner", "favicon", "library"]).optional(),
+  q: z.string().trim().min(1).max(100).optional(),
+});
 export const variantOptionSchema = z.object({ type: z.enum(['COLOR', 'PRINT']), name: z.string().trim().min(2).max(100), slug: z.string().trim().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(120), swatchHex: z.string().trim().regex(/^#[0-9a-fA-F]{3,8}$/).nullable().optional(), active: z.boolean().default(true) });
 
 // Zod 4 applies defaults even inside .partial(). Omitted PATCH fields must

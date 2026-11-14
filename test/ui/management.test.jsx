@@ -98,13 +98,14 @@ test.each([['Catálogo', 'products', { ...catalogProduct(), active: true }], ['B
     await userEvent.click(screen.getByRole('button', { name: tab, exact: true }));
     respond('PATCH', `/api/v1/admin/${path}/${item.id}`, { [path === 'products' ? 'product' : 'banner']: { ...item, active: false } });
     respond('GET', `/api/v1/admin/${path}`, { [path]: [{ ...item, active: false }] });
-    await userEvent.click(await screen.findByRole('button', { name: 'Desativar' }));
-    expect(await screen.findByRole('button', { name: 'Ativar', exact: true })).toBeVisible();
+    const label = path === 'products' ? 'Calça Linho' : 'Novidades';
+    await userEvent.click(await screen.findByRole('button', { name: `Desativar ${label}` }));
+    expect(await screen.findByRole('button', { name: `Ativar ${label}` })).toBeVisible();
     expect(JSON.parse(mutations()[0].body)).toEqual({ active: false });
     respond('PATCH', `/api/v1/admin/${path}/${item.id}`, () => json({ error: { message: 'Toggle failed' } }, 409));
-    await userEvent.click(screen.getByRole('button', { name: 'Ativar', exact: true }));
+    await userEvent.click(screen.getByRole('button', { name: `Ativar ${label}` }));
     expect(await screen.findByText('Toggle failed')).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Ativar', exact: true })).toBeVisible();
+    expect(screen.getByRole('button', { name: `Ativar ${label}` })).toBeVisible();
   },
 );
 

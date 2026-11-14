@@ -241,8 +241,9 @@ export default function Management() {
     if (!isCurrentView()) return;
     const generation = ++view.generation;
     const isCurrentLoad = () => isCurrentView() && generation === view.generation;
-    // A aba de logs gerencia a própria carga (filtros, paginação e live tail).
-    if (tab === "logs") {
+    // A aba de logs gerencia a própria carga (filtros, paginação e live tail);
+    // a aba de imagens idem (busca, filtro, paginação e upload).
+    if (tab === "logs" || tab === "media") {
       setLoading(false);
       setData([]);
       return;
@@ -391,6 +392,12 @@ export default function Management() {
     const products = new Map();
 
     data.forEach((variant) => {
+      // O painel lista somente variações ativas: cores desativadas da cartela
+      // anterior não devem inflar a contagem nem o total disponível.
+      if (!variant.active) {
+        return;
+      }
+
       const productKey = variant.product;
 
       if (!products.has(productKey)) {
@@ -799,7 +806,7 @@ export default function Management() {
           <p className="management-loading">Carregando…</p>
         ) : (
           <section className="management-panel">
-            {tab === "media" && <MediaManager assets={data} onChange={load} />}
+            {tab === "media" && <MediaManager />}
 
             {tab === "logs" && <LogsPanel />}
             {/*
@@ -947,7 +954,7 @@ export default function Management() {
                   </div>
 
                   <div className="inventory-summary">
-                    <strong>{data.length}</strong>
+                    <strong>{data.filter((variant) => variant.active).length}</strong>
 
                     <span>variações</span>
                   </div>
@@ -1314,6 +1321,7 @@ export default function Management() {
 
                     <button
                       className="button outline"
+                      aria-label={`${item.active ? "Desativar" : "Ativar"} ${tab === "products" ? item.name : (item.title ?? "banner")}`}
                       onClick={() => toggleActive(item)}
                     >
                       {item.active ? "Desativar" : "Ativar"}
