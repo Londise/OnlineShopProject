@@ -29,11 +29,47 @@ test('catalog renders database swatches for every linen color, including names a
   await screen.findAllByRole('heading', { name: 'Calça Linho' });
   await userEvent.click(screen.getAllByRole('button', { name: 'Montar pedido' })[0]);
   const dialog = within(screen.getByRole('dialog'));
+  expect(dialog.getByRole('button', { name: 'Preto', exact: true }).parentElement)
+    .toHaveStyle({ '--color-columns': '5' });
   for (const [name, hex] of palette) {
     expect(dialog.getByRole('button', { name, exact: true })).toHaveStyle({ background: hex });
   }
   await userEvent.click(dialog.getByRole('button', { name: 'Terracota', exact: true }));
+  expect(dialog.getByRole('button', { name: 'Terracota', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  expect(dialog.getByRole('button', { name: 'Preto', exact: true })).toHaveAttribute('aria-pressed', 'false');
   expect(dialog.getByText('Terracota')).toBeVisible();
+});
+
+test.each([[7, 7], [8, 4], [14, 7], [15, 7]])('color grid with %i colors uses %i desktop columns at most', async (count, columns) => {
+  publicRoutes([catalogProduct({ options: Array.from({ length: count }, (_, index) => ({
+    ...catalogProduct().options[0], id: `color-${index}`, name: `Cor ${index}`, swatchHex: '#94BDAA',
+  })) })]);
+  renderPage(<Home />);
+  await screen.findAllByRole('heading', { name: 'Calça Linho' });
+  await userEvent.click(screen.getAllByRole('button', { name: 'Montar pedido' })[0]);
+  const dialog = within(screen.getByRole('dialog'));
+  expect(dialog.getByRole('button', { name: 'Cor 0', exact: true }).parentElement)
+    .toHaveStyle({ '--color-columns': String(columns) });
+});
+
+test('EXG uses its own price when added to the order, not the product base price', async () => {
+  publicRoutes([catalogProduct({
+    name: 'Pantacourt Linho', priceCents: 3300,
+    options: [{ ...catalogProduct().options[0], variants: [
+      { ...catalogProduct().options[0].variants[0], size: 'P', priceCents: 3300 },
+      { id: 'variant-exg', sku: 'PANTACOURT-PRETO-EXG', size: 'EXG', priceCents: 3500, active: true, available: 10 },
+    ] }],
+  })]);
+  renderPage(<Home />);
+  await screen.findAllByRole('heading', { name: 'Pantacourt Linho' });
+  await userEvent.click(screen.getAllByRole('button', { name: 'Montar pedido' })[0]);
+  const dialog = within(screen.getByRole('dialog'));
+  expect(dialog.getByText('EXG').closest('.size-row')).toHaveTextContent('35,00');
+  expect(dialog.getByText('P', { exact: true }).closest('.size-row')).toHaveTextContent('33,00');
+  await userEvent.type(dialog.getByRole('textbox', { name: 'Quantidade tamanho EXG' }), '1');
+  await userEvent.click(dialog.getByRole('button', { name: 'Adicionar 1 peça' }));
+  expect(screen.getByRole('heading', { name: '1 peça' })).toBeVisible();
+  expect(screen.getByText('Preto · EXG').closest('.cart-line')).toHaveTextContent('35,00');
 });
 
 test('V1: category and case-insensitive search combine without changing API price/weight units', async () => {

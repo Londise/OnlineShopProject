@@ -61,6 +61,9 @@ export default function BuilderModal({ product, showToast, onClose }) {
   };
 
   const selected = Object.values(quantities).reduce((a, b) => a + b, 0);
+  const colorColumns = Math.max(1, Math.min(7, product.options.length > 7
+    ? Math.ceil(product.options.length / 2)
+    : product.options.length));
 
   // Controla a ação de apertar o botão "Adicionar ao Pedido"
   const handleAdd = () => {
@@ -155,7 +158,7 @@ export default function BuilderModal({ product, showToast, onClose }) {
           </p>
           <div className="color-row">
             <span>Escolha a cor</span>
-            <div>
+            <div style={{ "--color-columns": colorColumns }}>
               {/* Percorre a lista de cores */}
               {product.options.map((item) => (
                 <button
@@ -170,6 +173,7 @@ export default function BuilderModal({ product, showToast, onClose }) {
                     resetQuantities(); // zera as quantidades do modal para aquela cor ao trocar para outra cor
                   }}
                   aria-label={item.name}
+                  aria-pressed={color?.name === item.name}
                   title={item.name}
                 />
               ))}

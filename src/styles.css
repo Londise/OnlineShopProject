@@ -1212,6 +1212,7 @@ footer small {
 }
 
 .builder-content {
+    min-width: 0;
     padding: 42px 45px;
 }
 
@@ -1260,7 +1261,7 @@ footer small {
     border-bottom: 1px solid var(--line);
     padding: 15px 0;
     display: grid;
-    grid-template-columns: 1fr auto;
+    grid-template-columns: minmax(0, 1fr);
     gap: 10px;
     align-items: center;
     font-size: 14px
@@ -1268,7 +1269,8 @@ footer small {
 
 .color-row>div {
     display: flex;
-    gap: 7px
+    flex-wrap: wrap;
+    gap: 10px
 }
 
 .color-row b {
@@ -1279,8 +1281,9 @@ footer small {
 }
 
 .color-dot {
-    width: 24px;
-    height: 24px;
+    flex: 0 0 44px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     border: 2px solid transparent;
     outline: 1px solid transparent
@@ -1289,6 +1292,19 @@ footer small {
 .color-dot.selected {
     outline-color: var(--wine);
     outline-offset: 2px
+}
+
+@media (min-width: 769px) {
+    .color-row>div {
+        display: grid;
+        grid-template-columns: repeat(var(--color-columns), minmax(0, 44px))
+    }
+
+    .color-dot {
+        width: 100%;
+        height: auto;
+        aspect-ratio: 1
+    }
 }
 
 .sizes {
