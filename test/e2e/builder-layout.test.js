@@ -84,7 +84,8 @@ for (const [width, height, count, rows] of [[1366, 768, 10, 5], [1366, 650, 14, 
     expect(sectionStyles.dividerWidth).toBe('1px');
     expect(Math.abs(sectionStyles.dividerCenter - sectionStyles.gapCenter)).toBeLessThanOrEqual(1);
     expect(sectionStyles.colorsTitle).toEqual(sectionStyles.sizesTitle);
-    expect(sectionStyles.colorsTitle.fontWeight).toBe('600');
+    expect(sectionStyles.colorsTitle.fontWeight).toBe('500');
+    expect(sectionStyles.colorsTitle.color).toBe('rgb(0, 0, 0)');
     expect(sectionStyles.sizeFont).toBe('15px');
     expect(sectionStyles.priceFont).toBe('13px');
     expect(sectionStyles.hintFont).toBe('12px');
