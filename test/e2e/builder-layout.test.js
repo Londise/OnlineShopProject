@@ -62,21 +62,33 @@ for (const [width, height, count, rows] of [[1366, 768, 10, 5], [1366, 650, 14, 
     const sizes = await dialog.locator('.sizes').boundingBox();
     expect(sizes.x).toBeGreaterThanOrEqual(colors.x + colors.width);
     const sectionStyles = await dialog.evaluate(el => {
-      const colors = getComputedStyle(el.querySelector('.color-row'));
+      const colors = el.querySelector('.color-row');
+      const divider = getComputedStyle(colors, '::after');
+      const colorBounds = colors.getBoundingClientRect();
+      const sizesBounds = el.querySelector('.sizes').getBoundingClientRect();
       const title = selector => {
         const style = getComputedStyle(el.querySelector(selector));
         return { color: style.color, fontSize: style.fontSize, fontWeight: style.fontWeight, lineHeight: style.lineHeight };
       };
       return {
-        divider: colors.borderRightWidth,
-        spacing: parseFloat(colors.paddingRight),
+        dividerWidth: divider.width,
+        dividerCenter: colorBounds.right - parseFloat(divider.right) - parseFloat(divider.width) / 2,
+        gapCenter: (colorBounds.right + sizesBounds.left) / 2,
         colorsTitle: title('.color-heading>span'),
         sizesTitle: title('.sizes>div:first-child>span'),
+        sizeFont: title('.size-row strong').fontSize,
+        priceFont: title('.size-row strong small').fontSize,
+        hintFont: title('.sizes>div:first-child small').fontSize,
       };
     });
-    expect(sectionStyles.divider).toBe('1px');
-    expect(sectionStyles.spacing).toBeGreaterThanOrEqual(10);
+    expect(sectionStyles.dividerWidth).toBe('1px');
+    expect(Math.abs(sectionStyles.dividerCenter - sectionStyles.gapCenter)).toBeLessThanOrEqual(1);
     expect(sectionStyles.colorsTitle).toEqual(sectionStyles.sizesTitle);
+    expect(sectionStyles.colorsTitle.fontWeight).toBe('600');
+    expect(sectionStyles.sizeFont).toBe('15px');
+    expect(sectionStyles.priceFont).toBe('13px');
+    expect(sectionStyles.hintFont).toBe('12px');
+    expect(parseFloat(sectionStyles.hintFont)).toBeLessThan(parseFloat(sectionStyles.sizesTitle.fontSize));
     const button = dialog.getByRole('button', { name: 'Adicionar ao pedido', exact: true });
     const bounds = await button.boundingBox();
     const modal = await dialog.boundingBox();

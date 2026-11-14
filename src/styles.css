@@ -1335,7 +1335,7 @@ footer small {
         display: grid;
         grid-template-columns: max-content minmax(0, 1fr);
         align-content: start;
-        gap: 20px;
+        gap: 32px;
         overflow: auto;
         border-top: 1px solid var(--line);
         border-bottom: 1px solid var(--line);
@@ -1344,10 +1344,20 @@ footer small {
     }
 
     .color-row {
+        position: relative;
         align-content: start;
         border: 0;
-        border-right: 1px solid var(--line);
-        padding: 0 10px 0 0
+        padding: 0
+    }
+
+    .color-row::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        right: -16px;
+        width: 1px;
+        background: var(--line)
     }
 
     .color-heading {
@@ -1404,14 +1414,14 @@ footer small {
 
 .color-heading>span,
 .sizes>div:first-child span {
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--ink);
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--muted);
     line-height: 1.4
 }
 
 .sizes>div:first-child small {
-    font-size: 10px;
+    font-size: 12px;
     color: var(--muted)
 }
 
@@ -1424,6 +1434,10 @@ footer small {
 }
 
 .size-row strong {
+    font-size: 15px
+}
+
+.size-row strong small {
     font-size: 13px
 }
 
