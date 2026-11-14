@@ -163,7 +163,7 @@ export default function BuilderModal({ product, showToast, onClose }) {
                   type="button"
                   // Na primeira iteração, a primeira cor é selecionada pois ela é product.options[0]
                   className={`color-dot ${color?.name === item.name ? "selected" : ""}`}
-                  style={{ background: colorStyles[item.name] }}
+                  style={{ background: item.swatchHex || colorStyles[item.name] }}
                   onClick={() => {
                     setColor(item);
                     setSelectedImage(item.image || product.image);

@@ -17,6 +17,7 @@ function mapProduct(product) {
     images: product.images.length ? product.images.map(item => item.url) : [IMAGE_PLACEHOLDER],
     options: product.options.map(option => ({
       name: option.name, image: option.imageUrl ?? product.images.find(item => item.productOptionId === option.id)?.url ?? null,
+      swatchHex: option.swatchHex,
       variants: option.variants.map(variant => ({ id: variant.id, sku: variant.sku, size: variant.size,
         price: variant.priceCents / 100, available: Math.max(0, variant.available) })),
     })),

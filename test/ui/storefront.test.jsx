@@ -15,6 +15,27 @@ function publicRoutes(products = [catalogProduct()]) {
   respond('GET', '/api/v1/banners', { banners: [] });
   respond('GET', '/api/v1/site-media', { faviconUrl: null });
 }
+test('catalog renders database swatches for every linen color, including names absent from the legacy palette', async () => {
+  const palette = [
+    ['Preto', '#191919'], ['Creme', '#EAD5C2'], ['Verde Menta', '#94BDAA'],
+    ['Verde musgo', '#585A46'], ['Verde Oliva', '#7B824C'], ['Castor', '#C9A480'],
+    ['Caramelo', '#A76F46'], ['Terracota', '#893126'], ['Azul / Petróleo', '#2F83D2'],
+    ['Rosê', '#C96780'],
+  ];
+  publicRoutes([catalogProduct({ options: palette.map(([name, swatchHex], index) => ({
+    ...catalogProduct().options[0], id: `color-${index}`, name, swatchHex,
+  })) })]);
+  renderPage(<Home />);
+  await screen.findAllByRole('heading', { name: 'Calça Linho' });
+  await userEvent.click(screen.getAllByRole('button', { name: 'Montar pedido' })[0]);
+  const dialog = within(screen.getByRole('dialog'));
+  for (const [name, hex] of palette) {
+    expect(dialog.getByRole('button', { name, exact: true })).toHaveStyle({ background: hex });
+  }
+  await userEvent.click(dialog.getByRole('button', { name: 'Terracota', exact: true }));
+  expect(dialog.getByText('Terracota')).toBeVisible();
+});
+
 test('V1: category and case-insensitive search combine without changing API price/weight units', async () => {
   publicRoutes([catalogProduct(), catalogProduct({ id: 'product-2', slug: 'vestido-algodao', name: 'Vestido Algodão', options: [], category: { id: 'category-2', name: 'Vestidos', slug: 'vestidos', imageUrl: null, imageWidth: null, imageHeight: null } })]);
   renderPage(<Home />);
