@@ -309,6 +309,7 @@ export default function Home() {
             <button
               type="button"
               className="header-order"
+              aria-label={`Pedido, ${qtyTotal} peças`}
               onClick={() => setCartOpen(true)}
             >
               <ShoppingBag size={18} />

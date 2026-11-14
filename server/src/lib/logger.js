@@ -97,8 +97,8 @@ export function createBufferedLogger({ sink: initialSink, deadSink: initialDeadS
   settings = config, context = getTrace, output = entry => console.log(JSON.stringify(entry)), autoFlush = true } = {}) {
   const buffer = [];
   const sizes = new WeakMap();
-  let sink = initialSink;
-  let deadSink = initialDeadSink;
+  const sink = initialSink;
+  const deadSink = initialDeadSink;
   let queuedBytes = 0;
   let activeCount = 0;
   let activeBytes = 0;
@@ -188,10 +188,8 @@ export function createBufferedLogger({ sink: initialSink, deadSink: initialDeadS
     return closing;
   }
 
-  return { log, flush, close, buffer,
+  return { log, flush, close,
     stats: () => ({ queued: buffer.length, active: activeCount, bytes: queuedBytes + activeBytes, dropped }),
-    clear: () => { buffer.length = 0; queuedBytes = 0; },
-    setSink: fn => { sink = fn; }, setDeadSink: fn => { deadSink = fn; },
   };
 }
 
@@ -203,14 +201,3 @@ export const flushAndClose = logger.close;
 export const logInfo = (event, message, ctx) => log(LOG_LEVELS.info, event, message, ctx);
 export const logWarn = (event, message, ctx) => log(LOG_LEVELS.warn, event, message, ctx);
 export const logError = (event, message, ctx) => log(LOG_LEVELS.error, event, message, ctx);
-
-// Somente para testes: permitem inspecionar o buffer e injetar destinos falsos.
-export const __testing = {
-  config,
-  buffer: logger.buffer,
-  clear: logger.clear,
-  setSink: logger.setSink,
-  resetSink: () => logger.setSink(insertBatch),
-  setDeadSink: logger.setDeadSink,
-  resetDeadSink: () => logger.setDeadSink(deadLetter),
-};

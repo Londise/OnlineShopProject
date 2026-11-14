@@ -20,6 +20,12 @@ export function errorHandler(error, _req, res, _next) {
   if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
     return res.status(409).json({ error: { code: 'CONFLICT', message: 'Já existe um registro com estes dados.' } });
   }
+  if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
+    return res.status(422).json({ error: { code: 'INVALID_REFERENCE', message: 'Uma referência informada não está disponível.' } });
+  }
+  if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+    return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Registro não encontrado.' } });
+  }
   logError('http.unhandled', error.message, {
     status: 500,
     stack: error.stack,

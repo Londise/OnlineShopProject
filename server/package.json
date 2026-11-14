@@ -9,7 +9,9 @@
   "scripts": {
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
-    "test": "node --test",
+    "test": "node --import ./test-support/unit-env.js --test --test-concurrency=1 test/*.test.js",
+    "test:integration": "node test-support/run-integration.js",
+    "test:harness": "node --test test-support/launcher.test.js",
     "db:check": "node scripts/check-database.js",
     "media:migrate": "node scripts/migrate-images.js",
     "prisma:validate": "prisma validate",
@@ -41,7 +43,8 @@
     }
   },
   "devDependencies": {
-    "@electric-sql/pglite": "0.5.9",
+    "embedded-postgres": "18.4.0-beta.17",
+    "pg": "8.23.1",
     "prisma": "6.19.3"
   }
 }

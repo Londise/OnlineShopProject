@@ -78,3 +78,23 @@ test("invalid catalog inputs cannot create invalid lines", () => {
     assert.deepEqual(addCartLines([], ...args), []);
   }
 });
+
+test('C2/C3: adding again refreshes price/availability and keeps other colors and sizes separate', () => {
+  const first = line({ quantity: 2, price: 30, available: 10 });
+  const otherSize = line({ key: 'variant-2', variantId: 'variant-2', size: 'G', quantity: 3 });
+  const old = [Object.freeze(first), Object.freeze(otherSize)];
+  const refreshed = addCartLines(old, product, option({ price: 0, available: 4 }), { M: 9 });
+  assert.deepEqual(refreshed.map(({ variantId, quantity, price, available }) => ({ variantId, quantity, price, available })), [
+    { variantId: 'variant-1', quantity: 4, price: 0, available: 4 },
+    { variantId: 'variant-2', quantity: 3, price: 30, available: 10 },
+  ]);
+  const rose = { name: 'Rose', variants: [{ id: 'variant-3', size: 'M', price: 35, available: 8 }] };
+  const added = addCartLines(refreshed, product, rose, { M: 2 });
+  assert.deepEqual(added.map(({ variantId, color, size, quantity }) => [variantId, color, size, quantity]), [
+    ['variant-1', 'Preto', 'M', 4], ['variant-2', 'Preto', 'G', 3], ['variant-3', 'Rose', 'M', 2],
+  ]);
+  const edited = changeCartLine(added, 'variant-1', 1);
+  assert.equal(edited[0].quantity, 1);
+  assert.deepEqual(edited.slice(1), added.slice(1));
+  assert.deepEqual(old.map(({ quantity, price, available }) => [quantity, price, available]), [[2, 30, 10], [3, 30, 10]]);
+});

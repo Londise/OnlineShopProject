@@ -5,9 +5,14 @@ import { prisma } from "../src/db/prisma.js";
 import { env } from "../src/config/env.js";
 import { inspectImage, IMAGE_TYPES, MAX_IMAGE_BYTES } from "../src/lib/images.js";
 import { putImage, STORAGE_BUCKET } from "../src/services/storage.service.js";
+import { parseArgs } from 'node:util';
+import { resolve, sep } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 const root = new URL("../../", import.meta.url);
-const manifestUrl = new URL("server/prisma/data/storage-images.json", root);
+const { values: options } = parseArgs({ options: { verify: { type: 'boolean' }, 'assets-dir': { type: 'string' }, manifest: { type: 'string' } } });
+const manifestUrl = options.manifest ? pathToFileURL(resolve(options.manifest)) : new URL("server/prisma/data/storage-images.json", root);
+const assetsDir = options['assets-dir'] ? pathToFileURL(resolve(options['assets-dir']) + sep) : new URL('src/assets/', root);
 const productFolders = {
   calca_viscolycra_lisa: "calca-malha-viscolycra", calca_viscolycra_estampada: "calca-viscolycra-estampada",
   calca_linho: "calca-linho", pantacourt_linho: "pantacourt-linho", bermuda_linho: "bermuda-linho",
@@ -40,7 +45,7 @@ async function walk(directory, prefix="") {
   return result.sort();
 }
 try {
-  if(process.argv.includes("--verify")) {
+  if(options.verify) {
     const manifest=JSON.parse(await readFile(manifestUrl,"utf8"));
     for(const file of manifest.files) {
       await verify(file);
@@ -49,6 +54,14 @@ try {
     }
     console.log(`Verificadas ${manifest.files.length} imagens públicas e seus registros.`);
   } else {
+    // Check local originals before making any bucket or upload mutations.
+    const sources = await walk(assetsDir).catch(error => {
+      if (error.code === 'ENOENT') throw new Error('Diretório de originais não encontrado.');
+      throw error;
+    });
+    for (const source of [...new Set([...Object.values(galleries).flat(), 'hero.jpeg', 'logoferchumodas.jpeg'])]) {
+      if (!sources.includes(source)) throw new Error(`Arquivo original ausente: ${source}`);
+    }
     const admin=createClient(env.SUPABASE_URL,env.SUPABASE_SECRET_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
     const {data:bucket,error}=await admin.storage.getBucket(STORAGE_BUCKET);
     if(error) {
@@ -58,9 +71,8 @@ try {
     const products=await prisma.product.findMany();
     const bySlug=new Map(products.map(p=>[p.slug,p]));
     for(const slug of Object.keys(galleries))if(!bySlug.has(slug))throw new Error(`Produto ausente: ${slug}`);
-    const assetsDir=new URL("src/assets/",root);
     const files=[];
-    for(const source of await walk(assetsDir)) {
+    for(const source of sources) {
       const buffer=await readFile(new URL(source,assetsDir));
       const info=await inspectImage(buffer);
       const folder=source.split('/')[1];
@@ -102,7 +114,7 @@ try {
       const heroId=ids.get('hero.jpeg');
       if(!await tx.siteBanner.findFirst({where:{assetId:heroId}}))await tx.siteBanner.create({data:{assetId:heroId,title:'Ferchu Modas',subtitle:'Peças confortáveis e modelos variados para revender.',linkUrl:'#catalogo'}});
     },{timeout:60000});
-    await mkdir(new URL("server/prisma/data/",root),{recursive:true});
+    await mkdir(new URL('./', manifestUrl),{recursive:true});
     await writeFile(manifestUrl,JSON.stringify({bucket:STORAGE_BUCKET,files},null,2)+"\n");
     console.log(JSON.stringify({uploadedAndVerified:files.length,hero:files.find(f=>f.source==='hero.jpeg').url,favicon:files.find(f=>f.source==='logoferchumodas.jpeg').url}));
   }

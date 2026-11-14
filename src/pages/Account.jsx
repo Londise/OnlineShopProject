@@ -128,7 +128,7 @@ export default function Account() {
                 >
                   <div>
                     <strong>
-                      Pedido #{order.id}
+                      Pedido #{order.publicNumber}
                     </strong>
 
                     {order.createdAt && (
@@ -141,9 +141,9 @@ export default function Account() {
                   </div>
 
                   <div>
-                    {order.total != null && (
+                    {order.totalCents != null && (
                       <strong>
-                        {money.format(Number(order.total))}
+                        {money.format(Number(order.totalCents) / 100)}
                       </strong>
                     )}
 

@@ -91,7 +91,7 @@ const mergeInventoryResult = (variant, result, delta) => {
     return applyInventoryDelta(variant, delta);
   }
 
-  const returnedVariant = result.variant ?? result;
+  const returnedVariant = result.inventory ?? result.variant ?? result;
 
   const hasInventoryFields =
     returnedVariant &&

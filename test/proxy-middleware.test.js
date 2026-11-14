@@ -35,3 +35,10 @@ test('proxy middleware does not invent an IP or trust custom/forwarded headers i
     assert.equal(response.headers.get('cache-control'), 'no-store');
   }
 });
+
+test('P1: verified IPv6 is forwarded upstream without exposing the secret to the browser', () => {
+  const response = middleware(new Request('https://shop.example.test/api/v1/products', { headers: { 'x-real-ip': '2001:db8::1' } }));
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('x-middleware-request-x-ferchu-client-ip'), '2001:db8::1');
+  assert.equal(response.headers.has('x-ferchu-proxy-secret'), false);
+});

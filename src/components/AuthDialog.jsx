@@ -1,7 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
+import useDialogFocus from '../hooks/useDialogFocus';
 import { X } from "lucide-react";
 
 export default function AuthDialog({ auth, onClose, onAuthenticated }) {
+  const dialogRef = useRef(null);
+  useDialogFocus(dialogRef, onClose);
   const [mode, setMode] = useState("login");
   const [form, setForm] = useState({ name: "", email: "", password: "" });
   const [error, setError] = useState("");
@@ -23,6 +26,8 @@ export default function AuthDialog({ auth, onClose, onAuthenticated }) {
   return (
     <div className="overlay auth-overlay" onMouseDown={onClose}>
       <section
+        ref={dialogRef}
+        tabIndex={-1}
         className="auth-dialog"
         role="dialog"
         aria-modal="true"

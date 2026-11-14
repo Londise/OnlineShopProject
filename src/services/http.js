@@ -11,7 +11,10 @@ export class ApiError extends Error {
 
 export function resolveApiUrl(value, { production = false } = {}) {
   const url = value?.trim() || (production ? '/api/v1' : 'http://localhost:3001/api/v1');
-  if (url.startsWith('/') && !url.startsWith('//')) return url.replace(/\/$/, '');
+  if (url.startsWith('/') && !url.startsWith('//')) {
+    if (/[?#]/.test(url)) throw new Error('VITE_API_URL deve ser uma URL sem credenciais ou parâmetros.');
+    return url.replace(/\/$/, '');
+  }
   const parsed = new URL(url);
   if (parsed.username || parsed.password || parsed.search || parsed.hash) throw new Error('VITE_API_URL deve ser uma URL sem credenciais ou parâmetros.');
   if (production && (parsed.protocol !== 'https:' || ['localhost', '127.0.0.1', '[::1]'].includes(parsed.hostname))) {

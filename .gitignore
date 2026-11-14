@@ -36,3 +36,5 @@ out/
 
 # Misc
 *.log
+playwright-report/
+test-results/

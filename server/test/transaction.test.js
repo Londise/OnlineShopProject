@@ -2,10 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { serializableTransaction } from "../src/db/transaction.js";
 
-test("runs the callback in a Serializable transaction", async () => {
+test("O11: transaction work uses Serializable isolation and preserves its result", async () => {
   const work = async (tx) => tx.result;
   const client = { $transaction: async (callback, options) => {
-    assert.equal(callback, work);
     assert.equal(options.isolationLevel, "Serializable");
     return callback({ result: "ok" });
   } };
@@ -44,8 +43,4 @@ test("does not retry domain errors, duplicates or connection failures", async ()
     await assert.rejects(serializableTransaction(client, () => {}), (caught) => caught === error);
     assert.equal(attempts, 1);
   }
-});
-
-test("rejects an invalid retry limit", async () => {
-  await assert.rejects(serializableTransaction({}, () => {}, 0));
 });

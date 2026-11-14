@@ -72,13 +72,16 @@
     <tr><td><code>npm run dev</code></td><td>Servidor Vite local, normalmente puerto 5173.</td></tr>
     <tr><td><code>npm run build</code></td><td>Generar <code>dist/</code>.</td></tr>
     <tr><td><code>npm run preview</code></td><td>Previsualizar el build, no reemplaza un hosting productivo.</td></tr>
-    <tr><td><code>npm test</code></td><td>Node tests del adaptador HTTP y configuración de despliegue.</td></tr>
+    <tr><td><code>npm test</code></td><td>Unidades Node y pruebas de interacción React con Vitest/Testing Library. <code>test:unit</code> y <code>test:ui</code> permiten ejecutar cada nivel.</td></tr>
+    <tr><td><code>npm run test:all</code></td><td>Frontend, backend, regresión del launcher, integración PostgreSQL, navegador y build aislado, en secuencia. Requiere instalar ambos paquetes y Chromium con <code>npx playwright install chromium</code>.</td></tr>
   </tbody></table></div>
   <p>No existen scripts de lint ni de typecheck. No inventarlos como pasos disponibles.</p>
   <div class="table"><table><caption>Paquete server/: Express/Prisma</caption><thead><tr><th scope="col">Comando</th><th scope="col">Uso y precauciones</th></tr></thead><tbody>
     <tr><td><code>npm ci</code></td><td>Instalar dependencias del backend; para el build de Render usar <code>--include=dev</code> por el CLI de Prisma.</td></tr>
     <tr><td><code>npm run dev</code> / <code>npm start</code></td><td>Watch local / proceso sin watch.</td></tr>
-    <tr><td><code>npm test</code></td><td>Tests Node, configuración, transacciones y SQL con PostgreSQL aislado en memoria (PGlite), sin utilizar la base configurada en .env.</td></tr>
+    <tr><td><code>npm test</code></td><td>Unidades Node y entrada HTTP malformada en procesos aislados, sin base configurada. No equivale a la suite de integración.</td></tr>
+    <tr><td><code>npm run test:integration</code></td><td>Express/Prisma con un servidor PostgreSQL real descartable en loopback, roles separados y migraciones reales; no usa URLs configuradas ni Storage productivo.</td></tr>
+    <tr><td><code>npm run test:harness</code></td><td>Comprueba fallo normal, timeout de ejecución y cancelación durante startup; exige salida no exitosa, directorio temporal eliminado y puerto PostgreSQL cerrado. No ejecutar en paralelo con integración/E2E: generan el mismo cliente Prisma local.</td></tr>
     <tr><td><code>npm run prisma:validate</code></td><td>Validar el schema.</td></tr>
     <tr><td><code>npm run prisma:generate</code></td><td>Generar el cliente; no crea tablas ni importa datos.</td></tr>
     <tr><td><code>npm run prisma:migrate -- --name &lt;nombre&gt;</code></td><td>Prisma migrate dev, solo desarrollo descartable, con shadow database apropiada.</td></tr>
@@ -225,6 +228,7 @@ DIRECT_URL="postgresql://LOGIN_OWNER:CLAVE_CODIFICADA@HOST:5432/postgres?schema=
   </ul>
   <h3>Manifiesto y transición de medios</h3>
   <p><code>server/prisma/data/storage-images.json</code> conserva el mapa público sin claves. El registro anterior describe 27 imágenes originales migradas sin recompresión y verificadas por SHA-256; no equivale a una verificación hecha ahora. <code>npm run media:migrate -- --verify</code>, ejecutado desde server y con autorización para acceder al destino, vuelve a comprobar descargas y registros.</p>
+  <p>El importador admite <code>--assets-dir=&lt;ruta&gt;</code> y <code>--manifest=&lt;ruta&gt;</code> (rutas relativas al directorio de ejecución o absolutas); conserva los valores predeterminados si se omiten. Comprueba los originales requeridos antes de acceder a Storage. Las pruebas usan directorios temporales, una base descartable y Storage HTTP local: estos argumentos no autorizan usar datos reales. Un conflicto revierte los vínculos y no publica el manifiesto; no promete eliminar objetos nuevos huérfanos.</p>
   <p><code>server/scripts/migrate-images.js</code> necesita los archivos originales para importar; tras retirarlos de los assets locales se utiliza --verify. No borrar objetos existentes si una importación falla. Cloudinary no es dependencia del runtime ni el importador local migra automáticamente una cuenta Cloudinary.</p>
   <div class="warning">Antes de aplicar storage_media en otro ambiente, inspeccionar media_assets.public_id. Si existen identificadores externos, la migración aborta para evitar pérdida: primero copiar/verificar archivos, conservar IDs y relaciones y actualizar referencias en una transición específica. No quitar el bloqueo ni marcar la migración como aplicada sin hacer esa transición.</div>
 </section>
@@ -244,7 +248,7 @@ DIRECT_URL="postgresql://LOGIN_OWNER:CLAVE_CODIFICADA@HOST:5432/postgres?schema=
     <li>No cachear respuestas /api. No exponer secretos, URLs con contraseña, cookies ni hashes en frontend, documentación, screenshots o logs.</li>
   </ul>
   <h3>Dependencias</h3>
-  <p>La revisión local del 16/10/2026 ejecutó <code>npm audit</code> en ambos paquetes: cero avisos después de corregir la dependencia transitiva deepmerge-ts. Prisma y su cliente permanecen en 6.19.3; un override acotado a <code>@prisma/config</code> fija <code>deepmerge-ts 8.0.2</code>. Las pruebas verifican la carga real de configuración Prisma y el manejo de grafos circulares; se validó el schema sin conectar a una base. Revisar este override cuando Prisma incorpore la corrección. No usar <code>npm audit fix --force</code> ciegamente: puede proponer un downgrade incompatible. Ausencia de avisos, tests y build no sustituyen una auditoría exhaustiva ni certifican seguridad de producción.</p>
+  <p>La revisión local del 16/10/2026 ejecutó <code>npm audit</code> en ambos paquetes: cero avisos después de corregir la dependencia transitiva deepmerge-ts. Prisma y su cliente permanecen en 6.19.3; un override acotado a <code>@prisma/config</code> fija <code>deepmerge-ts 8.0.2</code>. El harness nuevo valida/genera el cliente y aplica las migraciones sobre una base descartable; no prueba el algoritmo de merge de una dependencia. Revisar este override cuando Prisma incorpore la corrección. No usar <code>npm audit fix --force</code> ciegamente: puede proponer un downgrade incompatible. Ausencia de avisos, tests y build no sustituyen una auditoría exhaustiva ni certifican seguridad de producción.</p>
 </section>
 <section id="despliegue">
   <h2>9. Despliegue: Render + Vercel</h2>
@@ -275,7 +279,7 @@ DIRECT_URL="postgresql://LOGIN_OWNER:CLAVE_CODIFICADA@HOST:5432/postgres?schema=
 <section id="logs">
   <h2>10. Logs operativos y auditoría</h2>
   <p>La telemetría describe salud HTTP, errores y eventos; la auditoría en <code>audit.service.js</code>/<code>app.audit_logs</code> registra actor, entidad y acción, con datos anteriores/posteriores cuando el comando los aporta. No todas las modificaciones guardan una copia completa del antes/después. Son sistemas distintos: no reemplazar auditoría transaccional por un log asíncrono.</p>
-  <p>Las escrituras de categorías, opciones globales, productos, opciones/variantes/imágenes de producto y creación de STAFF se confirman junto con su auditoría en una única transacción. Una falla al registrar auditoría aborta también ese cambio; no se responde con error después de haberlo confirmado fuera de la transacción. Los tests nuevos de coordinación usan un adapter transaccional en memoria y no afirman reproducir concurrencia de PostgreSQL real.</p>
+  <p>Las escrituras de categorías, opciones globales, productos, opciones/variantes/imágenes de producto y creación de STAFF se confirman junto con su auditoría en una única transacción. Una falla al registrar auditoría aborta también ese cambio; no se responde con error después de haberlo confirmado fuera de la transacción. La suite de integración nueva verifica persistencia y rollback con PostgreSQL real; los dobles históricos se retiran a medida que se verifica su sustitución.</p>
   <h3>Usar Gestión → Logs (ADMIN)</h3>
   <ol>
     <li>Seleccionar nivel y servicio; se aplican al cambiar. La lista muestra primero los registros más nuevos.</li>

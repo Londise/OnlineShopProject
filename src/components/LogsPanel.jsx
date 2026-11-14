@@ -46,8 +46,15 @@ export default function LogsPanel() {
 
   const filtersRef = useRef({ level, service, query, traceId });
   filtersRef.current = { level, service, query, traceId };
+  const generationRef = useRef(0);
+  const backgroundPendingRef = useRef(false);
 
-  const fetchLogs = useCallback(async ({ cursor, append } = {}) => {
+  const fetchLogs = useCallback(async ({ cursor, append, background = false } = {}) => {
+    if (background && backgroundPendingRef.current) return;
+    if (background) backgroundPendingRef.current = true;
+    // A new first page invalidates pending pages, polls and older filters.
+    const generation = append ? generationRef.current : ++generationRef.current;
+    const isCurrent = () => generation === generationRef.current;
     const current = filtersRef.current;
     const params = { limit: 60 };
     if (current.level) params.level = current.level;
@@ -55,48 +62,50 @@ export default function LogsPanel() {
     if (current.query) params.q = current.query;
     if (current.traceId) params.traceId = current.traceId;
     if (cursor) params.cursor = cursor;
-    const result = await api.admin.logs(params);
-    setEntries((previous) =>
-      append ? [...previous, ...result.entries] : result.entries,
-    );
-    setNextCursor(result.nextCursor);
-  }, []);
-
-  const reload = useCallback(async () => {
-    setLoading(true);
+    if (!append) {
+      if (!background) setLoading(true);
+      setLoadingMore(false);
+    }
     setError("");
     try {
-      await fetchLogs();
+      const result = await api.admin.logs(params);
+      if (!isCurrent()) return;
+      setEntries((previous) => {
+        if (!append) return result.entries;
+        const seen = new Set(previous.map(entry => entry.id));
+        return [...previous, ...result.entries.filter(entry => !seen.has(entry.id))];
+      });
+      setNextCursor(result.nextCursor);
     } catch (err) {
-      setError(err?.message || "Não foi possível carregar os logs.");
+      if (isCurrent()) setError(err?.message || "Não foi possível carregar os logs.");
     } finally {
-      setLoading(false);
+      if (background) backgroundPendingRef.current = false;
+      if (isCurrent()) {
+        setLoading(false);
+        setLoadingMore(false);
+      }
     }
-  }, [fetchLogs]);
+  }, []);
+
+  const reload = useCallback(() => fetchLogs(), [fetchLogs]);
 
   useEffect(() => {
     reload();
+    return () => { generationRef.current++; };
   }, [reload, level, service, query, traceId]);
 
   useEffect(() => {
     if (!live) return undefined;
     const handle = setInterval(() => {
-      fetchLogs().catch(() => {});
+      fetchLogs({ background: true });
     }, 3000);
     return () => clearInterval(handle);
   }, [live, fetchLogs]);
 
   const loadMore = async () => {
-    if (!nextCursor) return;
+    if (!nextCursor || loading || loadingMore) return;
     setLoadingMore(true);
-    setError("");
-    try {
-      await fetchLogs({ cursor: nextCursor, append: true });
-    } catch (err) {
-      setError(err?.message || "Não foi possível carregar mais registros.");
-    } finally {
-      setLoadingMore(false);
-    }
+    await fetchLogs({ cursor: nextCursor, append: true });
   };
 
   const submitSearch = (event) => {

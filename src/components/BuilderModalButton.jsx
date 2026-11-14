@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import useDialogFocus from '../hooks/useDialogFocus';
 import { X, ShoppingBag } from "lucide-react";
 import Counter from "./Counter";
 
@@ -32,6 +33,8 @@ const colorStyles = {
 
 // Modal para montar o pedido, escolhendo cor e distribuindo quantidades por tamanho
 export default function BuilderModal({ product, showToast, onClose }) {
+  const dialogRef = useRef(null);
+  useDialogFocus(dialogRef, onClose);
 
   const {
       addToCart,
@@ -83,12 +86,6 @@ export default function BuilderModal({ product, showToast, onClose }) {
     });
   }, [color, getAvailableToAddForVariant]);
 
-  useEffect(() => {
-    const listener = (event) => event.key === "Escape" && onClose();
-    window.addEventListener("keydown", listener);
-    return () => window.removeEventListener("keydown", listener);
-  }, [onClose]);
-
   return (
     <div
       // Adiciona a classe "with-cart" se o carrinho estiver aberto, para ajustar o estilo do modal
@@ -97,6 +94,8 @@ export default function BuilderModal({ product, showToast, onClose }) {
       onMouseDown={onClose}
     >
       <section
+        ref={dialogRef}
+        tabIndex={-1}
         className="builder"
         role="dialog"
         aria-modal="true"
