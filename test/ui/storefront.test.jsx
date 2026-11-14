@@ -30,7 +30,7 @@ test('catalog renders database swatches for every linen color, including names a
   await userEvent.click(screen.getAllByRole('button', { name: 'Montar pedido' })[0]);
   const dialog = within(screen.getByRole('dialog'));
   expect(dialog.getByRole('button', { name: 'Preto', exact: true }).parentElement)
-    .toHaveStyle({ '--color-columns': '5' });
+    .toHaveStyle({ '--color-rows': '5' });
   for (const [name, hex] of palette) {
     expect(dialog.getByRole('button', { name, exact: true })).toHaveStyle({ background: hex });
   }
@@ -38,9 +38,12 @@ test('catalog renders database swatches for every linen color, including names a
   expect(dialog.getByRole('button', { name: 'Terracota', exact: true })).toHaveAttribute('aria-pressed', 'true');
   expect(dialog.getByRole('button', { name: 'Preto', exact: true })).toHaveAttribute('aria-pressed', 'false');
   expect(dialog.getByText('Terracota')).toBeVisible();
+  expect(dialog.getByText('Terracota').closest('.color-heading')).not.toBeNull();
+  expect(dialog.getByRole('button', { name: 'Terracota', exact: true }).closest('.builder-choices'))
+    .toBe(dialog.getByRole('textbox', { name: 'Quantidade tamanho M' }).closest('.builder-choices'));
 });
 
-test.each([[7, 7], [8, 4], [14, 7], [15, 7]])('color grid with %i colors uses %i desktop columns at most', async (count, columns) => {
+test.each([[7, 7], [8, 5], [14, 7], [15, 7]])('color grid with %i colors fills %i desktop rows before the next column', async (count, rows) => {
   publicRoutes([catalogProduct({ options: Array.from({ length: count }, (_, index) => ({
     ...catalogProduct().options[0], id: `color-${index}`, name: `Cor ${index}`, swatchHex: '#94BDAA',
   })) })]);
@@ -49,7 +52,7 @@ test.each([[7, 7], [8, 4], [14, 7], [15, 7]])('color grid with %i colors uses %i
   await userEvent.click(screen.getAllByRole('button', { name: 'Montar pedido' })[0]);
   const dialog = within(screen.getByRole('dialog'));
   expect(dialog.getByRole('button', { name: 'Cor 0', exact: true }).parentElement)
-    .toHaveStyle({ '--color-columns': String(columns) });
+    .toHaveStyle({ '--color-rows': String(rows) });
 });
 
 test('EXG uses its own price when added to the order, not the product base price', async () => {

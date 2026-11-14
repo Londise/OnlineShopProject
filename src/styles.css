@@ -1267,14 +1267,20 @@ footer small {
     font-size: 14px
 }
 
-.color-row>div {
+.color-heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px
+}
+
+.color-swatches {
     display: flex;
     flex-wrap: wrap;
     gap: 10px
 }
 
 .color-row b {
-    grid-column: 1/-1;
     color: var(--muted);
     font-size: 14px;
     font-weight: 500
@@ -1295,15 +1301,92 @@ footer small {
 }
 
 @media (min-width: 769px) {
-    .color-row>div {
-        display: grid;
-        grid-template-columns: repeat(var(--color-columns), minmax(0, 44px))
+    .builder {
+        height: min(680px, calc(100dvh - 40px));
+        max-height: none;
+        overflow: hidden
     }
 
-    .color-dot {
-        width: 100%;
-        height: auto;
-        aspect-ratio: 1
+    .builder-gallery {
+        min-height: 0
+    }
+
+    .builder-content {
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        padding: 32px 28px 28px
+    }
+
+    .builder-content>.eyebrow,
+    .builder-content>h2,
+    .builder-content>.product-price,
+    .builder-content>.button {
+        flex-shrink: 0
+    }
+
+    .builder-content>.product-price {
+        margin-bottom: 18px
+    }
+
+    .builder-choices {
+        flex: 1;
+        min-height: 0;
+        display: grid;
+        grid-template-columns: max-content minmax(0, 1fr);
+        align-content: start;
+        gap: 20px;
+        overflow: auto;
+        border-top: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
+        padding: 16px 4px;
+        margin-bottom: 18px
+    }
+
+    .color-row {
+        align-content: start;
+        border: 0;
+        padding: 0
+    }
+
+    .color-heading {
+        display: block;
+        max-width: 108px;
+        min-height: 42px;
+        font-size: 13px
+    }
+
+    .color-heading b {
+        display: block;
+        margin-top: 4px;
+        font-size: 12px;
+        overflow-wrap: anywhere
+    }
+
+    .color-swatches {
+        display: grid;
+        grid-auto-flow: column;
+        grid-template-rows: repeat(var(--color-rows), 44px);
+        grid-auto-columns: 44px;
+        gap: 8px
+    }
+
+    .builder-choices .sizes {
+        min-width: 0;
+        padding: 0
+    }
+
+    .builder-choices .sizes>div:first-child {
+        display: grid;
+        align-content: start;
+        gap: 4px;
+        min-height: 42px;
+        margin-bottom: 10px
+    }
+
+    .builder-choices .size-row {
+        height: 44px;
+        gap: 8px
     }
 }
 

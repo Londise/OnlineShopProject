@@ -61,8 +61,8 @@ export default function BuilderModal({ product, showToast, onClose }) {
   };
 
   const selected = Object.values(quantities).reduce((a, b) => a + b, 0);
-  const colorColumns = Math.max(1, Math.min(7, product.options.length > 7
-    ? Math.ceil(product.options.length / 2)
+  const colorRows = Math.max(1, Math.min(7, product.options.length > 7
+    ? Math.max(5, Math.ceil(product.options.length / 2))
     : product.options.length));
 
   // Controla a ação de apertar o botão "Adicionar ao Pedido"
@@ -156,9 +156,13 @@ export default function BuilderModal({ product, showToast, onClose }) {
           <p className="product-price">
             {money.format(product.price)} <small>preço base · valores por tamanho abaixo</small>
           </p>
+          <div className="builder-choices">
           <div className="color-row">
-            <span>Escolha a cor</span>
-            <div style={{ "--color-columns": colorColumns }}>
+            <div className="color-heading">
+              <span>Escolha a cor</span>
+              <b aria-live="polite">{color?.name ?? "Sem variações disponíveis"}</b>
+            </div>
+            <div className="color-swatches" style={{ "--color-rows": colorRows }}>
               {/* Percorre a lista de cores */}
               {product.options.map((item) => (
                 <button
@@ -178,7 +182,6 @@ export default function BuilderModal({ product, showToast, onClose }) {
                 />
               ))}
             </div>
-            <b>{color?.name ?? "Sem variações disponíveis"}</b>
           </div>
           <div className="sizes">
             <div>
@@ -212,6 +215,7 @@ export default function BuilderModal({ product, showToast, onClose }) {
               </div>
             );
             })}
+          </div>
           </div>
           <button
             className="button primary full"
