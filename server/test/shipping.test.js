@@ -103,6 +103,16 @@ test('E4: LATAM Cargo is always discarded and kind filters restrict carriers', (
   assert.deepEqual(combineVolumeQuotes([quotes], { otherCarriersOnly: true }).map((option) => option.company), ['Correios']);
 });
 
+test('E4: carrier error entries without a price never become options', () => {
+  const quotes = [
+    { company: 'Correios', service: 'PAC', price: NaN, days: NaN }, // erro da transportadora, sem preço
+    { company: 'Jadlog', service: '.Package', price: 18, days: 3 },
+  ];
+  const combined = combineVolumeQuotes([quotes]);
+  assert.deepEqual(combined.map((option) => [option.company, option.price]), [['Jadlog', 18]]);
+  assert.deepEqual(selectShippingOptions([quotes[0], quotes[1]]).map((option) => option.company), ['Jadlog']);
+});
+
 test('E5: selection dedupes identical services keeping the cheapest and sorts ascending', () => {
   const selected = selectShippingOptions([
     { company: 'Jadlog', service: '.Package', price: 18, days: 3, volumes: 1, key: 'Jadlog|.Package|1' },

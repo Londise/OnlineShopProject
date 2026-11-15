@@ -52,12 +52,30 @@ test('M1: network and provider failures surface as unavailable instead of a fake
 });
 
 const raw = (company, name, price, days = 4) => ({ company: { name: company }, name, price: String(price), custom_price: String(price), delivery_time: days, custom_delivery_time: days });
+const rawError = (company, name) => ({ company: { name: company }, name, error: 'Transportadora não atende este trecho.' });
 const providers = [
   raw('Correios', 'PAC', 19.5, 7),
   raw('Correios', 'SEDEX', 30, 2),
   raw('Jadlog', '.Package', 18, 3),
   raw('LATAM Cargo', 'LATAM X', 1, 2),
 ];
+
+test('M2: carrier error entries (no price) are dropped before selecting options', async () => {
+  const result = await quoteShippingOptions(config, { postalCode: '01310-100', pieces: 15 }, {
+    request: async () => [...providers, rawError('Correios', 'PAC')],
+  });
+  // PAC com erro não substitui nem aparece; a lista continua sem preço inválido.
+  assert.ok(!result.options.some((option) => !Number.isFinite(option.price)));
+  assert.ok(!result.options.some((option) => /latam/i.test(option.company)));
+  assert.deepEqual(result.options.map((option) => option.key), ['Jadlog|.Package|1', 'Correios|PAC|1', 'Correios|SEDEX|1']);
+});
+
+test('M2: when only error entries exist no fake options are returned', async () => {
+  const result = await quoteShippingOptions(config, { postalCode: '01310-100', pieces: 15 }, {
+    request: async () => [rawError('Correios', 'PAC'), rawError('LATAM Cargo', 'X')],
+  });
+  assert.deepEqual(result.options, []);
+});
 
 test('M2: light orders quote every eligible carrier once and exclude LATAM', async () => {
   const calls = [];

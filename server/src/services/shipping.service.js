@@ -120,6 +120,14 @@ export function normalizeQuote(raw) {
 }
 
 /**
+ * Uma cotação sem preço (a transportadora responde com um erro, como
+ * "Transportadora não atende este trecho") nunca é uma opção válida.
+ */
+export function hasUsablePrice(quote) {
+  return Number.isFinite(quote.price) && quote.price >= 0;
+}
+
+/**
  * Combina as cotações de cada embalagem de um cenário: permanece somente o
  * serviço presente em TODAS as embalagens, somando os preços e mantendo o
  * maior prazo. A LATAM Cargo é sempre descartada.
@@ -129,6 +137,7 @@ export function combineVolumeQuotes(perVolumeQuotes, { jadlogOnly = false, other
   const keyOf = (quote) => `${quote.company}\u0000${quote.service}`;
   const eligible = (quote) => {
     if (!quote.company || LATAM_COMPANY.test(quote.company)) return false;
+    if (!hasUsablePrice(quote)) return false;
     if (jadlogOnly && !JADLOG_COMPANY.test(quote.company)) return false;
     if (otherCarriersOnly && JADLOG_COMPANY.test(quote.company)) return false;
     return true;
@@ -164,6 +173,7 @@ export function combineVolumeQuotes(perVolumeQuotes, { jadlogOnly = false, other
 export function selectShippingOptions(candidates) {
   const best = new Map();
   for (const option of candidates) {
+    if (!hasUsablePrice(option)) continue;
     const key = `${option.company}\u0000${option.service}`;
     const current = best.get(key);
     if (!current || option.price < current.price) best.set(key, option);
