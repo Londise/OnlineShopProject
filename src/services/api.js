@@ -31,8 +31,8 @@ export const api = {
   },
 
   shipping: {
-    quote: (body) =>
-      request("/shipping/quote", { method: "POST", body: JSON.stringify(body) }),
+    quote: (body, options) =>
+      request("/shipping/quote", { ...options, method: "POST", body: JSON.stringify(body) }),
   },
   
   admin: {

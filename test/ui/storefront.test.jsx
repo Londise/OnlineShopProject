@@ -8,6 +8,7 @@ import { renderPage } from '../support/render';
 import { respond, json, deferred, requests } from '../support/network';
 import { catalogProduct, admin, customer } from '../support/fixtures';
 import { useAuthContext } from '../../src/contexts/AuthContext';
+import { catalogCard } from '../support/locators';
 
 function publicRoutes(products = [catalogProduct()]) {
   respond('GET', '/api/v1/auth/me', { user: null });
@@ -26,8 +27,8 @@ test('catalog renders database swatches for every linen color, including names a
     ...catalogProduct().options[0], id: `color-${index}`, name, swatchHex,
   })) })]);
   renderPage(<Home />);
-  await screen.findAllByRole('heading', { name: 'Calça Linho' });
-  await userEvent.click(screen.getAllByRole('button', { name: 'Montar pedido' })[0]);
+  await screen.findAllByRole('heading', { name: 'Calça Linho', exact: true });
+  await userEvent.click(catalogCard('Calça Linho').getByRole('button', { name: 'Montar pedido', exact: true }));
   const dialog = within(screen.getByRole('dialog'));
   expect(dialog.getByRole('button', { name: 'Preto', exact: true }).parentElement)
     .toHaveStyle({ '--color-rows': '5' });
@@ -40,7 +41,7 @@ test('catalog renders database swatches for every linen color, including names a
   expect(dialog.getByText('Terracota')).toBeVisible();
   expect(dialog.getByText('Terracota').closest('.color-heading')).not.toBeNull();
   expect(dialog.getByRole('button', { name: 'Terracota', exact: true }).closest('.builder-choices'))
-    .toBe(dialog.getByRole('textbox', { name: 'Quantidade tamanho M' }).closest('.builder-choices'));
+    .toBe(dialog.getByRole('textbox', { name: 'Quantidade tamanho M', exact: true }).closest('.builder-choices'));
 });
 
 test.each([[7, 7], [8, 5], [14, 7], [15, 7]])('color grid with %i colors fills %i desktop rows before the next column', async (count, rows) => {
@@ -48,8 +49,8 @@ test.each([[7, 7], [8, 5], [14, 7], [15, 7]])('color grid with %i colors fills %
     ...catalogProduct().options[0], id: `color-${index}`, name: `Cor ${index}`, swatchHex: '#94BDAA',
   })) })]);
   renderPage(<Home />);
-  await screen.findAllByRole('heading', { name: 'Calça Linho' });
-  await userEvent.click(screen.getAllByRole('button', { name: 'Montar pedido' })[0]);
+  await screen.findAllByRole('heading', { name: 'Calça Linho', exact: true });
+  await userEvent.click(catalogCard('Calça Linho').getByRole('button', { name: 'Montar pedido', exact: true }));
   const dialog = within(screen.getByRole('dialog'));
   expect(dialog.getByRole('button', { name: 'Cor 0', exact: true }).parentElement)
     .toHaveStyle({ '--color-rows': String(rows) });
@@ -64,29 +65,29 @@ test('EXG uses its own price when added to the order, not the product base price
     ] }],
   })]);
   renderPage(<Home />);
-  await screen.findAllByRole('heading', { name: 'Pantacourt Linho' });
-  await userEvent.click(screen.getAllByRole('button', { name: 'Montar pedido' })[0]);
+  await screen.findAllByRole('heading', { name: 'Pantacourt Linho', exact: true });
+  await userEvent.click(catalogCard('Pantacourt Linho').getByRole('button', { name: 'Montar pedido', exact: true }));
   const dialog = within(screen.getByRole('dialog'));
   expect(dialog.getByText('EXG').closest('.size-row')).toHaveTextContent('35,00');
   expect(dialog.getByText('P', { exact: true }).closest('.size-row')).toHaveTextContent('33,00');
-  await userEvent.type(dialog.getByRole('textbox', { name: 'Quantidade tamanho EXG' }), '1');
-  await userEvent.click(dialog.getByRole('button', { name: 'Adicionar 1 peça' }));
-  expect(screen.getByRole('heading', { name: '1 peça' })).toBeVisible();
+  await userEvent.type(dialog.getByRole('textbox', { name: 'Quantidade tamanho EXG', exact: true }), '1');
+  await userEvent.click(dialog.getByRole('button', { name: 'Adicionar 1 peça', exact: true }));
+  expect(screen.getByRole('heading', { name: '1 peça', exact: true })).toBeVisible();
   expect(screen.getByText('Preto · EXG').closest('.cart-line')).toHaveTextContent('35,00');
 });
 
 test('V1: category and case-insensitive search combine without changing API price/weight units', async () => {
   publicRoutes([catalogProduct(), catalogProduct({ id: 'product-2', slug: 'vestido-algodao', name: 'Vestido Algodão', options: [], category: { id: 'category-2', name: 'Vestidos', slug: 'vestidos', imageUrl: null, imageWidth: null, imageHeight: null } })]);
   renderPage(<Home />);
-  await screen.findAllByRole('heading', { name: 'Calça Linho' });
-  const catalog = within(screen.getByRole('heading', { name: 'Monte seu pedido.' }).closest('section'));
+  await screen.findAllByRole('heading', { name: 'Calça Linho', exact: true });
+  const catalog = within(screen.getByRole('heading', { name: 'Monte seu pedido.', exact: true }).closest('section'));
   await userEvent.type(catalog.getByRole('searchbox'), 'LINHO');
   expect(catalog.getAllByRole('article')).toHaveLength(1);
   expect(catalog.getByRole('article')).toHaveTextContent('25,00');
   await userEvent.click(catalog.getByRole('button', { name: 'Vestidos', exact: true }));
   expect(catalog.queryByRole('article')).not.toBeInTheDocument();
   await userEvent.clear(catalog.getByRole('searchbox'));
-  expect(catalog.getByRole('heading', { name: 'Vestido Algodão' })).toBeVisible();
+  expect(catalog.getByRole('heading', { name: 'Vestido Algodão', exact: true })).toBeVisible();
   await userEvent.click(catalog.getByRole('button', { name: 'Todos', exact: true }));
   expect(catalog.getAllByRole('article')).toHaveLength(2);
 });
@@ -98,17 +99,17 @@ test('V2/V5: catalog failure is visible and retry restores real product interact
   expect(await screen.findByRole('alert')).toHaveTextContent('Catálogo indisponível');
   const gate = deferred();
   respond('GET', '/api/v1/products', () => gate.promise);
-  await userEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Tentar novamente', exact: true }));
   expect(screen.getByRole('main')).toHaveAttribute('aria-busy', 'true');
-  expect(screen.queryByRole('button', { name: 'Tentar novamente' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Tentar novamente', exact: true })).not.toBeInTheDocument();
   await act(async () => gate.resolve(json({ products: [catalogProduct()] })));
-  expect((await screen.findAllByRole('heading', { name: 'Calça Linho' })).length).toBeGreaterThan(0);
+  expect((await screen.findAllByRole('heading', { name: 'Calça Linho', exact: true })).length).toBeGreaterThan(0);
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-  await userEvent.click(screen.getAllByRole('button', { name: 'Montar pedido' })[0]);
+  await userEvent.click(catalogCard('Calça Linho').getByRole('button', { name: 'Montar pedido', exact: true }));
   const dialog = within(screen.getByRole('dialog'));
-  await userEvent.type(dialog.getByRole('textbox', { name: 'Quantidade tamanho M' }), '1');
-  await userEvent.click(dialog.getByRole('button', { name: 'Adicionar 1 peça' }));
-  expect(screen.getByRole('heading', { name: '1 peça' })).toBeVisible();
+  await userEvent.type(dialog.getByRole('textbox', { name: 'Quantidade tamanho M', exact: true }), '1');
+  await userEvent.click(dialog.getByRole('button', { name: 'Adicionar 1 peça', exact: true }));
+  expect(screen.getByRole('heading', { name: '1 peça', exact: true })).toBeVisible();
 });
 
 test('S7: management waits for session verification before fetching administrative data', async () => {
@@ -144,18 +145,18 @@ test('V5: identical failures produce one notice, dismiss stays dismissed, and a 
   await screen.findByRole('alert');
   await waitFor(() => expect(screen.getAllByText('Servidor indisponível')).toHaveLength(1));
   expect(screen.getAllByRole('alert')).toHaveLength(1);
-  await userEvent.click(screen.getByRole('button', { name: 'Fechar aviso' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Fechar aviso', exact: true }));
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   respond('GET', '/api/v1/auth/me', () => json({ error: { message: 'Sessão temporariamente indisponível' } }, 409));
-  await userEvent.click(screen.getByRole('button', { name: 'Atualizar sessão' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Atualizar sessão', exact: true }));
   expect(await screen.findByRole('alert')).toHaveTextContent('Sessão temporariamente indisponível');
 });
 test.each([[], 'failure'])('V6: optional banner result %j cannot prevent catalog use', async result => {
   publicRoutes();
   respond('GET', '/api/v1/banners', result === 'failure' ? () => json({ error: { message: 'Banner unavailable' } }, 409) : { banners: result });
   renderPage(<Home />);
-  expect((await screen.findAllByRole('heading', { name: 'Calça Linho' })).length).toBeGreaterThan(0);
-  expect(screen.getAllByRole('button', { name: 'Montar pedido' })[0]).toBeEnabled();
+  expect((await screen.findAllByRole('heading', { name: 'Calça Linho', exact: true })).length).toBeGreaterThan(0);
+  expect(catalogCard('Calça Linho').getByRole('button', { name: 'Montar pedido', exact: true })).toBeEnabled();
 });
 test('V6: banner controls select their image and favicon is applied without blocking catalog', async () => {
   publicRoutes();
@@ -167,13 +168,13 @@ test('V6: banner controls select their image and favicon is applied without bloc
   const icon = document.createElement('link'); icon.rel = 'icon'; document.head.append(icon);
   try {
     renderPage(<Home />);
-    fireEvent.load(await screen.findByAltText('Primeiro banner'));
-    await userEvent.click(await screen.findByRole('button', { name: 'Próximo banner' }));
-    expect(screen.getByRole('img', { name: 'Segundo banner' })).toHaveAttribute('src', '/second.png');
-    await userEvent.click(screen.getByRole('button', { name: 'Banner anterior' }));
-    expect(screen.getByRole('img', { name: 'Primeiro banner' })).toHaveAttribute('src', '/first.png');
+    fireEvent.load(await screen.findByAltText('Primeiro banner', { exact: true }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Próximo banner', exact: true }));
+    expect(screen.getByRole('img', { name: 'Segundo banner', exact: true })).toHaveAttribute('src', '/second.png');
+    await userEvent.click(screen.getByRole('button', { name: 'Banner anterior', exact: true }));
+    expect(screen.getByRole('img', { name: 'Primeiro banner', exact: true })).toHaveAttribute('src', '/first.png');
     await waitFor(() => expect(icon).toHaveAttribute('href', '/custom-icon.png'));
-    expect(screen.getAllByRole('button', { name: 'Montar pedido' })[0]).toBeEnabled();
+    expect(catalogCard('Calça Linho').getByRole('button', { name: 'Montar pedido', exact: true })).toBeEnabled();
   } finally { icon.remove(); }
 });
 test('V2: a malformed catalog is an error, not a valid empty store', async () => {
@@ -187,7 +188,7 @@ test('V2: a valid empty catalog finishes loading without reporting an unavailabl
   renderPage(<Home />);
   await waitFor(() => expect(screen.getByRole('main')).toHaveAttribute('aria-busy', 'false'));
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-  expect(screen.queryByRole('button', { name: 'Montar pedido' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Montar pedido', exact: true })).not.toBeInTheDocument();
   expect(screen.queryByRole('article')).not.toBeInTheDocument();
   expect(screen.getByRole('searchbox')).toBeEnabled();
 });
@@ -202,7 +203,7 @@ test('S7: session failure keeps the management guard recoverable without redirec
   expect(window.location.pathname).toBe('/management');
   expect(requests.some(request => request.url.pathname.startsWith('/api/v1/admin/'))).toBe(false);
   respond('GET', '/api/v1/auth/me', { user: admin });
-  await userEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Tentar novamente', exact: true }));
   expect(await screen.findByRole('button', { name: 'Estoque', exact: true })).toBeVisible();
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   expect(requests.filter(request => request.url.pathname === '/api/v1/admin/orders')).toHaveLength(1);

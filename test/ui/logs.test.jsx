@@ -11,12 +11,12 @@ test('G9: late results from an abandoned filter cannot replace the current logs'
   respond('GET', '/api/v1/admin/logs', ({ url }) => url.searchParams.get('level') === 'error'
     ? json({ entries: [logEntry('new', 'Current error', { level: 50 })], nextCursor: null }) : old.promise);
   render(<LogsPanel />);
-  await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Filtrar por nível' }), 'error');
+  await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Filtrar por nível', exact: true }), 'error');
   expect(await screen.findByText(/Current error/)).toBeVisible();
   await act(async () => old.resolve(json({ entries: [logEntry('old', 'Obsolete info')], nextCursor: 'old-cursor' })));
   expect(screen.getByText(/Current error/)).toBeVisible();
   expect(screen.queryByText(/Obsolete info/)).not.toBeInTheDocument();
-  expect(screen.queryByRole('button', { name: 'Carregar mais' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Carregar mais', exact: true })).not.toBeInTheDocument();
 });
 
 test('G9: pagination from an abandoned query cannot append entries to a new filter', async () => {
@@ -26,8 +26,8 @@ test('G9: pagination from an abandoned query cannot append entries to a new filt
     return json({ entries: [logEntry('1', url.searchParams.get('service') || 'Initial')], nextCursor: 'page-2' });
   });
   render(<LogsPanel />);
-  await userEvent.click(await screen.findByRole('button', { name: 'Carregar mais' }));
-  await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Filtrar por serviço' }), 'worker');
+  await userEvent.click(await screen.findByRole('button', { name: 'Carregar mais', exact: true }));
+  await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Filtrar por serviço', exact: true }), 'worker');
   await screen.findByText(/order.created/);
   await act(async () => page.resolve(json({ entries: [logEntry('2', 'Abandoned page')], nextCursor: null })));
   expect(screen.queryByText(/Abandoned page/)).not.toBeInTheDocument();
@@ -40,15 +40,15 @@ test('G8: search, trace drilldown and pagination send the visible filter contrac
     nextCursor: url.searchParams.has('cursor') ? null : 'page-2',
   }));
   render(<LogsPanel />);
-  await userEvent.type(screen.getByRole('searchbox'), '  order.created  ');
-  await userEvent.click(screen.getByRole('button', { name: 'Filtrar' }));
+  await userEvent.type(screen.getByRole('searchbox', { name: 'Buscar nos logs', exact: true }), '  order.created  ');
+  await userEvent.click(screen.getByRole('button', { name: 'Filtrar', exact: true }));
   await userEvent.click(await screen.findByRole('button', { name: /Pedido recebido/ }));
-  await userEvent.click(screen.getByRole('button', { name: 'Ver trace completo' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Ver trace completo', exact: true }));
   await waitFor(() => expect(requests.at(-1).url.searchParams.get('traceId')).toBe(traceId));
-  await userEvent.click(screen.getByRole('button', { name: 'Carregar mais' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Carregar mais', exact: true }));
   await waitFor(() => expect(screen.getAllByRole('button', { name: /Pedido recebido/ })).toHaveLength(2));
   expect(Object.fromEntries(requests.at(-1).url.searchParams)).toEqual({ limit: '60', q: 'order.created', traceId, cursor: 'page-2' });
-  await userEvent.click(screen.getByRole('button', { name: 'Limpar trace' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Limpar trace', exact: true }));
   await waitFor(() => expect(requests.at(-1).url.searchParams.has('traceId')).toBe(false));
 });
 
@@ -57,7 +57,7 @@ test('G9: overlapping log pages do not duplicate an existing row', async () => {
     ? { entries: [logEntry('2', 'Second'), logEntry('3', 'Third')], nextCursor: null }
     : { entries: [logEntry('1', 'First'), logEntry('2', 'Second')], nextCursor: 'page-2' }));
   render(<LogsPanel />);
-  await userEvent.click(await screen.findByRole('button', { name: 'Carregar mais' }));
+  await userEvent.click(await screen.findByRole('button', { name: 'Carregar mais', exact: true }));
   expect(await screen.findByText(/Third/)).toBeVisible();
   expect(screen.getAllByText(/Second/)).toHaveLength(1);
 });
@@ -69,12 +69,12 @@ test('G8: a pending live refresh keeps current entries visible; pausing and unmo
     ? json({ entries: [logEntry('1', 'Current row')], nextCursor: null }) : pending.promise);
   const view = render(<LogsPanel />);
   await act(async () => {});
-  fireEvent.click(screen.getByRole('button', { name: 'Ao vivo' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Ao vivo', exact: true }));
   await act(async () => vi.advanceTimersByTime(3000));
   expect(screen.getByText(/Current row/)).toBeVisible();
   await act(async () => vi.advanceTimersByTime(6000));
   expect(calls).toBe(2); // A slow backend must not accumulate concurrent polls.
-  fireEvent.click(screen.getByRole('button', { name: 'Pausar' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Pausar', exact: true }));
   await act(async () => pending.resolve(json({ entries: [logEntry('2', 'Updated row')], nextCursor: null })));
   await act(async () => vi.advanceTimersByTime(6000));
   expect(calls).toBe(2);
@@ -87,7 +87,7 @@ test('G8: a visible query error is recoverable by reloading the current filters'
   render(<LogsPanel />);
   expect(await screen.findByText('Logs unavailable')).toBeVisible();
   respond('GET', '/api/v1/admin/logs', { entries: [logEntry('recovered', 'Recovered log')], nextCursor: null });
-  await userEvent.click(screen.getByRole('button', { name: 'Recarregar' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Recarregar', exact: true }));
   expect(await screen.findByText(/Recovered log/)).toBeVisible();
   expect(screen.queryByText('Logs unavailable')).not.toBeInTheDocument();
 });
@@ -99,12 +99,12 @@ test('G9: a live first page invalidates an older pending page without duplicate 
     entries: ++firstPages === 1 ? [logEntry('1', 'Initial row')] : [logEntry('2', 'Current row'), logEntry('3', 'Latest row')], nextCursor: 'next',
   }));
   render(<LogsPanel />); await act(async () => {});
-  fireEvent.click(screen.getByRole('button', { name: 'Carregar mais' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Ao vivo' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Carregar mais', exact: true }));
+  fireEvent.click(screen.getByRole('button', { name: 'Ao vivo', exact: true }));
   await act(async () => vi.advanceTimersByTime(3000));
   await act(async () => page.resolve(json({ entries: [logEntry('2', 'Current row'), logEntry('4', 'Abandoned row')], nextCursor: null })));
   expect(screen.getAllByText(/Current row/)).toHaveLength(1);
   expect(screen.getByText(/Latest row/)).toBeVisible();
   expect(screen.queryByText(/Abandoned row/)).not.toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Carregar mais' })).toBeEnabled();
+  expect(screen.getByRole('button', { name: 'Carregar mais', exact: true })).toBeEnabled();
 });

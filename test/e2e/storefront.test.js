@@ -1,4 +1,5 @@
 import { test, expect, buildCart, submitGuestOrder } from './fixtures.js';
+import { catalogCard, mediaUpload, mediaLibrary } from './locators.js';
 
 async function expectOperableControl(page, control) {
   await control.scrollIntoViewIfNeeded();
@@ -14,6 +15,7 @@ async function expectOperableControl(page, control) {
 }
 
 async function traverseDialog(page, dialog) {
+  // Aqui a posição é o comportamento verificado: ordem de foco e retorno cíclico.
   const controls = dialog.locator('button:visible:enabled, input:visible:enabled, select:visible:enabled, a[href]:visible');
   const count = await controls.count();
   expect(count).toBeGreaterThan(2);
@@ -32,9 +34,9 @@ for (const viewport of [{ width: 375, height: 812 }, { width: 1440, height: 900 
     const errors = []; page.on('pageerror', error => errors.push(error.message));
     const posts = []; page.on('request', request => { if (request.method() === 'POST' && request.url().endsWith('/api/v1/orders')) posts.push(request); });
     await buildCart(page, shop);
-    const back = page.getByRole('button', { name: 'Voltar e editar' });
+    const back = page.getByRole('button', { name: 'Voltar e editar', exact: true });
     await expectOperableControl(page, back);
-    const logo = page.getByRole('banner').getByRole('button', { name: 'Ferchu Modas, voltar ao início' });
+    const logo = page.getByRole('banner').getByRole('button', { name: 'Ferchu Modas, voltar ao início', exact: true });
     await expectOperableControl(page, logo);
     const backBox = await back.boundingBox(), logoBox = await logo.boundingBox();
     expect(backBox.x >= logoBox.x + logoBox.width || logoBox.x >= backBox.x + backBox.width
@@ -52,7 +54,7 @@ for (const viewport of [{ width: 375, height: 812 }, { width: 1440, height: 900 
     expect(saved[0].items[0].quantity).toBe(15);
     expect(saved[0].totalCents).toBe(viewport.width > 1000 ? 39690 : 37500);
     expect((await shop.prisma.inventoryLevel.findFirst()).reserved).toBe(15);
-    const link = page.getByRole('link', { name: 'Abrir WhatsApp' });
+    const link = page.getByRole('link', { name: 'Abrir WhatsApp', exact: true });
     const href = await link.getAttribute('href');
     expect(new URL(href, shop.origin).searchParams.get('text')).toContain(saved[0].publicNumber);
     // Follow only the local redirect; never open a real conversation.
@@ -68,7 +70,7 @@ for (const viewport of [{ width: 375, height: 812 }, { width: 1440, height: 900 
       const opened = context.waitForEvent('page');
       await link.click();
       const popup = await opened;
-      await expect(popup.getByRole('heading', { name: 'Local handoff' })).toBeVisible();
+      await expect(popup.getByRole('heading', { name: 'Local handoff', exact: true })).toBeVisible();
       await popup.close();
     }
     expect(posts).toHaveLength(1);
@@ -80,13 +82,13 @@ for (const viewport of [{ width: 375, height: 812 }, { width: 1440, height: 900 
 test('E3: registration, order ownership, account reload and logout work across browser/API/database', async ({ page, shop }) => {
   await page.goto(shop.origin);
   await page.getByRole('button', { name: 'Entrar', exact: true }).click();
-  await page.getByRole('button', { name: 'Ainda não tenho conta' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Criar conta' });
+  await page.getByRole('button', { name: 'Ainda não tenho conta', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Criar conta', exact: true });
   await dialog.getByRole('textbox', { name: 'Nome', exact: true }).fill('Ana Silva');
-  await dialog.getByRole('textbox', { name: 'E-mail' }).fill('ana@example.test');
-  await dialog.getByLabel('Senha').fill('correct-horse-42');
+  await dialog.getByRole('textbox', { name: 'E-mail', exact: true }).fill('ana@example.test');
+  await dialog.getByLabel('Senha', { exact: true }).fill('correct-horse-42');
   await dialog.getByRole('button', { name: 'Criar conta', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Olá, Ana.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Olá, Ana.', exact: true })).toBeVisible();
   await buildCart(page, shop);
   await submitGuestOrder(page);
   const saved = await shop.prisma.order.findFirst();
@@ -96,7 +98,7 @@ test('E3: registration, order ownership, account reload and logout work across b
   await expect(page.getByRole('article')).toContainText('375,00');
   await page.reload();
   await expect(page.getByRole('article')).toContainText(saved.publicNumber);
-  await page.getByRole('button', { name: 'Sair da conta' }).click();
+  await page.getByRole('button', { name: 'Sair da conta', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Entrar', exact: true })).toBeVisible();
   expect((await shop.prisma.authSession.findFirst()).revokedAt).not.toBeNull();
   await page.goto(`${shop.origin}/management`);
@@ -106,9 +108,9 @@ test('E3: registration, order ownership, account reload and logout work across b
 test('E2: reduced-motion keyboard navigation stays inside dialogs and returns focus on Escape', async ({ page, shop }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto(shop.origin);
-  const opener = page.getByRole('button', { name: 'Montar pedido' }).first();
+  const opener = catalogCard(page, 'Calça Linho').getByRole('button', { name: 'Montar pedido', exact: true });
   await opener.focus(); await page.keyboard.press('Enter');
-  const dialog = page.getByRole('dialog');
+  const dialog = page.getByRole('dialog', { name: 'Calça Linho', exact: true });
   await expect(dialog.getByRole('button', { name: 'Fechar', exact: true })).toBeFocused();
   await traverseDialog(page, dialog);
   await page.keyboard.press('Escape');
@@ -119,7 +121,7 @@ test('E2: reduced-motion keyboard navigation stays inside dialogs and returns fo
   await traverseDialog(page, page.getByRole('dialog'));
   // The last control switches mode; the new name field must participate too.
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('dialog', { name: 'Criar conta' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Criar conta', exact: true })).toBeVisible();
   await page.keyboard.press('Tab');
   await traverseDialog(page, page.getByRole('dialog'));
   await page.keyboard.press('Escape');
@@ -134,19 +136,20 @@ test('E4: administrator adjustment, confirmation, cancellation and archive agree
   const order = await createOrder(shop.orderInput(variant.id));
   await page.goto(`${shop.origin}/management`);
   await page.getByRole('button', { name: 'Estoque', exact: true }).click();
-  await page.getByRole('button', { name: /Calça Linho/ }).click();
-  await page.getByRole('button', { name: /Preto/ }).click();
-  await page.getByRole('spinbutton', { name: 'Novo estoque de LINHO-PRETO-M' }).fill('65');
+  await page.getByRole('button', { name: /^Calça Linho(?: |$)/ }).click();
+  await page.getByRole('button', { name: /^Preto(?: |$)/ }).click();
+  await page.getByRole('spinbutton', { name: 'Novo estoque de LINHO-PRETO-M', exact: true }).fill('65');
   await page.getByRole('button', { name: 'Definir', exact: true }).click();
-  await expect(page.getByRole('spinbutton', { name: 'Novo estoque de LINHO-PRETO-M' })).toHaveAttribute('placeholder', '65');
+  await expect(page.getByRole('spinbutton', { name: 'Novo estoque de LINHO-PRETO-M', exact: true })).toHaveAttribute('placeholder', '65');
   await page.getByRole('button', { name: 'Pedidos', exact: true }).click();
-  await page.getByRole('combobox').selectOption('CONFIRMADO');
-  await expect(page.getByRole('combobox')).toHaveValue('CONFIRMADO');
+  const orderCard = page.getByRole('article').filter({ has: page.getByText(order.publicNumber, { exact: true }) });
+  await orderCard.getByRole('combobox').selectOption('CONFIRMADO');
+  await expect(orderCard.getByRole('combobox')).toHaveValue('CONFIRMADO');
   await expect.poll(async () => (await shop.prisma.inventoryLevel.findFirst()).onHand).toBe(50);
-  await page.getByRole('combobox').selectOption('CANCELADO');
+  await orderCard.getByRole('combobox').selectOption('CANCELADO');
   await expect.poll(async () => (await shop.prisma.inventoryLevel.findFirst()).onHand).toBe(65);
   page.once('dialog', dialog => dialog.accept());
-  await page.getByRole('button', { name: 'Arquivar', exact: true }).click();
+  await orderCard.getByRole('button', { name: 'Arquivar', exact: true }).click();
   await expect(page.getByText('Nenhum pedido ativo.')).toBeVisible();
   const saved = await shop.prisma.order.findUnique({ where: { id: order.id } });
   expect(saved.archivedById).toBe(admin.user.id);
@@ -169,19 +172,20 @@ test('E5: image upload and cover replacement reach the storefront without destro
   await context.addCookies([{ name: 'ferchu_session', value: admin.cookie.split('=')[1], url: shop.origin }]);
   await page.goto(`${shop.origin}/management`);
   await page.getByRole('button', { name: 'Imagens', exact: true }).click();
-  await page.getByRole('combobox', { name: 'Selecione', exact: true }).selectOption(product.id);
+  const upload = mediaUpload(page);
+  await upload.getByRole('combobox', { name: 'Selecione', exact: true }).selectOption(product.id);
   const option = await shop.prisma.productOption.findFirst();
-  await page.getByRole('combobox', { name: /Cor ou estampa/ }).selectOption(option.id);
-  await page.getByLabel('Descrição').fill('Nova capa');
-  await page.getByLabel('Usar como capa', { exact: true }).check();
-  await page.getByLabel('Arquivo').setInputFiles({ name: 'cover.png', mimeType: 'image/png', buffer: bytes });
-  await page.getByRole('button', { name: 'Enviar imagem' }).click();
-  await expect(page.getByRole('img', { name: 'Nova capa' })).toBeVisible();
+  await upload.getByRole('combobox', { name: 'Cor ou estampa (opcional)', exact: true }).selectOption(option.id);
+  await upload.getByRole('textbox', { name: 'Descrição', exact: true }).fill('Nova capa');
+  await upload.getByRole('checkbox', { name: 'Usar como capa', exact: true }).check();
+  await upload.getByLabel('Escolher arquivo', { exact: true }).setInputFiles({ name: 'cover.png', mimeType: 'image/png', buffer: bytes });
+  await upload.getByRole('button', { name: 'Enviar imagem', exact: true }).click();
+  await expect(mediaLibrary(page).getByRole('img', { name: 'Nova capa', exact: true })).toBeVisible();
   const cover = await shop.prisma.productImage.findFirst({ where: { productId: product.id, type: 'PRIMARY' }, include: { asset: true } });
   expect(cover.assetId).not.toBe(old.id);
   expect(cover.productOptionId).toBe(option.id);
   await page.goto(shop.origin);
-  await expect(page.getByRole('img', { name: 'Calça Linho feminina' }).first()).toHaveAttribute('src', cover.asset.url);
+  await expect(catalogCard(page, product.name).getByRole('img', { name: `${product.name} feminina`, exact: true })).toHaveAttribute('src', cover.asset.url);
   expect((await shop.prisma.orderItem.findFirst({ where: { orderId: order.id } })).imageUrlSnapshot).toBe(oldUrl);
   expect(shop.storage.objects.size).toBe(2);
 });

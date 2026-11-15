@@ -2,6 +2,19 @@ import 'dotenv/config';
 import { z } from 'zod';
 import { databaseUrlSchema } from './database.js';
 
+const shippingHosts = new Set(['melhorenvio.com.br', 'www.melhorenvio.com.br', 'sandbox.melhorenvio.com.br']);
+function allowedShippingOrigin(value, mode) {
+  try {
+    const url = new URL(value);
+    if (url.username || url.password || url.search || url.hash || url.pathname !== '/') return false;
+    if (url.protocol === 'https:' && !url.port && shippingHosts.has(url.hostname)) return true;
+    // Somente fixtures locais podem usar HTTP/porta própria, nunca em produção.
+    return mode !== 'production' && url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
 const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(3001),
@@ -29,7 +42,12 @@ const schema = z.object({
   MELHOR_ENVIO_BASE_URL: z.string().url().default('https://melhorenvio.com.br'),
   MELHOR_ENVIO_TOKEN: z.preprocess(value => value || undefined,
     z.string().min(8).optional()),
+  SHIPPING_QUOTE_CONCURRENCY: z.coerce.number().int().min(1).max(8).default(4),
 }).superRefine((value, ctx) => {
+  if (!allowedShippingOrigin(value.MELHOR_ENVIO_BASE_URL, value.NODE_ENV)) {
+    ctx.addIssue({ code: 'custom', path: ['MELHOR_ENVIO_BASE_URL'],
+      message: 'Use uma origem HTTPS oficial do Melhor Envio, sem credenciais, caminho ou parâmetros. HTTP local é permitido somente fora de produção.' });
+  }
   if (value.NODE_ENV === 'production') {
     if (!value.FRONTEND_ORIGIN.startsWith('https://')) {
       ctx.addIssue({ code: 'custom', path: ['FRONTEND_ORIGIN'], message: 'Produção exige uma origem HTTPS.' });

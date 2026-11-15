@@ -30,8 +30,8 @@ test('S8: logout waits for revocation before navigating away', async () => {
   respond('GET', '/api/v1/orders/me', { orders: [] });
   respond('POST', '/api/v1/auth/logout', () => pending.promise);
   renderPage(<Account />, { waitForSession: true });
-  await userEvent.click(await screen.findByRole('button', { name: 'Sair da conta' }));
-  expect(screen.getByRole('heading', { name: /Olá, Ana/ })).toBeVisible();
+  await userEvent.click(await screen.findByRole('button', { name: 'Sair da conta', exact: true }));
+  expect(screen.getByRole('heading', { name: 'Olá, Ana.', exact: true })).toBeVisible();
   pending.resolve(json({ ok: true }));
-  expect(await screen.findByRole('heading', { name: 'Loja' })).toBeVisible();
+  expect(await screen.findByRole('heading', { name: 'Loja', exact: true })).toBeVisible();
 });

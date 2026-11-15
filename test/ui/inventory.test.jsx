@@ -12,10 +12,10 @@ async function openInventory(variants = [inventory()]) {
   respond('GET', '/api/v1/admin/orders', { orders: [] });
   respond('GET', '/api/v1/admin/inventory', { variants });
   renderPage(<Management />, { waitForSession: true });
-  await userEvent.click(await screen.findByRole('button', { name: 'Estoque' }));
-  await userEvent.click(await screen.findByRole('button', { name: /Calça Linho/ }));
-  await userEvent.click(screen.getByRole('button', { name: /Preto/ }));
-  return screen.getByRole('spinbutton', { name: 'Novo estoque de LINHO-PRETO-M' });
+  await userEvent.click(await screen.findByRole('button', { name: 'Estoque', exact: true }));
+  await userEvent.click(await screen.findByRole('button', { name: /^Calça Linho(?: |$)/ }));
+  await userEvent.click(screen.getByRole('button', { name: /^Preto(?: |$)/ }));
+  return screen.getByRole('spinbutton', { name: 'Novo estoque de LINHO-PRETO-M', exact: true });
 }
 const mutations = () => requests.filter(request => request.method === 'POST');
 
@@ -81,11 +81,11 @@ test('G3: batch retry does not repeat adjustments already accepted', async () =>
       : json({ inventory: { onHand: 40, reserved: 0, available: 40 } });
   });
   await openInventory([inventory(), inventory({ id: 'variant-2', sku: 'LINHO-PRETO-G', size: 'G', reserved: 0, available: 30 })]);
-  await userEvent.type(screen.getByPlaceholderText('Novo estoque'), '40');
-  await userEvent.click(screen.getByRole('button', { name: 'Definir lote' }));
+  await userEvent.type(screen.getByPlaceholderText('Novo estoque', { exact: true }), '40');
+  await userEvent.click(screen.getByRole('button', { name: 'Definir lote', exact: true }));
   expect(await screen.findByText(/aplicado parcialmente/)).toHaveTextContent('G');
-  await userEvent.click(screen.getByRole('button', { name: 'Definir lote' }));
-  await waitFor(() => expect(screen.getByPlaceholderText('Novo estoque')).toHaveValue(null));
+  await userEvent.click(screen.getByRole('button', { name: 'Definir lote', exact: true }));
+  await waitFor(() => expect(screen.getByPlaceholderText('Novo estoque', { exact: true })).toHaveValue(null));
   expect(mutations().map(request => [request.url.pathname, JSON.parse(request.body).delta])).toEqual([
     ['/api/v1/admin/inventory/variant-1/adjust', 10],
     ['/api/v1/admin/inventory/variant-2/adjust', 10],
@@ -94,14 +94,14 @@ test('G3: batch retry does not repeat adjustments already accepted', async () =>
 });
 
 test('G3: a reservation in any size blocks the entire batch, and unchanged sizes never produce adjustments', async () => {  await openInventory([inventory({ reserved: 0 }), inventory({ id: 'variant-2', sku: 'LINHO-PRETO-G', size: 'G', onHand: 40, reserved: 5, available: 35 })]);
-  const batch = screen.getByPlaceholderText('Novo estoque');
+  const batch = screen.getByPlaceholderText('Novo estoque', { exact: true });
   await userEvent.type(batch, '4');
-  await userEvent.click(screen.getByRole('button', { name: 'Definir lote' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Definir lote', exact: true }));
   expect(mutations()).toHaveLength(0);
   expect(await screen.findByText(/possui 5 unidades reservadas/)).toBeVisible();
   respond('POST', '/api/v1/admin/inventory/variant-2/adjust', { inventory: { onHand: 30, reserved: 5, available: 25 } });
   await userEvent.clear(batch); await userEvent.type(batch, '30');
-  await userEvent.click(screen.getByRole('button', { name: 'Definir lote' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Definir lote', exact: true }));
   await waitFor(() => expect(batch).toHaveValue(null));
   expect(mutations()).toHaveLength(1);
   expect(mutations()[0].url.pathname).toBe('/api/v1/admin/inventory/variant-2/adjust');
@@ -116,10 +116,10 @@ test('G3: inactive variants stay out of the inventory grouping and summary count
     inventory({ id: 'variant-2', sku: 'LINHO-CREME-M', option: 'Creme', active: false, available: 40 }),
   ] });
   renderPage(<Management />, { waitForSession: true });
-  await userEvent.click(await screen.findByRole('button', { name: 'Estoque' }));
+  await userEvent.click(await screen.findByRole('button', { name: 'Estoque', exact: true }));
   expect(await screen.findByText(/1 cores/)).toBeVisible();
   const summary = screen.getByText('variações').closest('.inventory-summary');
   expect(summary.querySelector('strong')).toHaveTextContent('1');
-  await userEvent.click(screen.getByRole('button', { name: /Calça Linho/ }));
-  expect(screen.queryByRole('button', { name: /Creme/ })).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: /^Calça Linho(?: |$)/ }));
+  expect(screen.queryByRole('button', { name: /^Creme(?: |$)/ })).not.toBeInTheDocument();
 });

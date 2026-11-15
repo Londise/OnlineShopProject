@@ -7,7 +7,11 @@ import { build } from 'vite';
 
 const directory = await mkdtemp(join(process.env.LOCALAPPDATA ? join(process.env.LOCALAPPDATA, 'Temp', 'opencode') : tmpdir(), 'ferchu-build-'));
 const marker = 'FERCHU_SERVER_ONLY_CANARY_8c9492e9';
-const canaries = { ORIGIN_PROXY_SECRET: marker, RENDER_BACKEND_URL: 'https://FERCHU_PRIVATE_BACKEND_CANARY.example.test' };
+const canaries = {
+  ORIGIN_PROXY_SECRET: marker,
+  RENDER_BACKEND_URL: 'https://FERCHU_PRIVATE_BACKEND_CANARY.example.test',
+  MELHOR_ENVIO_TOKEN: 'FERCHU_PROVIDER_TOKEN_CANARY_8c9492e9',
+};
 const originals = Object.fromEntries(Object.keys(canaries).map(key => [key, process.env[key]]));
 Object.assign(process.env, canaries);
 try {

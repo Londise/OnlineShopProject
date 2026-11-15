@@ -2,6 +2,7 @@ import { test as base, expect } from '@playwright/test';
 import { createServer } from 'vite';
 import { fileURLToPath } from 'node:url';
 import { catalogProduct } from '../support/fixtures.js';
+import { catalogCard } from './locators.js';
 
 const test = base.extend({
   storefront: [async ({}, use) => {
@@ -42,8 +43,8 @@ async function openBuilder(page, origin, count) {
     return url.origin === new URL(origin).origin ? route.continue() : route.abort();
   });
   await page.goto(origin);
-  await page.getByRole('button', { name: 'Montar pedido', exact: true }).first().click();
-  return page.getByRole('dialog');
+  await catalogCard(page, product.name).getByRole('button', { name: 'Montar pedido', exact: true }).click();
+  return page.getByRole('dialog', { name: product.name, exact: true });
 }
 
 for (const [width, height, count, rows] of [[1366, 768, 10, 5], [1366, 650, 14, 7], [800, 768, 8, 5]]) {

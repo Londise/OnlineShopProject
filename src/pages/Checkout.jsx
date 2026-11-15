@@ -117,6 +117,7 @@ export default function Checkout() {
   const [quoteKey, setQuoteKey] = useState(null);
 
   const [quoting, setQuoting] = useState(false);
+  const quoteRequest = useRef(null);
 
   const [shippingError, setShippingError] = useState("");
 
@@ -141,12 +142,19 @@ export default function Checkout() {
     }
   }, [qtyTotal, navigate, confirmed]);
 
-  // A estimativa de embalagem depende da quantidade de peças: qualquer
-  // mudança no pedido invalida as cotações já apresentadas.
+  // Invalida também a consulta em andamento, não só as opções já exibidas.
+  // A identidade do controller protege inclusive contra respostas fora de ordem.
   useEffect(() => {
     setQuotes(null);
     setQuoteKey(null);
-  }, [qtyTotal]);
+    setShippingError("");
+    setQuoting(false);
+    return () => {
+      const pending = quoteRequest.current;
+      quoteRequest.current = null;
+      pending?.abort();
+    };
+  }, [cep, qtyTotal, chosen]);
 
   /*
    * ==========================================================
@@ -261,7 +269,6 @@ export default function Checkout() {
         );
       }
 
-      const message = buildOrderMessage({ lines, qtyTotal, selectedDelivery });
       submitting.current = true;
       setSending(true);
 
@@ -305,9 +312,21 @@ export default function Checkout() {
       });
 
       createdOrder.current = order;
+      // O servidor recota o frete. Preserva os itens/modalidade enviados,
+      // mas usa o importe confirmado na resposta, inclusive zero ou null.
+      const message = buildOrderMessage({
+        lines,
+        qtyTotal,
+        selectedDelivery: {
+          ...selectedDelivery,
+          price: order.shippingAmountCents == null ? null : order.shippingAmountCents / 100,
+          pending: order.shippingAmountCents == null,
+        },
+        orderNumber: order.publicNumber,
+      });
       setConfirmed({
         number: order.publicNumber,
-        url: buildWhatsAppUrl(`Pedido: ${order.publicNumber}\n${message}`),
+        url: buildWhatsAppUrl(message),
       });
       clearCart(lines);
     } catch (error) {
@@ -353,14 +372,20 @@ export default function Checkout() {
       return;
     }
 
+    quoteRequest.current?.abort();
+    const controller = new AbortController();
+    quoteRequest.current = controller;
+    setQuotes(null);
+    setQuoteKey(null);
     setShippingError("");
     setQuoting(true);
 
     try {
-      const { options } = await api.shipping.quote({
-        postalCode: parsed.data,
-        pieces: qtyTotal,
-      });
+      const { options } = await api.shipping.quote(
+        { postalCode: parsed.data, pieces: qtyTotal },
+        { signal: controller.signal },
+      );
+      if (quoteRequest.current !== controller) return;
 
       setQuotes(options);
       setQuoteKey(options[0]?.key ?? null);
@@ -371,6 +396,7 @@ export default function Checkout() {
         );
       }
     } catch (error) {
+      if (quoteRequest.current !== controller) return;
       setQuotes(null);
       setQuoteKey(null);
       setShippingError(
@@ -379,7 +405,10 @@ export default function Checkout() {
           : "Não foi possível calcular o frete agora. Tente novamente.",
       );
     } finally {
-      setQuoting(false);
+      if (quoteRequest.current === controller) {
+        quoteRequest.current = null;
+        setQuoting(false);
+      }
     }
   };
 

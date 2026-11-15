@@ -8,6 +8,36 @@ import {
 } from './shipping.service.js';
 
 const QUOTE_PATH = '/api/v2/me/shipment/calculate';
+const MAX_RESPONSE_BYTES = 512 * 1024;
+const MAX_SERVICES = 200;
+const quoteFailed = () => new AppError(502, 'SHIPPING_QUOTE_FAILED', 'A consulta de frete falhou. Tente novamente em instantes.');
+
+async function readQuoteResponse(response) {
+  const reader = response.body?.getReader();
+  if (!reader) throw quoteFailed();
+  try {
+    if (Number(response.headers.get('content-length')) > MAX_RESPONSE_BYTES) throw quoteFailed();
+    // Limite sobre os bytes efetivamente lidos (inclusive conteúdo descomprimido),
+    // sem confiar no Content-Length enviado pelo provedor.
+    const buffer = Buffer.alloc(MAX_RESPONSE_BYTES);
+    let size = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (size + value.byteLength > MAX_RESPONSE_BYTES) throw quoteFailed();
+      buffer.set(value, size);
+      size += value.byteLength;
+    }
+    const quotes = JSON.parse(buffer.toString('utf8', 0, size));
+    if (!Array.isArray(quotes) || quotes.length > MAX_SERVICES) throw quoteFailed();
+    return quotes;
+  } catch {
+    await reader.cancel().catch(() => {});
+    throw quoteFailed();
+  } finally {
+    reader.releaseLock();
+  }
+}
 
 /**
  * Cotação de um conjunto de volumes no Melhor Envio.
@@ -43,30 +73,22 @@ export async function requestQuote(config, { postalCode, volumes }, fetchImpl = 
       },
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(8_000),
+      redirect: 'error',
     });
-  } catch (error) {
-    if (error instanceof AppError) throw error;
+  } catch {
     throw new AppError(503, 'SHIPPING_UNAVAILABLE', 'Não foi possível consultar o frete agora. Tente novamente em instantes.');
   }
-  if (!response.ok) {
-    throw new AppError(502, 'SHIPPING_QUOTE_FAILED', 'A consulta de frete falhou. Tente novamente em instantes.');
+  if (!response.ok || !/\bapplication\/(?:[\w.-]+\+)?json\b/i.test(response.headers.get('content-type') ?? '')) {
+    await response.body?.cancel().catch(() => {});
+    throw quoteFailed();
   }
-  let quotes;
-  try {
-    quotes = await response.json();
-  } catch {
-    throw new AppError(502, 'SHIPPING_QUOTE_FAILED', 'A consulta de frete falhou. Tente novamente em instantes.');
-  }
-  if (!Array.isArray(quotes)) {
-    throw new AppError(502, 'SHIPPING_QUOTE_FAILED', 'A consulta de frete falhou. Tente novamente em instantes.');
-  }
-  return quotes;
+  return readQuoteResponse(response);
 }
 
 /**
  * Planeja as embalagens e consulta o Melhor Envio uma vez por embalagem,
- * conforme a regra da loja: acima de 30 kg a Jadlog é cotada em um volume
- * (até 50 kg) e as demais transportadoras em embalagens separadas, somadas
+ * conforme a regra da loja: acima de 30 kg a Jadlog é cotada em um ou mais
+ * volumes (até 50 kg cada) e as demais em embalagens de até 30 kg, somadas
  * apenas quando o mesmo serviço atende todas as embalagens.
  *
  * Retorna todas as opções válidas (sem a LATAM Cargo) ordenadas por preço;
@@ -97,5 +119,22 @@ export async function quoteShippingOptions(
   };
 }
 
-export const defaultShippingQuoter = ({ postalCode, pieces }) =>
-  quoteShippingOptions(env, { postalCode, pieces });
+export function createShippingQuoter(config, dependencies = {}) {
+  let active = 0;
+  const limit = config.SHIPPING_QUOTE_CONCURRENCY ?? 4;
+  return async (input) => {
+    if (active >= limit) {
+      throw new AppError(503, 'SHIPPING_BUSY', 'Muitas consultas de frete em andamento. Tente novamente em instantes.');
+    }
+    active++;
+    try {
+      return await quoteShippingOptions(config, input, dependencies);
+    } finally {
+      active--;
+    }
+  };
+}
+
+// Uma capacidade compartilhada para o endpoint público e a recotação de pedidos.
+// Sem fila ilimitada e com liberação mesmo após erro/timeout do provedor.
+export const defaultShippingQuoter = createShippingQuoter(env);

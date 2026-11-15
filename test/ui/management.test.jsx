@@ -36,45 +36,45 @@ test('G4: refresh blocks repeated interactions while its request is pending', as
   await openManagement(); await screen.findByText('FM-20261111-ABC12345');
   const pending = deferred(); let calls = 0;
   respond('GET', '/api/v1/admin/orders', () => { calls++; return pending.promise; });
-  await userEvent.dblClick(screen.getByRole('button', { name: 'Atualizar' }));
+  await userEvent.dblClick(screen.getByRole('button', { name: 'Atualizar', exact: true }));
   expect(calls).toBe(1);
-  expect(screen.getByRole('button', { name: 'Atualizar' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Atualizar', exact: true })).toBeDisabled();
   await act(async () => pending.resolve(json({ orders: [savedOrder()] })));
-  expect(screen.getByRole('button', { name: 'Editar pedido' })).toBeVisible();
-  expect(screen.getByRole('button', { name: 'Atualizar' })).toBeEnabled();
+  expect(screen.getByRole('button', { name: 'Editar pedido', exact: true })).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Atualizar', exact: true })).toBeEnabled();
 });
 
 test('G4: a mutation from an abandoned tab cannot close the editor opened after returning', async () => {
   await openManagement();
-  await userEvent.click(await screen.findByRole('button', { name: 'Editar pedido' }));
+  await userEvent.click(await screen.findByRole('button', { name: 'Editar pedido', exact: true }));
   const pending = deferred();
   respond('PATCH', '/api/v1/admin/orders/order-internal-1', () => pending.promise);
-  await userEvent.click(screen.getByRole('button', { name: 'Salvar alterações' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Salvar alterações', exact: true }));
   await userEvent.click(screen.getByRole('button', { name: 'Estoque', exact: true }));
   await userEvent.click(screen.getByRole('button', { name: 'Pedidos', exact: true }));
-  await userEvent.click(await screen.findByRole('button', { name: 'Editar pedido' }));
-  const paid = screen.getByRole('textbox', { name: 'Valor pago (R$)' });
+  await userEvent.click(await screen.findByRole('button', { name: 'Editar pedido', exact: true }));
+  const paid = screen.getByRole('textbox', { name: 'Valor pago (R$)', exact: true });
   await userEvent.clear(paid); await userEvent.type(paid, '45,67');
   await act(async () => pending.resolve(json({ order: savedOrder() })));
-  expect(screen.getByRole('textbox', { name: 'Valor pago (R$)' })).toHaveValue('45,67');
+  expect(screen.getByRole('textbox', { name: 'Valor pago (R$)', exact: true })).toHaveValue('45,67');
 });
 
 test('G5: edits send cents and omit removed items, preserving the editor on error before successful retry', async () => {
   await openManagement();
-  await userEvent.click(await screen.findByRole('button', { name: 'Editar pedido' }));
-  const paid = screen.getByRole('textbox', { name: 'Valor pago (R$)' });
+  await userEvent.click(await screen.findByRole('button', { name: 'Editar pedido', exact: true }));
+  const paid = screen.getByRole('textbox', { name: 'Valor pago (R$)', exact: true });
   await userEvent.clear(paid); await userEvent.type(paid, '12,34');
-  const quantity = screen.getByRole('spinbutton', { name: 'Calça Linho – Preto / G' });
+  const quantity = screen.getByRole('spinbutton', { name: 'Calça Linho – Preto / G', exact: true });
   await userEvent.clear(quantity); await userEvent.type(quantity, '0');
   respond('PATCH', '/api/v1/admin/orders/order-internal-1', () => json({ error: { message: 'Conflict saving order' } }, 409));
-  await userEvent.click(screen.getByRole('button', { name: 'Salvar alterações' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Salvar alterações', exact: true }));
   expect(await screen.findByText('Conflict saving order')).toBeVisible();
   expect(paid).toHaveValue('12,34'); expect(quantity).toHaveValue(0);
   expect(JSON.parse(mutations()[0].body)).toEqual({ paidAmountCents: 1234, items: [{ variantId: 'variant-1', quantity: 15 }] });
   respond('PATCH', '/api/v1/admin/orders/order-internal-1', { order: savedOrder() });
   respond('GET', '/api/v1/admin/orders', { orders: [order({ ...savedOrder(), paidAmountCents: 1234, totalCents: 37500, items: [items[0]] })] });
-  await userEvent.click(screen.getByRole('button', { name: 'Salvar alterações' }));
-  await waitFor(() => expect(screen.queryByRole('button', { name: 'Salvar alterações' })).not.toBeInTheDocument());
+  await userEvent.click(screen.getByRole('button', { name: 'Salvar alterações', exact: true }));
+  await waitFor(() => expect(screen.queryByRole('button', { name: 'Salvar alterações', exact: true })).not.toBeInTheDocument());
   expect(await screen.findByText(/15 peças/)).toBeVisible();
 });
 
@@ -99,13 +99,13 @@ test.each([['Catálogo', 'products', { ...catalogProduct(), active: true }], ['B
     respond('PATCH', `/api/v1/admin/${path}/${item.id}`, { [path === 'products' ? 'product' : 'banner']: { ...item, active: false } });
     respond('GET', `/api/v1/admin/${path}`, { [path]: [{ ...item, active: false }] });
     const label = path === 'products' ? 'Calça Linho' : 'Novidades';
-    await userEvent.click(await screen.findByRole('button', { name: `Desativar ${label}` }));
-    expect(await screen.findByRole('button', { name: `Ativar ${label}` })).toBeVisible();
+    await userEvent.click(await screen.findByRole('button', { name: `Desativar ${label}`, exact: true }));
+    expect(await screen.findByRole('button', { name: `Ativar ${label}`, exact: true })).toBeVisible();
     expect(JSON.parse(mutations()[0].body)).toEqual({ active: false });
     respond('PATCH', `/api/v1/admin/${path}/${item.id}`, () => json({ error: { message: 'Toggle failed' } }, 409));
-    await userEvent.click(screen.getByRole('button', { name: `Ativar ${label}` }));
+    await userEvent.click(screen.getByRole('button', { name: `Ativar ${label}`, exact: true }));
     expect(await screen.findByText('Toggle failed')).toBeVisible();
-    expect(screen.getByRole('button', { name: `Ativar ${label}` })).toBeVisible();
+    expect(screen.getByRole('button', { name: `Ativar ${label}`, exact: true })).toBeVisible();
   },
 );
 
@@ -115,10 +115,10 @@ test('G6: an empty administrative listing differs from failure and can recover b
   await userEvent.click(screen.getByRole('button', { name: 'Catálogo', exact: true }));
   expect(await screen.findByText('Nenhum registro encontrado.')).toBeVisible();
   respond('GET', '/api/v1/admin/products', () => json({ error: { message: 'Catalog load failed' } }, 409));
-  await userEvent.click(screen.getByRole('button', { name: 'Atualizar' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Atualizar', exact: true }));
   expect(await screen.findByText('Catalog load failed')).toBeVisible();
   respond('GET', '/api/v1/admin/products', { products: [catalogProduct()] });
-  await userEvent.click(screen.getByRole('button', { name: 'Atualizar' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Atualizar', exact: true }));
   expect(await screen.findByText('Calça Linho')).toBeVisible();
   expect(screen.queryByText('Catalog load failed')).not.toBeInTheDocument();
 });

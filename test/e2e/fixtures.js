@@ -5,6 +5,7 @@ import { createServer } from 'node:net';
 import { createServer as createHttpServer } from 'node:http';
 import { startTestDatabase } from '../../server/test-support/postgres.js';
 import { startStorage } from '../../server/test-support/storage.js';
+import { catalogCard } from './locators.js';
 
 export { expect };
 export const test = base.extend({
@@ -74,27 +75,29 @@ export const test = base.extend({
 
 export async function buildCart(page, shop) {
   await page.goto(shop.origin);
-  await page.getByRole('button', { name: 'Montar pedido' }).first().click();
-  await page.getByRole('textbox', { name: 'Quantidade tamanho M' }).fill('15');
-  await page.getByRole('button', { name: 'Adicionar 15 peças' }).click();
-  await page.getByRole('button', { name: 'Fechar', exact: true }).click();
-  await page.getByRole('button', { name: /^Pedido/ }).click();
-  await page.getByRole('button', { name: 'Continuar pedido' }).click();
+  await catalogCard(page, 'Calça Linho').getByRole('button', { name: 'Montar pedido', exact: true }).click();
+  const builder = page.getByRole('dialog', { name: 'Calça Linho', exact: true });
+  await builder.getByRole('textbox', { name: 'Quantidade tamanho M', exact: true }).fill('15');
+  await builder.getByRole('button', { name: 'Adicionar 15 peças', exact: true }).click();
+  await builder.getByRole('button', { name: 'Fechar', exact: true }).click();
+  await page.getByRole('button', { name: 'Pedido, 15 peças', exact: true }).click();
+  await page.getByRole('complementary', { name: 'Seu pedido', exact: true }).getByRole('button', { name: 'Continuar pedido', exact: true }).click();
 }
 
 export async function submitGuestOrder(page, { correios = false, beforeSubmit } = {}) {
-  await page.getByRole('textbox', { name: 'Seu nome' }).fill('Ana Silva');
+  await page.getByRole('textbox', { name: 'Seu nome', exact: true }).fill('Ana Silva');
   await page.getByRole('textbox', { name: 'WhatsApp', exact: true }).fill('11999998888');
-  await page.getByRole('button', { name: correios ? /Transportadora/ : /Excursão/ }).click();
+  await page.getByRole('button', { name: correios ? 'Transportadora Frete estimado pelo CEP' : 'Excursão Sem necessidade de CEP', exact: true }).click();
   if (correios) {
-    await page.getByRole('textbox', { name: 'Seu CEP' }).fill('01001000');
-    await page.getByRole('button', { name: 'Calcular estimativa' }).click();
-    await page.getByRole('button', { name: /Correios PAC/ }).waitFor();
+    await page.getByRole('textbox', { name: 'Seu CEP', exact: true }).fill('01001000');
+    await page.getByRole('button', { name: 'Calcular estimativa', exact: true }).click();
+    // A identidade é fixa; volumes, prazo e preço completam o nome do botão.
+    await page.getByRole('button', { name: /^Correios PAC / }).waitFor();
   }
-  const submit = page.getByRole('button', { name: 'Enviar pedido pelo WhatsApp' });
+  const submit = page.getByRole('button', { name: 'Enviar pedido pelo WhatsApp', exact: true });
   await beforeSubmit?.(submit);
   await submit.click();
-  await expect(page.getByRole('heading', { name: 'Pedido recebido' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Pedido recebido', exact: true })).toBeVisible();
 }
 
 // O backend do teste nunca deve alcançar o Melhor Envio real: um stub local

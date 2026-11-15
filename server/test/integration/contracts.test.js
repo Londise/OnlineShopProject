@@ -138,6 +138,30 @@ test('O5: CORREIOS orders fail cleanly when freight quoting is unavailable and p
   assert.equal(await prisma.inventoryMovement.count(), 0);
 });
 
+test('O5: creation ignores client freight prices and persists the recalculated server amount', async t => {
+  const { variant } = await catalogFixture();
+  const quoteShipping = async input => {
+    const result = await fakeShippingQuote(input);
+    result.options[0].price = 35.5;
+    return result;
+  };
+  const api = await serve(createApp({ shippingQuote: quoteShipping })); t.after(api.close);
+  const response = await api.request('/api/v1/orders', post({
+    ...orderInput(variant.id),
+    shippingAmountCents: 0, totalCents: 1,
+    delivery: {
+      method: 'CORREIOS', postalCode: '01310-100', price: 0,
+      shippingQuote: { company: 'Correios', service: 'PAC', volumes: 1, price: 0, amountCents: 0 },
+    },
+  }));
+  assert.equal(response.status, 201);
+  const { order } = await response.json();
+  assert.equal(order.shippingAmountCents, 3550);
+  assert.equal(order.totalCents, 37500 + 3550);
+  const persisted = await prisma.order.findUnique({ where: { id: order.id } });
+  assert.equal(persisted.shippingAmountCents, 3550);
+});
+
 test('O1: orders outside the 10–400 piece range are rejected with the matching code', async t => {
   const { variant } = await catalogFixture(); const api = await serve(); t.after(api.close);
   const below = await api.request('/api/v1/orders', post(orderInput(variant.id, 9)));

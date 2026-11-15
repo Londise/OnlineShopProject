@@ -56,15 +56,15 @@ test('S8: login errors remain editable, and pending resubmission creates only on
   respond('GET', '/api/v1/auth/me', { user: null });
   respond('POST', '/api/v1/auth/login', () => json({ error: { message: 'Credenciais inválidas' } }, 401));
   render(<SignIn />);
-  await userEvent.type(screen.getByRole('textbox', { name: 'E-mail' }), customer.email);
-  await userEvent.type(screen.getByLabelText('Senha'), 'test-password-42');
+  await userEvent.type(screen.getByRole('textbox', { name: 'E-mail', exact: true }), customer.email);
+  await userEvent.type(screen.getByLabelText('Senha', { exact: true }), 'test-password-42');
   await userEvent.click(screen.getByRole('button', { name: 'Entrar', exact: true }));
   expect(await screen.findByRole('alert')).toHaveTextContent('Credenciais inválidas');
   const pending = deferred();
   respond('POST', '/api/v1/auth/login', () => pending.promise);
   await userEvent.dblClick(screen.getByRole('button', { name: 'Entrar', exact: true }));
   expect(requests.filter(request => request.method === 'POST')).toHaveLength(2); // rejected + pending
-  expect(screen.getByRole('button', { name: 'Aguarde…' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Aguarde…', exact: true })).toBeDisabled();
   await act(async () => pending.resolve(json({ user: customer })));
-  expect(screen.getByRole('heading', { name: customer.name })).toBeVisible();
+  expect(screen.getByRole('heading', { name: customer.name, exact: true })).toBeVisible();
 });

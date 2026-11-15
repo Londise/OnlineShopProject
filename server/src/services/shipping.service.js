@@ -93,7 +93,7 @@ export function splitVolumes(pieces, maxWeightKg) {
 /**
  * Cenários de cotação:
  *  - SINGLE: até 30 kg, um volume atende todas as transportadoras.
- *  - JADLOG: acima de 30 kg, um volume (até 50 kg) para a Jadlog.
+ *  - JADLOG: acima de 30 kg, um ou mais volumes de até 50 kg CADA.
  *  - OTHER:  acima de 30 kg, demais transportadoras cotadas em embalagens
  *    separadas, cada uma dentro do limite próprio (30 kg para os Correios).
  */
@@ -110,11 +110,20 @@ export function volumeLabel(count) {
   return count === 1 ? '1 volume' : `${count} volumes (envios separados)`;
 }
 
+function quoteName(value) {
+  if (typeof value !== 'string' || value.trim().length > 100 || /[\u0000-\u001f\u007f]/.test(value)) return '';
+  return value.trim();
+}
+
 export function normalizeQuote(raw) {
+  const invalid = { company: '', service: '', price: NaN, days: NaN };
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw) || raw.error != null) return invalid;
+  const price = raw.custom_price ?? raw.price;
+  const isDecimal = typeof price === 'number' || (typeof price === 'string' && /^\d+(?:\.\d{1,2})?$/.test(price));
   return {
-    company: raw.company?.name ?? '',
-    service: raw.name ?? '',
-    price: Number(raw.custom_price ?? raw.price),
+    company: quoteName(raw.company?.name),
+    service: quoteName(raw.name),
+    price: isDecimal ? Number(price) : NaN,
     days: Number(raw.custom_delivery_time ?? raw.delivery_time),
   };
 }
@@ -124,7 +133,7 @@ export function normalizeQuote(raw) {
  * "Transportadora não atende este trecho") nunca é uma opção válida.
  */
 export function hasUsablePrice(quote) {
-  return Number.isFinite(quote.price) && quote.price >= 0;
+  return Number.isFinite(quote.price) && quote.price >= 0 && quote.price <= 2147483647 / 100;
 }
 
 /**
@@ -136,7 +145,7 @@ export function combineVolumeQuotes(perVolumeQuotes, { jadlogOnly = false, other
   if (!perVolumeQuotes.length) return [];
   const keyOf = (quote) => `${quote.company}\u0000${quote.service}`;
   const eligible = (quote) => {
-    if (!quote.company || LATAM_COMPANY.test(quote.company)) return false;
+    if (!quote.company || !quote.service || LATAM_COMPANY.test(quote.company)) return false;
     if (!hasUsablePrice(quote)) return false;
     if (jadlogOnly && !JADLOG_COMPANY.test(quote.company)) return false;
     if (otherCarriersOnly && JADLOG_COMPANY.test(quote.company)) return false;
@@ -155,7 +164,7 @@ export function combineVolumeQuotes(perVolumeQuotes, { jadlogOnly = false, other
         continue;
       }
       const entry = combined.get(key);
-      entry.price += match.price;
+      entry.price = Math.round((entry.price + match.price) * 100) / 100;
       entry.days = Math.max(entry.days, match.days);
     }
   }

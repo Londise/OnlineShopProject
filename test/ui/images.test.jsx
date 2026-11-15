@@ -9,7 +9,7 @@ const src = 'https://images-test.supabase.co/storage/v1/object/public/storefront
 test('I3: a failed transform falls back once to the original and a new source can optimize again', () => {
   const onFinalError = vi.fn();
   const view = render(<ResponsiveImage src={src} alt="Calça" sourceWidth={600} sourceHeight={900} onFinalError={onFinalError} />);
-  const image = screen.getByRole('img', { name: 'Calça' });
+  const image = screen.getByRole('img', { name: 'Calça', exact: true });
   expect(image.src).toContain('/render/image/public/');
   expect(image).toHaveAttribute('srcset');
   fireEvent.error(image);
@@ -26,7 +26,7 @@ test('I3: a failed transform falls back once to the original and a new source ca
 test('I3/V3: final hero image failure releases the storefront loading gate', () => {
   const ready = vi.fn();
   render(<HeroImage src={src} alt="Banner" sourceWidth={1200} sourceHeight={600} onSettled={ready} />);
-  const image = screen.getByRole('img', { name: 'Banner' });
+  const image = screen.getByRole('img', { name: 'Banner', exact: true });
   fireEvent.error(image);
   expect(ready).not.toHaveBeenCalled();
   fireEvent.error(image);

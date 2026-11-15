@@ -113,6 +113,12 @@ test('E4: carrier error entries without a price never become options', () => {
   assert.deepEqual(selectShippingOptions([quotes[0], quotes[1]]).map((option) => option.company), ['Jadlog']);
 });
 
+test('E4: summed package prices outside the order amount range are discarded', () => {
+  const expensive = { company: 'Correios', service: 'PAC', price: 15_000_000, days: 5 };
+  const combined = combineVolumeQuotes([[expensive], [expensive]]);
+  assert.deepEqual(selectShippingOptions(combined), []);
+});
+
 test('E5: selection dedupes identical services keeping the cheapest and sorts ascending', () => {
   const selected = selectShippingOptions([
     { company: 'Jadlog', service: '.Package', price: 18, days: 3, volumes: 1, key: 'Jadlog|.Package|1' },
