@@ -60,8 +60,8 @@ function volumeLabel(volumes) {
 
 function daysLabel(days) {
   return days > 0
-    ? `${days} ${days > 1 ? "dias" : "dia"} útil${
-        days > 1 ? "eis" : ""
+    ? `${days} ${days > 1 ? "dias" : "dia"} ${
+        days > 1 ? "úteis" : "útil"
       }`
     : "Prazo a confirmar";
 }

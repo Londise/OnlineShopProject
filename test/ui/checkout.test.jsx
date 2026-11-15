@@ -140,6 +140,8 @@ test('O5: the two quoted options are shown, the cheapest is pre-selected and eac
   expect(screen.getByText('Correios PAC')).toBeVisible();
   expect(screen.getByText('Jadlog Jadlog .Package')).toBeVisible();
   expect(screen.getByText('2 volumes (envios separados)')).toBeVisible();
+  expect(screen.getByText('5 dias úteis')).toBeVisible(); // pluralização correta
+  expect(screen.getByText('3 dias úteis')).toBeVisible();
   const submit = screen.getByRole('button', { name: /Enviar pedido/ });
   expect(submit).toBeEnabled();
   expect(screen.getByText(/396,90/)).toBeVisible(); // 375,00 + 21,90
