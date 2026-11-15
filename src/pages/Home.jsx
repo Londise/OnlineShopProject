@@ -479,7 +479,7 @@ export default function Home() {
 
             <b>Somente atacado</b>
 
-            <small>Pedido mínimo 15 peças</small>
+            <small>Pedido mínimo 10 peças</small>
           </div>
 
           <div>

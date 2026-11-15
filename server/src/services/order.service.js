@@ -1,11 +1,12 @@
 import { prisma } from "../db/prisma.js";
 import { lockInventories } from "../db/inventory.js";
 import { serializableTransaction } from "../db/transaction.js";
-import { MIN_ORDER_QUANTITY } from "../config/business.js";
+import { MAX_ORDER_QUANTITY, MIN_ORDER_QUANTITY } from "../config/business.js";
 import { AppError, notFound } from "../lib/errors.js";
 import { logInfo } from "../lib/logger.js";
 import { publicOrderNumber } from "../lib/security.js";
-import { calculateShipping } from "./shipping.service.js";
+import { volumeLabel } from "./shipping.service.js";
+import { defaultShippingQuoter } from "./melhor-envio.service.js";
 import { writeAudit } from "./audit.service.js";
 
 const variantInclude = {
@@ -207,10 +208,51 @@ async function moveForStatus(
   }
 }
 
-export async function createOrder(input, user) {
-  const items = aggregateItems(input.items);
-  if (items.reduce((total, item) => total + item.quantity, 0) < MIN_ORDER_QUANTITY)
+function assertPieceRange(items) {
+  const pieces = items.reduce((total, item) => total + item.quantity, 0);
+  if (pieces < MIN_ORDER_QUANTITY)
     throw new AppError(422, "MINIMUM_ORDER", `O pedido mínimo é de ${MIN_ORDER_QUANTITY} peças.`);
+  if (pieces > MAX_ORDER_QUANTITY)
+    throw new AppError(422, "MAXIMUM_ORDER", `O pedido máximo é de ${MAX_ORDER_QUANTITY} peças.`);
+  return pieces;
+}
+
+/**
+ * O valor apresentado no checkout é uma ESTIMATIVA: o servidor consulta
+ * novamente o Melhor Envio e usa o preço recalculado, nunca o preço do
+ * navegador. A consulta externa acontece antes da transação de estoque.
+ */
+async function resolveShippingQuote(delivery, pieces, quoteShipping) {
+  if (delivery.method === "EXCURSAO")
+    return { amountCents: null, detail: "Valor da excursão confirmado após o pedido." };
+  const quoter = quoteShipping ?? defaultShippingQuoter;
+  const { options } = await quoter({
+    postalCode: delivery.postalCode.replace(/\D/g, ""),
+    pieces,
+  });
+  const match = options.find(
+    (option) =>
+      option.company === delivery.shippingQuote?.company &&
+      option.service === delivery.shippingQuote?.service &&
+      option.volumes === delivery.shippingQuote?.volumes,
+  );
+  if (!match)
+    throw new AppError(
+      422,
+      "SHIPPING_QUOTE_CHANGED",
+      "O frete mudou desde o cálculo. Recalcule a estimativa antes de enviar o pedido.",
+    );
+  return {
+    amountCents: orderInt(Math.round(match.price * 100)),
+    detail: `Frete estimado: ${match.company} ${match.service} · ${volumeLabel(match.volumes)}`,
+  };
+}
+
+export async function createOrder(input, user, { quoteShipping } = {}) {
+  const items = aggregateItems(input.items);
+  const pieces = assertPieceRange(items);
+  // Consulta externa fora da transação: falhas de frete nunca seguram estoque.
+  const quote = await resolveShippingQuote(input.delivery, pieces, quoteShipping);
   const order = await serializableTransaction(
     prisma,
     async (tx) => {
@@ -228,12 +270,7 @@ export async function createOrder(input, user) {
       const snapshots = items.map((item) =>
         snapshotItem(variants.get(item.variantId), item.quantity),
       );
-      const { subtotalCents, totalWeightGrams } = orderTotals(snapshots);
-      const quote = calculateShipping({
-        method: input.delivery.method,
-        postalCode: input.delivery.postalCode,
-        totalWeightGrams,
-      });
+      const { subtotalCents } = orderTotals(snapshots);
       const { totalCents } = orderTotals(snapshots, quote.amountCents);
       const order = await tx.order.create({
         data: {
@@ -309,16 +346,7 @@ async function updateOrderInTransaction(tx, orderId, input, actor) {
   let effectiveItems = order.items;
   const itemIds = new Set(order.items.map((item) => item.productVariantId));
   const requested = input.items ? aggregateItems(input.items) : null;
-  if (
-    requested &&
-    requested.reduce((total, item) => total + item.quantity, 0) < MIN_ORDER_QUANTITY
-  ) {
-    throw new AppError(
-      422,
-      "MINIMUM_ORDER",
-      `O pedido mínimo é de ${MIN_ORDER_QUANTITY} peças.`,
-    );
-  }
+  if (requested) assertPieceRange(requested);
   requested?.forEach((item) => itemIds.add(item.variantId));
   const stock = await lockInventories(tx, [...itemIds]);
 

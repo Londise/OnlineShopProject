@@ -1,11 +1,20 @@
 import test, { beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { prisma, resetDatabase, closeDatabase, serve, catalogFixture, sessionFixture, orderInput } from '../../test-support/integration.js';
-import { shippingCases } from '../../../test/support/shipping-cases.js';
+import { prisma, resetDatabase, closeDatabase, serve, createApp, catalogFixture, sessionFixture, orderInput } from '../../test-support/integration.js';
 
 beforeEach(resetDatabase);
 after(closeDatabase);
 const post = (data, cookie = '') => ({ method: 'POST', headers: { cookie, 'content-type': 'application/json' }, body: JSON.stringify(data) });
+
+const fakeShippingQuote = ({ postalCode, pieces }) => Promise.resolve({
+  originPostalCode: '03031000',
+  pieces,
+  options: [
+    { key: 'Correios|PAC|1', company: 'Correios', service: 'PAC', price: 21.9, days: 5, volumes: 1 },
+    { key: 'Jadlog|.Package|1', company: 'Jadlog', service: '.Package', price: 25.4, days: 3, volumes: 1 },
+    { key: 'Correios|SEDEX|1', company: 'Correios', service: 'SEDEX', price: 30.1, days: 2, volumes: 1 },
+  ],
+});
 
 test('O2: invalid order payloads fail at the HTTP boundary without persisting business effects', async t => {
   const { variant } = await catalogFixture(); const api = await serve(); t.after(api.close);
@@ -18,6 +27,8 @@ test('O2: invalid order payloads fail at the HTTP boundary without persisting bu
     { ...valid, customer: { ...valid.customer, whatsapp: '123' } },
     { ...valid, customer: { ...valid.customer, email: 'sensitive-invalid-input' } },
     { ...valid, delivery: { method: 'CORREIOS' } },
+    { ...valid, delivery: { method: 'CORREIOS', postalCode: '01001000' } },
+    { ...valid, delivery: { method: 'CORREIOS', postalCode: '01001000', shippingQuote: { company: '', service: 'PAC', volumes: 1 } } },
   ];
   for (const input of cases) {
     const response = await api.request('/api/v1/orders', post(input));
@@ -76,20 +87,64 @@ test('A3: option creation accepts 80 variants and atomically rejects oversized o
   assert.equal(await prisma.inventoryMovement.count(), 1);
 });
 
-for (const { postalCode, grams, cents } of shippingCases) test(`O5: HTTP order for ${postalCode}/${grams} g persists ${cents} shipping cents`, async t => {
-  const f = await catalogFixture();
-  await prisma.product.update({ where: { id: f.product.id }, data: { weightGrams: 1 } });
-  const extra = await prisma.product.create({ data: { categoryId: f.category.id, name: 'Weighted product', slug: 'weighted', material: 'Linho', priceCents: 2500, weightGrams: grams - 14 } });
-  const option = await prisma.productOption.create({ data: { productId: extra.id, variantOptionId: f.option.id } });
-  const variant = await prisma.productVariant.create({ data: { productOptionId: option.id, sizeId: f.size.id, sku: 'WEIGHTED', inventory: { create: { onHand: 30 } } } });
-  const api = await serve(); t.after(api.close);
-  const response = await api.request('/api/v1/orders', post({ ...orderInput(f.variant.id), delivery: { method: 'CORREIOS', postalCode }, items: [{ variantId: f.variant.id, quantity: 14 }, { variantId: variant.id, quantity: 1 }] }));
+test('O5: the public quote endpoint returns the two cheapest options from the server quoter', async t => {
+  const api = await serve(createApp({ shippingQuote: fakeShippingQuote })); t.after(api.close);
+  const response = await api.request('/api/v1/shipping/quote', post({ postalCode: '01310-100', pieces: 15 }));
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.originPostalCode, '03031000');
+  assert.equal(body.pieces, 15);
+  assert.deepEqual(body.options.map(option => option.key), ['Correios|PAC|1', 'Jadlog|.Package|1']);
+  assert.deepEqual(body.options.map(option => option.volumes), [1, 1]);
+  const invalid = await api.request('/api/v1/shipping/quote', post({ postalCode: '01310-100', pieces: 9 }));
+  assert.equal(invalid.status, 422);
+  assert.equal((await invalid.json()).error.code, 'VALIDATION_ERROR');
+  const overLimit = await api.request('/api/v1/shipping/quote', post({ postalCode: '01310-100', pieces: 401 }));
+  assert.equal(overLimit.status, 422);
+});
+
+test('O5: CORREIOS orders persist the server-quoted estimate and reject stale or missing quotes', async t => {
+  const { variant } = await catalogFixture(); const api = await serve(createApp({ shippingQuote: fakeShippingQuote })); t.after(api.close);
+  const response = await api.request('/api/v1/orders', post({
+    ...orderInput(variant.id),
+    delivery: { method: 'CORREIOS', postalCode: '01310-100', shippingQuote: { company: 'Correios', service: 'PAC', volumes: 1 } },
+  }));
   assert.equal(response.status, 201);
   const { order } = await response.json();
-  assert.equal(order.items.reduce((sum, item) => sum + item.quantity * item.unitWeightGramsSnapshot, 0), grams);
-  assert.equal(order.shippingAmountCents, cents);
+  assert.equal(order.shippingAmountCents, 2190);
+  assert.equal(order.shippingDetail, 'Frete estimado: Correios PAC · 1 volume');
+  assert.equal(order.totalCents, 37500 + 2190);
   const persisted = await prisma.order.findUnique({ where: { id: order.id }, include: { items: true } });
-  assert.equal(persisted.shippingAmountCents, cents);
-  assert.equal(persisted.items.reduce((sum, item) => sum + item.quantity * item.unitWeightGramsSnapshot, 0), grams);
-  assert.equal(order.totalCents, 37500 + cents);
+  assert.equal(persisted.shippingAmountCents, 2190);
+  const stale = await api.request('/api/v1/orders', post({
+    ...orderInput(variant.id),
+    delivery: { method: 'CORREIOS', postalCode: '01310-100', shippingQuote: { company: 'Loggi', service: 'X', volumes: 1 } },
+  }));
+  assert.equal(stale.status, 422);
+  assert.equal((await stale.json()).error.code, 'SHIPPING_QUOTE_CHANGED');
+});
+
+test('O5: CORREIOS orders fail cleanly when freight quoting is unavailable and persist nothing', async t => {
+  const { variant } = await catalogFixture();
+  // Sem MELHOR_ENVIO_TOKEN o cotador real recusa a consulta.
+  const api = await serve(); t.after(api.close);
+  const response = await api.request('/api/v1/orders', post({
+    ...orderInput(variant.id),
+    delivery: { method: 'CORREIOS', postalCode: '01310-100', shippingQuote: { company: 'Correios', service: 'PAC', volumes: 1 } },
+  }));
+  assert.equal(response.status, 503);
+  assert.equal((await response.json()).error.code, 'SHIPPING_UNAVAILABLE');
+  assert.equal(await prisma.order.count(), 0);
+  assert.equal(await prisma.inventoryMovement.count(), 0);
+});
+
+test('O1: orders outside the 10–400 piece range are rejected with the matching code', async t => {
+  const { variant } = await catalogFixture(); const api = await serve(); t.after(api.close);
+  const below = await api.request('/api/v1/orders', post(orderInput(variant.id, 9)));
+  assert.equal(below.status, 422);
+  assert.equal((await below.json()).error.code, 'MINIMUM_ORDER');
+  const above = await api.request('/api/v1/orders', post({ ...orderInput(variant.id), items: [{ variantId: variant.id, quantity: 300 }, { variantId: variant.id, quantity: 101 }] }));
+  assert.equal(above.status, 422);
+  assert.equal((await above.json()).error.code, 'MAXIMUM_ORDER');
+  assert.equal(await prisma.order.count(), 0);
 });

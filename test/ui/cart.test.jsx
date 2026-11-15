@@ -27,19 +27,19 @@ function openShop(catalog) {
   return render(<CartProvider><Shop catalog={catalog} /></CartProvider>);
 }
 
-test('C6/C10: restored quantities drive subtotal, weight and the 15-piece checkout boundary', async () => {
-  localStorage.setItem('ferchu-cart', JSON.stringify([cartLine({ quantity: 14 })]));
+test('C6/C10: restored quantities drive subtotal, weight and the 10-piece checkout boundary', async () => {
+  localStorage.setItem('ferchu-cart', JSON.stringify([cartLine({ quantity: 9 })]));
   const view = openShop();
   const cart = within(screen.getByRole('complementary', { name: 'Seu pedido' }));
   expect(cart.getByRole('button', { name: /Faltam 1 peças/ })).toBeDisabled();
-  expect(cart.getByText(/350,00/)).toBeVisible();
+  expect(cart.getByText(/225,00/)).toBeVisible();
   await userEvent.click(cart.getByRole('button', { name: 'Aumentar' }));
   expect(cart.getByRole('button', { name: 'Continuar pedido' })).toBeEnabled();
-  expect(cart.getByText(/375,00/)).toBeVisible();
-  expect(screen.getByLabelText('Peso')).toHaveTextContent('6');
+  expect(cart.getByText(/250,00/)).toBeVisible();
+  expect(screen.getByLabelText('Peso')).toHaveTextContent('4');
   view.unmount();
   openShop();
-  expect(screen.getByRole('heading', { name: '15 peças' })).toBeVisible();
+  expect(screen.getByRole('heading', { name: '10 peças' })).toBeVisible();
   await userEvent.click(within(screen.getByRole('complementary')).getByRole('button', { name: 'Diminuir' }));
   expect(screen.getByRole('button', { name: /Faltam 1 peças/ })).toBeDisabled();
 });

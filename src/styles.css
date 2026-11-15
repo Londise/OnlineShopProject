@@ -1742,6 +1742,7 @@ footer small {
 }
 
 .shipping-option {
+    width: 100%;
     background: white;
     border: 1px solid var(--line);
     text-align: left;
@@ -1749,7 +1750,11 @@ footer small {
     display: grid;
     grid-template-columns: 16px 1fr auto;
     gap: 10px;
-    align-items: center
+    align-items: center;
+    cursor: pointer;
+    font: inherit;
+    color: inherit;
+    border-radius: 0
 }
 
 .shipping-option.chosen {

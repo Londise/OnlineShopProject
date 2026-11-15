@@ -29,6 +29,11 @@ export const api = {
       request("/orders", { method: "POST", body: JSON.stringify(body) }),
     mine: () => request("/orders/me"),
   },
+
+  shipping: {
+    quote: (body) =>
+      request("/shipping/quote", { method: "POST", body: JSON.stringify(body) }),
+  },
   
   admin: {
     media: (params = {}) => {

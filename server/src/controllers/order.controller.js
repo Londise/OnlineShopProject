@@ -4,7 +4,7 @@ import { archiveOrder, createOrder, updateOrder } from '../services/order.servic
 
 const orderInclude = { items: true, user: { select: { id: true, name: true, email: true } } };
 export const create = async (req, res) => {
-  const order = await createOrder(req.body, req.user);
+  const order = await createOrder(req.body, req.user, { quoteShipping: req.app.locals.shippingQuote });
   res.status(201).json({ order });
 };
 

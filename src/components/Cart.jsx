@@ -18,7 +18,7 @@ const money = new Intl.NumberFormat("pt-BR", {
   currency: "BRL",
 });
 
-const MIN_ORDER_QUANTITY = 15;
+const MIN_ORDER_QUANTITY = 10;
 
 export default function Cart({ onProceed }) {
   const {

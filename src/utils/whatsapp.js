@@ -1,5 +1,10 @@
 import { resolveApiUrl } from "../services/http.js";
 
+const money = new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "BRL",
+});
+
 export function buildOrderMessage({
   lines,
   qtyTotal,
@@ -50,6 +55,13 @@ export function buildOrderMessage({
 
   if (selectedDelivery) {
     message += `🚚 Entrega: ${selectedDelivery.label}\n`;
+
+    if (selectedDelivery.pending !== true && selectedDelivery.price != null) {
+      const volumes = selectedDelivery.quote?.volumes;
+      message += `💰 Frete estimado: ${money.format(
+        selectedDelivery.price,
+      )}${volumes && volumes > 1 ? ` (${volumes} volumes, envios separados)` : ""}\n`;
+    }
   }
   return message;
 }

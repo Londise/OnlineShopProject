@@ -50,7 +50,7 @@ for (const viewport of [{ width: 375, height: 812 }, { width: 1440, height: 900 
     const saved = await shop.prisma.order.findMany({ include: { items: true } });
     expect(saved).toHaveLength(1);
     expect(saved[0].items[0].quantity).toBe(15);
-    expect(saved[0].totalCents).toBe(viewport.width > 1000 ? 44530 : 37500);
+    expect(saved[0].totalCents).toBe(viewport.width > 1000 ? 39690 : 37500);
     expect((await shop.prisma.inventoryLevel.findFirst()).reserved).toBe(15);
     const link = page.getByRole('link', { name: 'Abrir WhatsApp' });
     const href = await link.getAttribute('href');

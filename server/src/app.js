@@ -15,12 +15,14 @@ import { adminRouter } from './routes/admin.routes.js';
 import { authRouter } from './routes/auth.routes.js';
 import { orderRouter } from './routes/order.routes.js';
 import { publicRouter } from './routes/public.routes.js';
+import { shippingRouter } from './routes/shipping.routes.js';
 import { AppError } from './lib/errors.js';
 
 // Composition is separate from listen/signals so HTTP tests can start an
 // isolated app without starting the real process or contacting a real DB.
-export function createApp({ config = env, database = prisma, attachSession = attachUser } = {}) {
+export function createApp({ config = env, database = prisma, attachSession = attachUser, shippingQuote = null } = {}) {
   const app = express();
+  app.locals.shippingQuote = shippingQuote;
   app.disable('x-powered-by');
   app.set('trust proxy', false);
   app.use(traceMiddleware);
@@ -70,6 +72,15 @@ export function createApp({ config = env, database = prisma, attachSession = att
   });
   app.use('/api/v1/auth', limiter(), authRouter);
   app.use('/api/v1/orders', limiter(), orderRouter);
+  const shippingLimiter = () => rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 40,
+    keyGenerator: clientRateLimitKey,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: { code: 'TOO_MANY_REQUESTS', message: 'Muitas consultas de frete. Aguarde alguns minutos e tente novamente.' } },
+  });
+  app.use('/api/v1/shipping', shippingLimiter(), shippingRouter);
   const adminMutationLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     limit: 60,

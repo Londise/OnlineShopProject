@@ -7,6 +7,11 @@ import { createOrder, updateOrder as update, archiveOrder as archive } from '../
 let actor;
 const updateOrder = (id, input) => update(id, input, actor);
 const archiveOrder = id => archive(id, actor);
+// Cotador injetável para os casos em que a criação usa o método CORREIOS:
+// o preço retornado é sempre o preço autoritativo do servidor.
+const quoteShipping = (price) => () => Promise.resolve({
+  options: [{ key: 'Correios|PAC|1', company: 'Correios', service: 'PAC', price, days: 5, volumes: 1 }],
+});
 beforeEach(async () => {
   await resetDatabase();
   actor = await prisma.user.create({ data: { name: 'Gestora', email: 'admin@example.test', passwordHash: 'unused-service-fixture', role: 'ADMIN' } });
@@ -26,7 +31,7 @@ test('D1: committed migrations support the real runtime role and health query', 
 test('O1/O4: repeated variants aggregate into one snapshot and reserve exactly 15 pieces', async () => {
   const { variant } = await catalogFixture();
   const input = orderInput(variant.id);
-  await assert.rejects(createOrder(orderInput(variant.id, 14)), { code: 'MINIMUM_ORDER' });
+  await assert.rejects(createOrder(orderInput(variant.id, 9)), { code: 'MINIMUM_ORDER' });
   assert.equal(await prisma.order.count(), 0);
   input.items = [{ variantId: variant.id, quantity: 8 }, { variantId: variant.id, quantity: 7 }];
   const result = await createOrder(input);
@@ -43,7 +48,8 @@ test('O1/O4: repeated variants aggregate into one snapshot and reserve exactly 1
     { onHandDelta: 0, reservedDelta: 15, type: 'ORDER_RESERVE' },
   ]);
   assert.equal(await prisma.auditLog.count({ where: { orderId: result.id } }), 1);
-  await assert.rejects(updateOrder(result.id, { items: [{ variantId: variant.id, quantity: 14 }] }), { code: 'MINIMUM_ORDER' });
+  await assert.rejects(updateOrder(result.id, { items: [{ variantId: variant.id, quantity: 9 }] }), { code: 'MINIMUM_ORDER' });
+  await assert.rejects(updateOrder(result.id, { items: [{ variantId: variant.id, quantity: 401 }] }), { code: 'MAXIMUM_ORDER' });
   assert.equal((await prisma.orderItem.findFirst({ where: { orderId: result.id } })).quantity, 15);
 });
 
@@ -155,15 +161,15 @@ test('O9: failure of the final archive audit rolls back cancellation and stock r
   }
 });
 
-for (const [name, priceCents, weightGrams, quantities] of [
-  ['line amount', 10000000, 400, [999]],
-  ['repeated variant amount', 2000000, 400, [600, 600]],
-  ['aggregated quantity', 1, 1, [2147483647, 1]],
-  ['subtotal', 2000000, 400, [600, 600, 'second']],
-  ['line weight', 1, 3000000, [999]],
-  ['total weight', 1, 2000000, [600, 600, 'second']],
+for (const [name, priceCents, weightGrams, quantities, code] of [
+  ['line amount', 10000000, 400, [400], 'ORDER_AMOUNT_OVERFLOW'],
+  ['repeated variant aggregation', 5368710, 400, [200, 200], 'ORDER_AMOUNT_OVERFLOW'],
+  ['line weight', 1, 6000000, [400], 'ORDER_AMOUNT_OVERFLOW'],
+  ['total weight across variants', 1, 6000000, [200, 200, 'second'], 'ORDER_AMOUNT_OVERFLOW'],
+  ['subtotal across variants', 6000000, 400, [200, 200, 'second'], 'ORDER_AMOUNT_OVERFLOW'],
+  ['pieces above the maximum', 1, 400, [300, 200], 'MAXIMUM_ORDER'],
 ]) for (const editing of [false, true]) {
-  test(`O12: ${editing ? 'edit' : 'create'} rejects overflowing ${name} with no partial persistence`, async () => {
+  test(`O12: ${editing ? 'edit' : 'create'} rejects ${name} with no partial persistence`, async () => {
     const { variant, product, productOption } = await catalogFixture({ onHand: 2000, priceCents });
     await prisma.product.update({ where: { id: product.id }, data: { weightGrams } });
     const size = await prisma.size.create({ data: { code: 'G' } });
@@ -174,7 +180,7 @@ for (const [name, priceCents, weightGrams, quantities] of [
     }));
     const before = await persistedOrderState();
     const input = { ...orderInput(variant.id), items };
-    await assert.rejects(editing ? updateOrder(order.id, { items }) : createOrder(input), { code: 'ORDER_AMOUNT_OVERFLOW' });
+    await assert.rejects(editing ? updateOrder(order.id, { items }) : createOrder(input), { code });
     assert.deepEqual(await persistedOrderState(), before);
   });
 }
@@ -189,22 +195,22 @@ async function persistedOrderState() {
   };
 }
 
-test('O4/O12: shipping is included in overflow checks but a valid near-Int total persists', async () => {
-  const { variant } = await catalogFixture({ onHand: 2000, priceCents: 2149633 });
-  const input = orderInput(variant.id, 999);
-  await assert.rejects(createOrder({ ...input, delivery: { method: 'CORREIOS', postalCode: '01001000' } }), { code: 'ORDER_AMOUNT_OVERFLOW' });
+test('O4/O12: freight participates in overflow checks and a valid near-Int total persists', async () => {
+  const { variant, product } = await catalogFixture({ onHand: 2000, priceCents: 5368711 });
+  const input = { ...orderInput(variant.id, 400), delivery: { method: 'CORREIOS', postalCode: '01001000', shippingQuote: { company: 'Correios', service: 'PAC', volumes: 1 } } };
+  await assert.rejects(createOrder(input, null, { quoteShipping: quoteShipping(10) }), { code: 'ORDER_AMOUNT_OVERFLOW' });
   assert.equal(await prisma.order.count(), 0);
-  const order = await createOrder(input);
-  assert.equal(order.totalCents, 2147483367);
-  assert.equal((await prisma.inventoryLevel.findUnique({ where: { variantId: variant.id } })).reserved, 999);
+  await prisma.product.update({ where: { id: product.id }, data: { priceCents: 5368709 } });
+  const order = await createOrder(orderInput(variant.id, 400));
+  assert.equal(order.totalCents, 2147483600);
+  assert.equal((await prisma.inventoryLevel.findUnique({ where: { variantId: variant.id } })).reserved, 400);
 });
 
 test('O12: an overflowing shipping quote is rejected before order persistence', async () => {
-  const { variant, product } = await catalogFixture({ onHand: 2000, priceCents: 1 });
-  await prisma.product.update({ where: { id: product.id }, data: { weightGrams: 2149000 } });
-  const input = { ...orderInput(variant.id, 999), delivery: { method: 'CORREIOS', postalCode: '90000000' } };
+  const { variant } = await catalogFixture({ onHand: 2000, priceCents: 1 });
+  const input = { ...orderInput(variant.id, 400), delivery: { method: 'CORREIOS', postalCode: '01001000', shippingQuote: { company: 'Correios', service: 'PAC', volumes: 1 } } };
   const before = await persistedOrderState();
-  await assert.rejects(createOrder(input), { code: 'ORDER_AMOUNT_OVERFLOW' });
+  await assert.rejects(createOrder(input, null, { quoteShipping: quoteShipping(30_000_000) }), { code: 'ORDER_AMOUNT_OVERFLOW' });
   assert.deepEqual(await persistedOrderState(), before);
 });
 
@@ -222,7 +228,9 @@ test('O12: edits reject overflowing paid amount and preserved shipping without p
 
 test('O7: editing uses existing snapshots and adjusts reservation differences, not historical catalog prices', async () => {
   const { variant, product } = await catalogFixture();
-  const order = await createOrder({ ...orderInput(variant.id), note: 'Preserve me', delivery: { method: 'CORREIOS', postalCode: '01001000' } });
+  const order = await createOrder({ ...orderInput(variant.id), note: 'Preserve me',
+    delivery: { method: 'CORREIOS', postalCode: '01001000', shippingQuote: { company: 'Correios', service: 'PAC', volumes: 1 } } },
+  null, { quoteShipping: quoteShipping(70.3) });
   await prisma.product.update({ where: { id: product.id }, data: { priceCents: 9999, weightGrams: 999, name: 'Renamed' } });
   const result = await updateOrder(order.id, { items: [{ variantId: variant.id, quantity: 20 }], paidAmountCents: 12345 });
   assert.equal(result.items[0].unitPriceCentsSnapshot, 2500);

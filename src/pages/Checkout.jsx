@@ -32,7 +32,8 @@ import { api } from "../services/api";
  * ============================================================
  */
 
-const MIN_ORDER_QUANTITY = 15;
+const MIN_ORDER_QUANTITY = 10;
+const MAX_ORDER_QUANTITY = 400;
 
 const money = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -51,61 +52,18 @@ function formatCep(value) {
   return digits.replace(/(\d{5})(\d)/, "$1-$2");
 }
 
-function estimateShipping(cep, weight) {
-  const digits = cep.replace(/\D/g, "");
-  const firstDigit = digits[0];
+function volumeLabel(volumes) {
+  return volumes === 1
+    ? "1 volume"
+    : `${volumes} volumes (envios separados)`;
+}
 
-  if (firstDigit === undefined || weight <= 0) {
-    return null;
-  }
-
-  const first = Number(firstDigit);
-
-  const zone =
-    first <= 3
-      ? 1
-      : first <= 6
-        ? 1.22
-        : 1.5;
-
-  const rounded = Math.max(
-    0.5,
-    Math.ceil(weight * 2) / 2,
-  );
-
-  return {
-    correios: {
-      label: "Correios",
-
-      detail: `PAC estimado · ${rounded
-        .toFixed(1)
-        .replace(".", ",")} kg`,
-
-      price:
-        Math.round(
-          (17.5 + rounded * 8.8) * zone * 100,
-        ) / 100,
-
-      days:
-        zone === 1
-          ? "4–7 dias úteis"
-          : "7–12 dias úteis",
-    },
-
-    excursion: {
-      label: "Excursão",
-
-      detail:
-        "Disponibilidade confirmada após o pedido",
-
-      price:
-        Math.round(
-          (12 + rounded * 5.2) * zone * 100,
-        ) / 100,
-
-      days: "2–6 dias úteis",
-    },
-  };
+function daysLabel(days) {
+  return days > 0
+    ? `${days} ${days > 1 ? "dias" : "dia"} útil${
+        days > 1 ? "eis" : ""
+      }`
+    : "Prazo a confirmar";
 }
 
 /*
@@ -139,7 +97,7 @@ export default function Checkout() {
    * ==========================================================
    *
    * O Checkout nunca deve permanecer acessível com menos
-   * de 15 peças.
+   * de 10 peças.
    *
    * Essa proteção é do FRONTEND.
    *
@@ -154,7 +112,11 @@ export default function Checkout() {
 
   const [cep, setCep] = useState("");
 
-  const [shipping, setShipping] = useState(null);
+  const [quotes, setQuotes] = useState(null);
+
+  const [quoteKey, setQuoteKey] = useState(null);
+
+  const [quoting, setQuoting] = useState(false);
 
   const [shippingError, setShippingError] = useState("");
 
@@ -179,9 +141,12 @@ export default function Checkout() {
     }
   }, [qtyTotal, navigate, confirmed]);
 
+  // A estimativa de embalagem depende da quantidade de peças: qualquer
+  // mudança no pedido invalida as cotações já apresentadas.
   useEffect(() => {
-    setShipping(null);
-  }, [totalWeight]);
+    setQuotes(null);
+    setQuoteKey(null);
+  }, [qtyTotal]);
 
   /*
    * ==========================================================
@@ -191,6 +156,10 @@ export default function Checkout() {
 
   const total = orderTotal;
 
+  const selectedQuote =
+    quotes?.find((option) => option.key === quoteKey) ??
+    null;
+
   const selectedDelivery =
     chosen === "excursion"
       ? {
@@ -198,8 +167,13 @@ export default function Checkout() {
           price: 0,
           pending: true,
         }
-      : chosen === "correios"
-        ? shipping?.correios
+      : chosen === "correios" && selectedQuote
+        ? {
+            label: `${selectedQuote.company} · ${selectedQuote.service}`,
+            price: selectedQuote.price,
+            pending: false,
+            quote: selectedQuote,
+          }
         : null;
 
   /*
@@ -226,6 +200,12 @@ export default function Checkout() {
       if (qtyTotal < MIN_ORDER_QUANTITY) {
         throw new Error(
           `O pedido mínimo é de ${MIN_ORDER_QUANTITY} peças.`,
+        );
+      }
+
+      if (qtyTotal > MAX_ORDER_QUANTITY) {
+        throw new Error(
+          `O pedido máximo é de ${MAX_ORDER_QUANTITY} peças.`,
         );
       }
 
@@ -307,6 +287,15 @@ export default function Checkout() {
             chosen === "correios"
               ? cep
               : undefined,
+
+          shippingQuote:
+            chosen === "correios"
+              ? {
+                  company: selectedQuote.company,
+                  service: selectedQuote.service,
+                  volumes: selectedQuote.volumes,
+                }
+              : undefined,
         },
 
         items: lines.map((line) => ({
@@ -339,7 +328,7 @@ export default function Checkout() {
    * ==========================================================
    */
 
-  const calculate = () => {
+  const calculate = async () => {
     const parsed = z
       .string()
       .regex(/^\d{5}-?\d{3}$/)
@@ -350,19 +339,48 @@ export default function Checkout() {
         "Digite um CEP válido com 8 números.",
       );
 
-      setShipping(null);
+      setQuotes(null);
+      setQuoteKey(null);
+
+      return;
+    }
+
+    if (qtyTotal > MAX_ORDER_QUANTITY) {
+      setShippingError(
+        `O pedido máximo é de ${MAX_ORDER_QUANTITY} peças.`,
+      );
 
       return;
     }
 
     setShippingError("");
+    setQuoting(true);
 
-    const estimated = estimateShipping(
-      cep,
-      totalWeight,
-    );
+    try {
+      const { options } = await api.shipping.quote({
+        postalCode: parsed.data,
+        pieces: qtyTotal,
+      });
 
-    setShipping(estimated);
+      setQuotes(options);
+      setQuoteKey(options[0]?.key ?? null);
+
+      if (!options.length) {
+        setShippingError(
+          "Nenhuma transportadora disponível para este CEP. Fale com a gente pelo WhatsApp.",
+        );
+      }
+    } catch (error) {
+      setQuotes(null);
+      setQuoteKey(null);
+      setShippingError(
+        error instanceof Error && error.message
+          ? error.message
+          : "Não foi possível calcular o frete agora. Tente novamente.",
+      );
+    } finally {
+      setQuoting(false);
+    }
   };
 
   /*
@@ -494,11 +512,12 @@ export default function Checkout() {
             <p className="shipping-copy">
               Escolha a modalidade. O CEP é
               necessário somente para a estimativa
-              dos Correios.
+              do frete: mostramos as duas opções
+              mais baratas para o seu pedido.
             </p>
 
             <div className="delivery-methods">
-              {/* CORREIOS */}
+              {/* TRANSPORTADORA */}
 
               <button
                 type="button"
@@ -515,10 +534,10 @@ export default function Checkout() {
                 <Truck size={19} />
 
                 <span>
-                  <b>Correios</b>
+                  <b>Transportadora</b>
 
                   <small>
-                    Calcular valor pelo CEP
+                    Frete estimado pelo CEP
                   </small>
                 </span>
 
@@ -537,7 +556,8 @@ export default function Checkout() {
                 onClick={() => {
                   setChosen("excursion");
                   setShippingError("");
-                  setShipping(null);
+                  setQuotes(null);
+                  setQuoteKey(null);
                 }}
               >
                 <PackageCheck size={19} />
@@ -555,7 +575,7 @@ export default function Checkout() {
             </div>
 
             {/* ==================================================
-                CALCULADORA DOS CORREIOS
+                CALCULADORA DE FRETE
             ================================================== */}
 
             {chosen === "correios" && (
@@ -571,7 +591,8 @@ export default function Checkout() {
                       autoComplete="postal-code"
                       value={cep}
                       onChange={(event) => {
-                        setShipping(null);
+                        setQuotes(null);
+                        setQuoteKey(null);
                         setShippingError("");
                         setCep(
                           formatCep(
@@ -589,8 +610,11 @@ export default function Checkout() {
                   type="button"
                   className="button dark full"
                   onClick={calculate}
+                  disabled={quoting}
                 >
-                  Calcular estimativa
+                  {quoting
+                    ? "Calculando..."
+                    : "Calcular estimativa"}
                   <ArrowRight size={18} />
                 </button>
 
@@ -603,31 +627,47 @@ export default function Checkout() {
                   </p>
                 )}
 
-                {shipping && (
+                {quotes && quotes.length > 0 && (
                   <div className="shipping-options">
-                    <div className="shipping-option chosen">
-                      <span className="shipping-radio" />
+                    {quotes.map((option) => (
+                      <button
+                        type="button"
+                        key={option.key}
+                        className={`shipping-option ${
+                          quoteKey === option.key
+                            ? "chosen"
+                            : ""
+                        }`}
+                        onClick={() =>
+                          setQuoteKey(option.key)
+                        }
+                      >
+                        <span className="shipping-radio" />
 
-                      <div>
-                        <b>
-                          {shipping.correios.label}
-                        </b>
+                        <div>
+                          <b>
+                            {option.company}{" "}
+                            {option.service}
+                          </b>
 
-                        <small>
-                          {shipping.correios.detail}
-                        </small>
+                          <small>
+                            {volumeLabel(
+                              option.volumes,
+                            )}
+                          </small>
 
-                        <em>
-                          {shipping.correios.days}
-                        </em>
-                      </div>
+                          <em>
+                            {daysLabel(option.days)}
+                          </em>
+                        </div>
 
-                      <strong>
-                        {money.format(
-                          shipping.correios.price,
-                        )}
-                      </strong>
-                    </div>
+                        <strong>
+                          {money.format(
+                            option.price,
+                          )}
+                        </strong>
+                      </button>
+                    ))}
                   </div>
                 )}
               </div>
@@ -655,10 +695,23 @@ export default function Checkout() {
 
             <p className="secure-note">
               <PackageCheck size={16} />
-              Simulação informativa.
+              Frete estimado: o valor final é
+              confirmado após a embalagem do
+              pedido.
             </p>
           </section>
         </div>
+
+        {qtyTotal > MAX_ORDER_QUANTITY && (
+          <p
+            className="form-error checkout-error"
+            role="alert"
+          >
+            O pedido máximo é de{" "}
+            {MAX_ORDER_QUANTITY} peças. Remova
+            algumas peças para continuar.
+          </p>
+        )}
 
         {/* ==================================================
             CONFIRMAÇÃO
@@ -736,7 +789,7 @@ export default function Checkout() {
               {selectedDelivery?.pending
                 ? "Frete da excursão será confirmado após o pedido"
                 : selectedDelivery
-                  ? `Produtos + ${selectedDelivery.label}`
+                  ? `Produtos + frete estimado (${selectedDelivery.label})`
                   : "Escolha uma forma de entrega para continuar"}
             </small>
           </div>
@@ -747,6 +800,7 @@ export default function Checkout() {
             disabled={
               !selectedDelivery ||
               qtyTotal < MIN_ORDER_QUANTITY ||
+              qtyTotal > MAX_ORDER_QUANTITY ||
               sending
             }
             onClick={handleWhatsApp}

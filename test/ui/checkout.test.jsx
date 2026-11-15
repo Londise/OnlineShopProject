@@ -1,13 +1,19 @@
 import React from 'react';
 import { expect, test, vi } from 'vitest';
-import { screen, within, waitFor, act, fireEvent } from '@testing-library/react';
+import { screen, within, act, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Checkout from '../../src/pages/Checkout';
 import Cart from '../../src/components/Cart';
 import { renderPage } from '../support/render';
 import { respond, requests, deferred, json } from '../support/network';
 import { cartLine, order } from '../support/fixtures';
-import { shippingCases } from '../support/shipping-cases';
+
+const quoteOptions = (price = 21.9) => ({
+  originPostalCode: '03031000', pieces: 15, options: [
+    { key: 'Correios|PAC|1', company: 'Correios', service: 'PAC', price, days: 5, volumes: 1 },
+    { key: 'Jadlog|Jadlog .Package|1', company: 'Jadlog', service: 'Jadlog .Package', price: 25.4, days: 3, volumes: 1 },
+  ],
+});
 
 function openCheckout(lines = [cartLine()], extra = null) {
   localStorage.setItem('ferchu-cart', JSON.stringify(lines));
@@ -16,14 +22,28 @@ function openCheckout(lines = [cartLine()], extra = null) {
   return renderPage(<><Checkout />{extra}</>, { path: '/checkout' });
 }
 const posts = () => requests.filter(request => request.method === 'POST');
+const shippingPosts = () => posts().filter(request => request.url.pathname === '/api/v1/shipping/quote');
 async function fillCustomer() {
   await userEvent.type(screen.getByRole('textbox', { name: 'Seu nome' }), 'Ana Silva');
   await userEvent.type(screen.getByRole('textbox', { name: 'WhatsApp', exact: true }), '(11) 99999-8888');
 }
+async function quoteFreight(cep) {
+  await userEvent.click(screen.getByRole('button', { name: /Transportadora/ }));
+  await userEvent.type(screen.getByRole('textbox', { name: 'Seu CEP' }), cep);
+  await userEvent.click(screen.getByRole('button', { name: /Calcular estimativa/ }));
+}
 
-test('Q1: a direct checkout visit with 14 pieces returns to the store', async () => {
-  openCheckout([cartLine({ quantity: 14 })]);
+test('Q1: a direct checkout visit with 9 pieces returns to the store', async () => {
+  openCheckout([cartLine({ quantity: 9 })]);
   expect(await screen.findByRole('heading', { name: 'Loja' })).toBeVisible();
+  expect(posts()).toHaveLength(0);
+});
+
+test('Q1: a checkout above the 400-piece maximum blocks the order with a notice', async () => {
+  openCheckout([cartLine({ quantity: 401, available: 401 })]);
+  const submit = screen.getByRole('button', { name: /Enviar pedido/ });
+  expect(submit).toBeDisabled();
+  expect(screen.getByRole('alert')).toHaveTextContent(/400 peças/);
   expect(posts()).toHaveLength(0);
 });
 
@@ -79,21 +99,61 @@ test('Q6: rejected creation keeps cart data and does not open a confirmation lin
   expect(posts()).toHaveLength(1);
 });
 
-test('Q3/O5: changing CEP invalidates the previous shipping quote', async () => {
-  openCheckout([cartLine({ weight: 0.02 })]); // 15 × 20 g = 300 g, billed at 500 g
-  await userEvent.click(screen.getByRole('button', { name: /Correios/ }));
+test('Q3: changing CEP invalidates the previous shipping quote and re-quotes with the new one', async () => {
+  respond('POST', '/api/v1/shipping/quote', quoteOptions(21.9));
+  openCheckout();
+  await quoteFreight('39999999');
   const submit = screen.getByRole('button', { name: /Enviar pedido/ });
-  expect(submit).toBeDisabled();
-  await userEvent.type(screen.getByRole('textbox', { name: 'Seu CEP' }), '39999999');
-  await userEvent.click(screen.getByRole('button', { name: /Calcular estimativa/ }));
-  expect(screen.getByText(/21,90/)).toBeVisible(); // (17.5 + .5 × 8.8) × 1
+  expect(screen.getByText(/21,90/)).toBeVisible();
   expect(submit).toBeEnabled();
+  expect(JSON.parse(shippingPosts().at(-1).body)).toEqual({ postalCode: '39999-999', pieces: 15 });
   await userEvent.clear(screen.getByRole('textbox', { name: 'Seu CEP' }));
   await userEvent.type(screen.getByRole('textbox', { name: 'Seu CEP' }), '40000000');
   expect(submit).toBeDisabled();
   expect(screen.queryByText(/21,90/)).not.toBeInTheDocument();
+  respond('POST', '/api/v1/shipping/quote', quoteOptions(26.72));
   await userEvent.click(screen.getByRole('button', { name: /Calcular estimativa/ }));
-  expect(screen.getByText(/26,72/)).toBeVisible(); // zone 1.22, rounded cents
+  expect(screen.getByText(/26,72/)).toBeVisible();
+});
+
+test('Q3: changing cart quantity invalidates a previously calculated quote', async () => {
+  respond('POST', '/api/v1/shipping/quote', quoteOptions(21.9));
+  openCheckout([cartLine()], <Cart onProceed={() => {}} />);
+  await quoteFreight('39999999');
+  expect(screen.getByText(/21,90/)).toBeVisible();
+  await userEvent.click(within(screen.getByRole('complementary')).getByRole('button', { name: 'Aumentar' }));
+  expect(screen.getByRole('button', { name: /Enviar pedido/ })).toBeDisabled();
+  expect(screen.queryByText(/21,90/)).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: /Calcular estimativa/ }));
+  expect(JSON.parse(shippingPosts().at(-1).body).pieces).toBe(16);
+});
+
+test('O5: the two quoted options are shown, the cheapest is pre-selected and each is selectable', async () => {
+  respond('POST', '/api/v1/shipping/quote', {
+    originPostalCode: '03031000', pieces: 15, options: [
+      { key: 'Correios|PAC|1', company: 'Correios', service: 'PAC', price: 21.9, days: 5, volumes: 1 },
+      { key: 'Jadlog|Jadlog .Package|2', company: 'Jadlog', service: 'Jadlog .Package', price: 25.4, days: 3, volumes: 2 },
+    ],
+  });
+  openCheckout();
+  await quoteFreight('39999999');
+  expect(screen.getByText('Correios PAC')).toBeVisible();
+  expect(screen.getByText('Jadlog Jadlog .Package')).toBeVisible();
+  expect(screen.getByText('2 volumes (envios separados)')).toBeVisible();
+  const submit = screen.getByRole('button', { name: /Enviar pedido/ });
+  expect(submit).toBeEnabled();
+  expect(screen.getByText(/396,90/)).toBeVisible(); // 375,00 + 21,90
+  await userEvent.click(screen.getByRole('button', { name: /Jadlog Jadlog .Package/ }));
+  expect(screen.getByText(/400,40/)).toBeVisible(); // 375,00 + 25,40
+});
+
+test('O5: an unavailable freight quote surfaces the error and keeps the order blocked', async () => {
+  respond('POST', '/api/v1/shipping/quote', () => json({ error: { code: 'SHIPPING_UNAVAILABLE', message: 'Não foi possível consultar o frete agora.' } }, 503));
+  openCheckout();
+  await quoteFreight('39999999');
+  expect(screen.getByRole('alert')).toHaveTextContent('Não foi possível consultar o frete agora.');
+  expect(screen.getByRole('button', { name: /Enviar pedido/ })).toBeDisabled();
+  expect(posts().filter(request => request.url.pathname === '/api/v1/orders')).toHaveLength(0);
 });
 
 test('Q7: returning to edit does not remove or submit the cart', async () => {
@@ -104,28 +164,17 @@ test('Q7: returning to edit does not remove or submit the cart', async () => {
   expect(posts()).toHaveLength(0);
 });
 
-test('Q3: changing cart weight invalidates a previously calculated Correios quote', async () => {
-  openCheckout([cartLine({ weight: 0.033 })], <Cart onProceed={() => {}} />);
-  await userEvent.click(screen.getByRole('button', { name: /Correios/ }));
-  await userEvent.type(screen.getByRole('textbox', { name: 'Seu CEP' }), '39999999');
-  await userEvent.click(screen.getByRole('button', { name: /Calcular estimativa/ }));
-  expect(screen.getByText(/21,90/)).toBeVisible(); // 15 × 33 g = 495 g
-  await userEvent.click(within(screen.getByRole('complementary')).getByRole('button', { name: 'Aumentar' }));
-  expect(screen.getByRole('button', { name: /Enviar pedido/ })).toBeDisabled();
-  expect(screen.queryByText(/21,90/)).not.toBeInTheDocument();
-  await userEvent.click(screen.getByRole('button', { name: /Calcular estimativa/ }));
-  expect(screen.getByText(/^R\$\s*26,30$/)).toBeVisible(); // 16 × 33 g = 528 g, billed at 1 kg
-});
-
-test('Q5/Q6: a successful pending order retains its submitted message and leaves later additions in the cart', async () => {
+test('Q5/Q6: a successful pending order retains its submitted message with the estimated freight and leaves later additions in the cart', async () => {
   const pending = deferred();
+  respond('POST', '/api/v1/shipping/quote', quoteOptions(21.9));
   respond('POST', '/api/v1/orders', () => pending.promise);
   openCheckout([cartLine({ weight: 0.02 })], <Cart onProceed={() => {}} />);
   await fillCustomer();
-  await userEvent.click(screen.getByRole('button', { name: /Correios/ }));
-  await userEvent.type(screen.getByRole('textbox', { name: 'Seu CEP' }), '39999999');
-  await userEvent.click(screen.getByRole('button', { name: /Calcular estimativa/ }));
+  await quoteFreight('39999999');
   await userEvent.click(screen.getByRole('button', { name: /Enviar pedido/ }));
+  expect(JSON.parse(posts().find(request => request.url.pathname === '/api/v1/orders').body).delivery).toEqual({
+    method: 'CORREIOS', postalCode: '39999-999', shippingQuote: { company: 'Correios', service: 'PAC', volumes: 1 },
+  });
   await userEvent.click(within(screen.getByRole('complementary')).getByRole('button', { name: 'Aumentar' }));
   await userEvent.click(screen.getByRole('button', { name: /Excursão/ }));
   await act(async () => pending.resolve(json({ order: order() })));
@@ -134,16 +183,8 @@ test('Q5/Q6: a successful pending order retains its submitted message and leaves
   const message = new URL(screen.getByRole('link', { name: /Abrir WhatsApp/ }).href).searchParams.get('text');
   expect(message).toContain('Total de peças: 15');
   expect(message).toContain('Correios'); expect(message).not.toContain('Excursão');
-  expect(posts()).toHaveLength(1);
-});
-
-test.each(shippingCases)('O5: visible quote for $postalCode and $grams grams agrees with $cents literal cents', async ({ postalCode, grams, cents }) => {
-  openCheckout([cartLine({ quantity: 1, weight: grams / 1000 }), cartLine({ key: 'other', variantId: 'other', quantity: 14, weight: 0, price: 0 })]);
-  await userEvent.click(screen.getByRole('button', { name: /Correios/ }));
-  await userEvent.type(screen.getByRole('textbox', { name: 'Seu CEP' }), postalCode);
-  await userEvent.click(screen.getByRole('button', { name: /Calcular estimativa/ }));
-  const display = (cents / 100).toFixed(2).replace('.', ',');
-  expect(screen.getByText(new RegExp(`^R\\$\\s*${display}$`))).toBeVisible();
+  expect(message).toMatch(/Frete estimado: R\$\s*21,90/);
+  expect(posts()).toHaveLength(2);
 });
 
 test('Q6: timed-out POST preserves the cart and never opens WhatsApp or automatically retries', async () => {

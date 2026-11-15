@@ -25,6 +25,10 @@ const schema = z.object({
   LOG_QUEUE_MAX_ENTRIES: z.coerce.number().int().min(100).max(10_000).default(1000),
   LOG_QUEUE_MAX_BYTES: z.coerce.number().int().min(65_536).max(16_777_216).default(2_097_152),
   MEDIA_UPLOAD_CONCURRENCY: z.coerce.number().int().min(1).max(4).default(1),
+  SHIPPING_ORIGIN_POSTAL_CODE: z.string().regex(/^\d{8}$/, 'Use apenas os 8 dígitos do CEP de origem.').default('03031000'),
+  MELHOR_ENVIO_BASE_URL: z.string().url().default('https://melhorenvio.com.br'),
+  MELHOR_ENVIO_TOKEN: z.preprocess(value => value || undefined,
+    z.string().min(8).optional()),
 }).superRefine((value, ctx) => {
   if (value.NODE_ENV === 'production') {
     if (!value.FRONTEND_ORIGIN.startsWith('https://')) {

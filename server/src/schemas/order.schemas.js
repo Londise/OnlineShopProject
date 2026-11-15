@@ -22,17 +22,32 @@ export const createOrderSchema = z
         .string()
         .regex(/^\d{5}-?\d{3}$/)
         .optional(),
+      shippingQuote: z
+        .object({
+          company: z.string().trim().min(1).max(100),
+          service: z.string().trim().min(1).max(100),
+          volumes: z.coerce.number().int().min(1).max(20),
+        })
+        .optional(),
     }),
     items: z.array(item).min(1).max(80),
     note: z.string().trim().max(2000).optional(),
   })
   .superRefine((value, ctx) => {
-    if (value.delivery.method === "CORREIOS" && !value.delivery.postalCode)
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["delivery", "postalCode"],
-        message: "CEP é obrigatório para Correios.",
-      });
+    if (value.delivery.method === "CORREIOS") {
+      if (!value.delivery.postalCode)
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["delivery", "postalCode"],
+          message: "CEP é obrigatório para Correios.",
+        });
+      if (!value.delivery.shippingQuote)
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["delivery", "shippingQuote"],
+          message: "Calcule a estimativa de frete antes de enviar o pedido.",
+        });
+    }
   });
 
 export const updateOrderSchema = z.object({
