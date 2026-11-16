@@ -65,6 +65,7 @@ model User {
   passwordHash       String              @map("password_hash") @db.VarChar(255)
   role               UserRole            @default(CUSTOMER)
   active             Boolean             @default(true)
+  emailVerifiedAt    DateTime?           @map("email_verified_at") @db.Timestamptz(3)
   createdAt          DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt          DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
   sessions           AuthSession[]
@@ -88,6 +89,41 @@ model AuthSession {
 
   @@index([userId, expiresAt])
   @@map("auth_sessions")
+  @@schema("app")
+}
+
+model AuthThrottle {
+  accountHash   String   @id @map("account_hash") @db.Char(64)
+  attempts      Int
+  windowStart   DateTime @map("window_start") @db.Timestamptz(3)
+  nextAllowedAt DateTime @map("next_allowed_at") @db.Timestamptz(3)
+
+  @@index([windowStart])
+  @@map("auth_throttles")
+  @@schema("app")
+}
+
+model PendingRegistration {
+  email       String    @id @db.VarChar(191)
+  nonce       String    @unique @db.Uuid
+  tokenHash   String    @unique @map("token_hash") @db.Char(64)
+  expiresAt   DateTime  @map("expires_at") @db.Timestamptz(3)
+  consumedAt  DateTime? @map("consumed_at") @db.Timestamptz(3)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([expiresAt])
+  @@map("pending_registrations")
+  @@schema("app")
+}
+
+// Immutable creation response: replay must not disclose later internal edits.
+model OrderSubmission {
+  keyHash      String   @id @map("key_hash") @db.Char(64)
+  requestHash  String   @map("request_hash") @db.Char(64)
+  responseJson Json     @map("response_json")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@map("order_submissions")
   @@schema("app")
 }
 

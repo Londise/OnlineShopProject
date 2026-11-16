@@ -9,14 +9,18 @@ export default function AuthDialog({ auth, onClose, onAuthenticated }) {
   const [form, setForm] = useState({ name: "", email: "", password: "" });
   const [error, setError] = useState("");
   const [sending, setSending] = useState(false);
+  const [notice, setNotice] = useState("");
   const submit = async (event) => {
     event.preventDefault();
     setError("");
+    setNotice("");
     setSending(true);
     try {
-      const user =
-        mode === "login" ? await auth.login(form) : await auth.register(form);
-      onAuthenticated(user);
+      if (mode === "login") onAuthenticated(await auth.login(form));
+      else {
+        const result = await auth.register({ email: form.email });
+        setNotice(result.message);
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -42,22 +46,9 @@ export default function AuthDialog({ auth, onClose, onAuthenticated }) {
         <p>
           {mode === "login"
             ? "Acompanhe seus pedidos quando quiser."
-            : "Seu cadastro é rápido e gratuito."}
+            : "Verifique seu e-mail para escolher seu nome e senha com segurança."}
         </p>
         <form onSubmit={submit}>
-          {mode === "register" && (
-            <label>
-              Nome
-              <input
-                required
-                value={form.name}
-                maxLength="120"
-                onChange={(event) =>
-                  setForm({ ...form, name: event.target.value })
-                }
-              />
-            </label>
-          )}
           <label>
             E-mail
             <input
@@ -70,7 +61,7 @@ export default function AuthDialog({ auth, onClose, onAuthenticated }) {
               }
             />
           </label>
-          <label>
+          {mode === "login" && <label>
             Senha
             <input
               required
@@ -84,7 +75,8 @@ export default function AuthDialog({ auth, onClose, onAuthenticated }) {
                 setForm({ ...form, password: event.target.value })
               }
             />
-          </label>
+          </label>}
+          {notice && <p role="status">{notice}</p>}
           {error && (
             <p className="form-error" role="alert">
               {error}
@@ -99,6 +91,7 @@ export default function AuthDialog({ auth, onClose, onAuthenticated }) {
           onClick={() => {
             setMode(mode === "login" ? "register" : "login");
             setError("");
+            setNotice("");
           }}
         >
           {mode === "login" ? "Ainda não tenho conta" : "Já tenho uma conta"}

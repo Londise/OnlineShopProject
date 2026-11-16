@@ -7,3 +7,7 @@ process.env.SUPABASE_URL = '';
 process.env.SUPABASE_SECRET_KEY = '';
 process.env.ORIGIN_PROXY_SECRET = '';
 process.env.FRONTEND_ORIGIN = 'http://localhost:5173';
+process.env.RESEND_API_KEY = '';
+process.env.EMAIL_FROM = '';
+process.env.EMAIL_REPLY_TO = '';
+process.env.EMAIL_VERIFICATION_SECRET = 'local-unit-email-verification-secret-only-1234';

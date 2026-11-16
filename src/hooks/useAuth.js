@@ -42,7 +42,11 @@ export default function useAuth() {
   };
 
   const register = async (data) => {
-    const result = await api.auth.register(data);
+    return api.auth.register(data);
+  };
+
+  const verifyEmail = async (data) => {
+    const result = await api.auth.verifyEmail(data);
     acceptUser(result.user);
     return result.user;
   };
@@ -52,5 +56,5 @@ export default function useAuth() {
     acceptUser(null);
   };
   
-  return { user, loading, error, refreshSession, login, register, logout };
+  return { user, loading, error, refreshSession, login, register, verifyEmail, logout };
 }

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { PrismaClient } from '@prisma/client';
-import { randomBytes, createHash } from 'node:crypto';
+import { randomBytes, randomUUID, createHash } from 'node:crypto';
 
 assert.equal(process.env.FERCHU_ISOLATED_TEST, 'embedded-postgres', 'Run npm run test:integration; never supply a development DATABASE_URL.');
 for (const key of ['DATABASE_URL', 'TEST_INSTALL_URL']) {
@@ -12,25 +12,33 @@ for (const key of ['DATABASE_URL', 'TEST_INSTALL_URL']) {
 export const owner = new PrismaClient({ datasourceUrl: process.env.TEST_INSTALL_URL });
 export const { prisma } = await import('../src/db/prisma.js');
 export const { createApp } = await import('../src/app.js');
+export const verificationMessages = [];
+export const captureVerificationEmail = async message => { verificationMessages.push(message); };
 const { flush, flushAndClose } = await import('../src/lib/logger.js');
 
 export async function resetDatabase() {
   await flush();
+  verificationMessages.length = 0;
   await owner.$executeRawUnsafe(`TRUNCATE app.users, app.categories, app.variant_options,
-    app.sizes, app.media_assets, app.orders, app.audit_logs, app.log_entry, app.log_dead CASCADE`);
+    app.sizes, app.media_assets, app.orders, app.audit_logs, app.log_entry, app.log_dead,
+    app.auth_throttles, app.order_submissions, app.pending_registrations CASCADE`);
 }
 export async function closeDatabase() {
   await flushAndClose();
   await prisma.$disconnect();
   await owner.$disconnect();
 }
-export async function serve(app = createApp(), { port = 0 } = {}) {
+export async function serve(app = createApp({ verificationMailer: captureVerificationEmail }), { port = 0 } = {}) {
   const server = app.listen(port, '127.0.0.1');
   await new Promise((resolve, reject) => { server.once('listening', resolve); server.once('error', reject); });
   const base = `http://127.0.0.1:${server.address().port}`;
   return {
     request: (path, options = {}) => fetch(`${base}${path}`, { ...options,
-      headers: { Origin: process.env.FRONTEND_ORIGIN, ...options.headers },
+      // Model a new checkout by default. Tests for absent/replayed keys pass
+      // their own header explicitly (empty means intentionally missing/invalid).
+      headers: { Origin: process.env.FRONTEND_ORIGIN,
+        ...(path === '/api/v1/orders' && options.method === 'POST' ? { 'idempotency-key': randomUUID() } : {}),
+        ...options.headers },
       signal: options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(5000)]) : AbortSignal.timeout(5000) }),
     close: async () => { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); },
   };
@@ -53,6 +61,7 @@ export async function sessionFixture(role = 'ADMIN', overrides = {}) {
   const token = randomBytes(32).toString('hex');
   const user = await prisma.user.create({ data: {
     name: role, email: `${token.slice(0, 10)}@example.test`, passwordHash: 'not-used-for-login', role,
+    emailVerifiedAt: role === 'CUSTOMER' ? new Date() : null,
     ...overrides,
   } });
   const session = await prisma.authSession.create({ data: {

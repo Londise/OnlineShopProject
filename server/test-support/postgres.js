@@ -55,6 +55,8 @@ export async function startTestDatabase({ signal, onProgress = () => {} } = {}) 
     FRONTEND_ORIGIN: 'http://localhost:5173', ORIGIN_PROXY_SECRET: '',
     WHATSAPP_NUMBER: '5511999998888', SUPABASE_URL: '', SUPABASE_SECRET_KEY: '',
     FERCHU_ISOLATED_TEST: 'embedded-postgres',
+    RESEND_API_KEY: '', EMAIL_FROM: '', EMAIL_REPLY_TO: '',
+    EMAIL_VERIFICATION_SECRET: 'local-loopback-email-verification-secret-only-1234',
   });
   let admin;
   const close = async () => {

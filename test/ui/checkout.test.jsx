@@ -261,15 +261,37 @@ test.each([0, null])('Q5: confirmation preserves the server freight amount %s wi
 });
 
 test('Q6: timed-out POST preserves the cart and never opens WhatsApp or automatically retries', async () => {
-  respond('POST', '/api/v1/orders', () => new Promise(() => {}));
+  const started = deferred();
+  respond('POST', '/api/v1/orders', () => { started.resolve(); return new Promise(() => {}); });
   openCheckout();
   await fillCustomer();
   await userEvent.click(screen.getByRole('button', { name: 'Excursão Sem necessidade de CEP', exact: true }));
   vi.useFakeTimers();
   fireEvent.click(screen.getByRole('button', { name: 'Enviar pedido pelo WhatsApp', exact: true }));
+  await act(async () => started.promise);
   await act(async () => vi.advanceTimersByTime(95001));
   expect(screen.getByRole('alert')).toHaveTextContent(/demorou/);
   expect(posts()).toHaveLength(1);
   expect(JSON.parse(localStorage.getItem('ferchu-cart'))[0].quantity).toBe(15);
   expect(screen.queryByRole('link', { name: 'Abrir WhatsApp', exact: true })).not.toBeInTheDocument();
+});
+
+test('checkout manual retry reuses the submission key after an uncertain response', async () => {
+  let calls = 0;
+  respond('POST', '/api/v1/orders', () => ++calls === 1
+    ? json({ error: { code: 'UNAVAILABLE', message: 'Resposta perdida' } }, 503)
+    : json({ order: order() }));
+  openCheckout();
+  await fillCustomer();
+  await userEvent.click(screen.getByRole('button', { name: 'Excursão Sem necessidade de CEP', exact: true }));
+  await userEvent.click(screen.getByRole('button', { name: 'Enviar pedido pelo WhatsApp', exact: true }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Resposta perdida');
+  const firstKey = posts()[0].headers.get('Idempotency-Key');
+  expect(firstKey).toMatch(/^[0-9a-f-]{36}$/i);
+  expect(sessionStorage.getItem('ferchu.checkout.submission')).not.toContain('Ana Silva');
+  await userEvent.click(screen.getByRole('button', { name: 'Enviar pedido pelo WhatsApp', exact: true }));
+  expect(await screen.findByRole('heading', { name: 'Pedido recebido', exact: true })).toBeVisible();
+  expect(posts()).toHaveLength(2);
+  expect(posts()[1].headers.get('Idempotency-Key')).toBe(firstKey);
+  expect(sessionStorage.getItem('ferchu.checkout.submission')).toBeNull();
 });

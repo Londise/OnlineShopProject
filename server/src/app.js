@@ -20,9 +20,10 @@ import { AppError } from './lib/errors.js';
 
 // Composition is separate from listen/signals so HTTP tests can start an
 // isolated app without starting the real process or contacting a real DB.
-export function createApp({ config = env, database = prisma, attachSession = attachUser, shippingQuote = null } = {}) {
+export function createApp({ config = env, database = prisma, attachSession = attachUser, shippingQuote = null, verificationMailer = null } = {}) {
   const app = express();
   app.locals.shippingQuote = shippingQuote;
+  app.locals.verificationMailer = verificationMailer;
   app.disable('x-powered-by');
   app.set('trust proxy', false);
   app.use(traceMiddleware);
@@ -70,7 +71,11 @@ export function createApp({ config = env, database = prisma, attachSession = att
     legacyHeaders: false,
     message: { error: { code: 'TOO_MANY_REQUESTS', message: 'Tente novamente mais tarde.' } },
   });
-  app.use('/api/v1/auth', limiter(), authRouter);
+  // Read/session revocation must never share the login/registration budget.
+  app.use('/api/v1/auth/login', limiter());
+  app.use('/api/v1/auth/register', limiter());
+  app.use('/api/v1/auth/verify-email', limiter());
+  app.use('/api/v1/auth', authRouter);
   app.use('/api/v1/orders', limiter(), orderRouter);
   const shippingLimiter = () => rateLimit({
     windowMs: 15 * 60 * 1000,

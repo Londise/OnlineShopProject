@@ -39,7 +39,9 @@ export const test = base.extend({
       await use({ ...integration, origin, storage,
         restartApi: async () => {
           await api.close();
-          api = await integration.serve(integration.createApp(), { port: backendPort });
+          api = await integration.serve(integration.createApp({
+            verificationMailer: integration.captureVerificationEmail,
+          }), { port: backendPort });
         },
       });
     } finally {

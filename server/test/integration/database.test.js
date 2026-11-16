@@ -46,6 +46,7 @@ test('D2: browser roles cannot read private tables, including direct log partiti
 test('D3: SQL writers cannot violate stock, quantity, amount, email, relation or cover constraints', async () => {
   const { variant, product } = await catalogFixture();
   const order = await createOrder(orderInput(variant.id));
+  await owner.inventoryLevel.update({ where: { variantId: variant.id }, data: { reserved: 15 } });
   for (const sql of [
     `UPDATE app.inventory_levels SET on_hand = -1 WHERE variant_id = '${variant.id}'`,
     `UPDATE app.inventory_levels SET reserved = -1 WHERE variant_id = '${variant.id}'`,

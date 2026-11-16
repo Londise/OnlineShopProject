@@ -15,7 +15,7 @@ export async function attachUser(req, _res, next) {
     },
     include: { user: true },
   });
-  if (session?.user.active) {
+  if (session?.user.active && (session.user.role !== "CUSTOMER" || session.user.emailVerifiedAt)) {
     req.user = session.user;
     patchTrace({ actorId: session.user.id });
   }

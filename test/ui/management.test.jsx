@@ -17,6 +17,7 @@ async function openManagement(handler = { orders: [savedOrder()] }) {
   respond('GET', '/api/v1/auth/me', { user: admin });
   respond('GET', '/api/v1/admin/orders', handler);
   respond('GET', '/api/v1/admin/inventory', { variants: [] });
+  respond('GET', '/api/v1/admin/products', { products: [catalogProduct()] });
   renderPage(<Management />, { waitForSession: true });
   await screen.findByRole('button', { name: 'Estoque', exact: true });
 }
@@ -70,7 +71,7 @@ test('G5: edits send cents and omit removed items, preserving the editor on erro
   await userEvent.click(screen.getByRole('button', { name: 'Salvar alterações', exact: true }));
   expect(await screen.findByText('Conflict saving order')).toBeVisible();
   expect(paid).toHaveValue('12,34'); expect(quantity).toHaveValue(0);
-  expect(JSON.parse(mutations()[0].body)).toEqual({ paidAmountCents: 1234, items: [{ variantId: 'variant-1', quantity: 15 }] });
+  expect(JSON.parse(mutations()[0].body)).toEqual({ paidAmountCents: 1234, items: [{ variantId: 'variant-1', quantity: 15 }], note: null });
   respond('PATCH', '/api/v1/admin/orders/order-internal-1', { order: savedOrder() });
   respond('GET', '/api/v1/admin/orders', { orders: [order({ ...savedOrder(), paidAmountCents: 1234, totalCents: 37500, items: [items[0]] })] });
   await userEvent.click(screen.getByRole('button', { name: 'Salvar alterações', exact: true }));
@@ -89,6 +90,28 @@ test('G5: cancelling archive does not mutate; confirmed archive disappears after
   await userEvent.click(screen.getByRole('button', { name: 'Arquivar', exact: true }));
   expect(await screen.findByText('Nenhum pedido ativo.')).toBeVisible();
   expect(mutations()).toHaveLength(1);
+});
+
+test('commercial waiting editor adds another variant, removes an item and records WhatsApp changes', async () => {
+  await openManagement();
+  const product = catalogProduct();
+  product.options[0].variants.push({ id: 'variant-new', sku: 'LINHO-PRETO-GG', size: 'GG', active: true, priceCents: 2500 });
+  respond('GET', '/api/v1/admin/products', { products: [product] });
+  await userEvent.click(await screen.findByRole('button', { name: 'Editar pedido', exact: true }));
+  expect(screen.getByRole('combobox', { name: 'Status do pedido FM-20261111-ABC12345', exact: true })).toHaveDisplayValue('EM ESPERA');
+  const select = screen.getByRole('combobox', { name: 'Adicionar variação ao pedido', exact: true });
+  await waitFor(() => expect(select).toBeEnabled());
+  await userEvent.selectOptions(select, 'variant-new');
+  const added = screen.getByRole('spinbutton', { name: 'Calça Linho – Preto / GG', exact: true });
+  await userEvent.clear(added); await userEvent.type(added, '10');
+  const removed = screen.getByRole('spinbutton', { name: 'Calça Linho – Preto / G', exact: true });
+  await userEvent.clear(removed); await userEvent.type(removed, '0');
+  await userEvent.type(screen.getByRole('textbox', { name: 'Observações do pedido', exact: true }), 'Alteração combinada no WhatsApp');
+  respond('PATCH', '/api/v1/admin/orders/order-internal-1', { order: savedOrder() });
+  await userEvent.click(screen.getByRole('button', { name: 'Salvar alterações', exact: true }));
+  expect(JSON.parse(mutations()[0].body)).toEqual({ paidAmountCents: 0,
+    items: [{ variantId: 'variant-1', quantity: 15 }, { variantId: 'variant-new', quantity: 10 }],
+    note: 'Alteração combinada no WhatsApp' });
 });
 
 test.each([['Catálogo', 'products', { ...catalogProduct(), active: true }], ['Banners', 'banners', { id: 'banner-1', title: 'Novidades', active: true, asset: { url: '/banner.png' } }]])(

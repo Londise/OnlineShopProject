@@ -80,9 +80,10 @@ test('P2: rate limits use verified IPs, ignore visitor chains and group the same
   const api = await serve(); t.after(api.close);
   for (const ip of ['198.51.100.40', '2001:db8:1234:5678::1']) {
     let response;
-    for (let index = 0; index < 21; index++) response = await api.request('/api/v1/auth/me', { headers: { ...headers(ip), 'x-forwarded-for': `203.0.113.${index + 1}` } });
+    for (let index = 0; index < 21; index++) response = await api.request('/api/v1/auth/login', {
+      method: 'POST', headers: { ...headers(ip), 'x-forwarded-for': `203.0.113.${index + 1}`, 'content-type': 'application/json' }, body: '{}' });
     assert.equal(response.status, 429);
   }
   assert.equal((await api.request('/api/v1/auth/me', { headers: headers('198.51.100.41') })).status, 200);
-  assert.equal((await api.request('/api/v1/auth/me', { headers: headers('2001:db8:1234:5678::2') })).status, 429);
+  assert.equal((await api.request('/api/v1/auth/login', { method: 'POST', headers: { ...headers('2001:db8:1234:5678::2'), 'content-type': 'application/json' }, body: '{}' })).status, 429);
 });

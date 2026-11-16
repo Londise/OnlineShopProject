@@ -2,25 +2,35 @@ import test, { beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import argon2 from 'argon2';
 import { createHash } from 'node:crypto';
-import { prisma, serve, resetDatabase, closeDatabase, sessionFixture, catalogFixture, orderInput } from '../../test-support/integration.js';
+import { prisma, serve, resetDatabase, closeDatabase, sessionFixture, catalogFixture, orderInput, verificationMessages } from '../../test-support/integration.js';
 import { createOrder, archiveOrder } from '../../src/services/order.service.js';
 
 beforeEach(resetDatabase);
 after(closeDatabase);
 const body = (data, cookie) => ({ method: 'POST', headers: { 'content-type': 'application/json', ...(cookie ? { cookie } : {}) }, body: JSON.stringify(data) });
 
-test('S1/S3: registration normalizes email, forbids role escalation and stores only password/session hashes', async t => {
+test('S1/S3: pending registration grants no session; verified ownership normalizes email and forbids role escalation', async t => {
   const api = await serve(); t.after(api.close);
   const response = await api.request('/api/v1/auth/register', body({ name: 'Ana Silva', email: ' Ana@Example.test ', password: 'correct-horse-42', role: 'ADMIN' }));
-  assert.equal(response.status, 201);
-  const data = await response.json();
+  assert.equal(response.status, 202);
+  const accepted = await response.json();
+  assert.equal(response.headers.get('set-cookie'), null);
+  assert.equal(await prisma.user.count(), 0);
+  assert.equal(await prisma.authSession.count(), 0);
+  const pending = await prisma.pendingRegistration.findUnique({ where: { email: 'ana@example.test' } });
+  assert.equal(pending.tokenHash, createHash('sha256').update(verificationMessages[0].token).digest('hex'));
+  const verified = await api.request('/api/v1/auth/verify-email', body({ token: verificationMessages[0].token,
+    name: 'Ana Silva', password: 'correct-horse-42', role: 'ADMIN' }));
+  assert.equal(verified.status, 200);
+  const data = await verified.json();
   assert.equal(data.user.email, 'ana@example.test');
   assert.equal(data.user.role, 'CUSTOMER');
   assert.equal(data.user.passwordHash, undefined);
   const user = await prisma.user.findUnique({ where: { id: data.user.id } });
   assert.notEqual(user.passwordHash, 'correct-horse-42');
   assert.equal(await argon2.verify(user.passwordHash, 'correct-horse-42'), true);
-  const cookie = response.headers.get('set-cookie');
+  assert.ok(user.emailVerifiedAt);
+  const cookie = verified.headers.get('set-cookie');
   assert.match(cookie, /HttpOnly/i); assert.match(cookie, /SameSite=Lax/i); assert.match(cookie, /Path=\//i);
   assert.doesNotMatch(cookie, /Domain=/i);
   const rawCookie = cookie.split(';')[0];
@@ -31,13 +41,15 @@ test('S1/S3: registration normalizes email, forbids role escalation and stores o
   const me = await api.request('/api/v1/auth/me', { headers: { cookie: rawCookie } });
   assert.equal((await me.json()).user.id, user.id);
   const duplicate = await api.request('/api/v1/auth/register', body({ name: 'Outra Ana', email: 'ANA@example.test', password: 'correct-horse-42' }));
-  assert.equal(duplicate.status, 409);
+  assert.equal(duplicate.status, 202);
+  assert.deepEqual(await duplicate.json(), accepted);
+  assert.equal(duplicate.headers.get('set-cookie'), null);
   assert.equal(await prisma.user.count(), 1);
 });
 
 test('S2/S4: invalid credentials share a public error, valid login persists until logout revokes it', async t => {
   const passwordHash = await argon2.hash('correct-horse-42');
-  await prisma.user.create({ data: { name: 'Ana', email: 'ana@example.test', passwordHash } });
+  await prisma.user.create({ data: { name: 'Ana', email: 'ana@example.test', passwordHash, emailVerifiedAt: new Date() } });
   await prisma.user.create({ data: { name: 'Inactive', email: 'inactive@example.test', passwordHash, active: false } });
   const api = await serve(); t.after(api.close);
   const errors = [];
@@ -124,8 +136,12 @@ for (const role of ['STAFF', 'ADMIN']) test(`S5: ${role} can list/read/edit/arch
     assert.equal((await api.request(`/api/v1/admin${path}`, { headers: { cookie: user.cookie } })).status, 200);
   }
   const updated = await api.request(`/api/v1/admin/orders/${order.id}`, { ...body({ status: 'CONFIRMADO' }, user.cookie), method: 'PATCH' });
-  assert.equal(updated.status, 200);
-  assert.equal((await prisma.inventoryLevel.findUnique({ where: { variantId: variant.id } })).onHand, 15);
+  assert.equal(updated.status, role === 'ADMIN' ? 200 : 403);
+  assert.equal((await prisma.inventoryLevel.findUnique({ where: { variantId: variant.id } })).onHand, role === 'ADMIN' ? 15 : 30);
+  if (role === 'STAFF') {
+    const edited = await api.request(`/api/v1/admin/orders/${order.id}`, { ...body({ note: 'Contato comercial' }, user.cookie), method: 'PATCH' });
+    assert.equal(edited.status, 200);
+  }
   const adjusted = await api.request(`/api/v1/admin/inventory/${variant.id}/adjust`, body({ delta: 1, reason: 'Contagem real' }, user.cookie));
   assert.equal(adjusted.status, 200);
   const archived = await api.request(`/api/v1/admin/orders/${order.id}`, { method: 'DELETE', headers: { cookie: user.cookie } });

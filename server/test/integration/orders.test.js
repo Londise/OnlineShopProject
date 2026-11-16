@@ -28,7 +28,7 @@ test('D1: committed migrations support the real runtime role and health query', 
   assert.deepEqual(await response.json(), { status: 'ok' });
 });
 
-test('O1/O4: repeated variants aggregate into one snapshot and reserve exactly 15 pieces', async () => {
+test('O1/O4: repeated variants aggregate into one waiting snapshot without reserving stock', async () => {
   const { variant } = await catalogFixture();
   const input = orderInput(variant.id);
   await assert.rejects(createOrder(orderInput(variant.id, 9)), { code: 'MINIMUM_ORDER' });
@@ -43,10 +43,8 @@ test('O1/O4: repeated variants aggregate into one snapshot and reserve exactly 1
   assert.equal(result.items[0].unitWeightGramsSnapshot, 400);
   const stock = await prisma.inventoryLevel.findUnique({ where: { variantId: variant.id } });
   assert.equal(stock.onHand, 30);
-  assert.equal(stock.reserved, 15);
-  assert.deepEqual(await prisma.inventoryMovement.findMany({ select: { onHandDelta: true, reservedDelta: true, type: true } }), [
-    { onHandDelta: 0, reservedDelta: 15, type: 'ORDER_RESERVE' },
-  ]);
+  assert.equal(stock.reserved, 0);
+  assert.deepEqual(await prisma.inventoryMovement.findMany(), []);
   assert.equal(await prisma.auditLog.count({ where: { orderId: result.id } }), 1);
   await assert.rejects(updateOrder(result.id, { items: [{ variantId: variant.id, quantity: 9 }] }), { code: 'MINIMUM_ORDER' });
   await assert.rejects(updateOrder(result.id, { items: [{ variantId: variant.id, quantity: 401 }] }), { code: 'MAXIMUM_ORDER' });
@@ -57,7 +55,7 @@ const states = ['NOVO', 'CONFIRMADO', 'CANCELADO', 'CONCLUIDO'];
 const transitions = {
   'NOVO:CONFIRMADO': [15, 0], 'NOVO:CANCELADO': [30, 0],
   'CONFIRMADO:CANCELADO': [30, 0], 'CONFIRMADO:CONCLUIDO': [15, 0],
-  'CANCELADO:NOVO': [30, 15],
+  'CANCELADO:NOVO': [30, 0],
 };
 for (const from of states) for (const to of states) {
   test(`O6: ${from} → ${to} preserves inventory invariants`, async () => {
@@ -121,15 +119,17 @@ for (const status of ['NOVO', 'CONFIRMADO', 'CANCELADO']) test(`O9: failed ${sta
   }
 });
 
-test('O10: two simultaneous orders cannot both reserve insufficient shared stock', async () => {
+test('O10: two simultaneous confirmations cannot both consume insufficient shared stock', async () => {
   const { variant } = await catalogFixture({ onHand: 20 });
+  const first = await createOrder(orderInput(variant.id)), second = await createOrder(orderInput(variant.id));
   const results = await behindLock(tx => tx.$queryRaw`SELECT variant_id FROM app.inventory_levels WHERE variant_id = ${variant.id} FOR UPDATE`,
-    [() => createOrder(orderInput(variant.id)), () => createOrder(orderInput(variant.id))]);
+    [() => updateOrder(first.id, { status: 'CONFIRMADO' }), () => updateOrder(second.id, { status: 'CONFIRMADO' })]);
   assert.equal(results.filter(result => result.status === 'fulfilled').length, 1);
   assert.equal(results.find(result => result.status === 'rejected').reason.code, 'INSUFFICIENT_STOCK');
-  assert.equal(await prisma.order.count(), 1);
+  assert.equal(await prisma.order.count(), 2);
   assert.equal(await prisma.inventoryMovement.count(), 1);
-  assert.equal((await prisma.inventoryLevel.findUnique({ where: { variantId: variant.id } })).reserved, 15);
+  assert.equal((await prisma.inventoryLevel.findUnique({ where: { variantId: variant.id } })).reserved, 0);
+  assert.equal((await prisma.inventoryLevel.findUnique({ where: { variantId: variant.id } })).onHand, 5);
 });
 
 test('O10: archive racing a reopen cannot leave an archived reservation', async () => {
@@ -203,7 +203,7 @@ test('O4/O12: freight participates in overflow checks and a valid near-Int total
   await prisma.product.update({ where: { id: product.id }, data: { priceCents: 5368709 } });
   const order = await createOrder(orderInput(variant.id, 400));
   assert.equal(order.totalCents, 2147483600);
-  assert.equal((await prisma.inventoryLevel.findUnique({ where: { variantId: variant.id } })).reserved, 400);
+  assert.equal((await prisma.inventoryLevel.findUnique({ where: { variantId: variant.id } })).reserved, 0);
 });
 
 test('O12: an overflowing shipping quote is rejected before order persistence', async () => {
@@ -240,7 +240,7 @@ test('O7: editing uses existing snapshots and adjusts reservation differences, n
   assert.equal(result.totalCents, 57030);
   assert.equal(result.paidAmountCents, 12345);
   assert.equal(result.note, 'Preserve me');
-  assert.equal((await prisma.inventoryLevel.findUnique({ where: { variantId: variant.id } })).reserved, 20);
+  assert.equal((await prisma.inventoryLevel.findUnique({ where: { variantId: variant.id } })).reserved, 0);
   const changed = await updateOrder(order.id, { note: null });
   assert.equal(changed.note, null);
 });
@@ -265,7 +265,7 @@ for (const status of states) test(`O8: archive ${status} preserves history and r
 });
 
 for (const [status, expected] of [
-  ['NOVO', [[30, 10], [30, 0], [30, 5]]],
+  ['NOVO', [[30, 0], [30, 0], [30, 0]]],
   ['CONFIRMADO', [[20, 0], [30, 0], [25, 0]]],
   ['CANCELADO', [[30, 0], [30, 0], [30, 0]]],
   ['CONCLUIDO', null],
@@ -326,12 +326,13 @@ test('O9: failure after one of several inventory lines also rolls back the earli
   const size = await prisma.size.create({ data: { code: 'G' } });
   const second = await prisma.productVariant.create({ data: { productOptionId: productOption.id, sizeId: size.id,
     sku: 'SECOND-LINE', inventory: { create: { onHand: 30 } } } });
+  const pending = await createOrder({ ...orderInput(variant.id), items: [{ variantId: variant.id, quantity: 8 }, { variantId: second.id, quantity: 7 }] });
   const before = await persistedOrderState();
   await owner.$executeRawUnsafe(`CREATE FUNCTION app.test_reject_stock_line() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
     IF NEW.variant_id = '${second.id}' THEN RAISE EXCEPTION 'test second stock line'; END IF; RETURN NEW; END $$`);
   await owner.$executeRawUnsafe('CREATE TRIGGER test_stock_line BEFORE UPDATE ON app.inventory_levels FOR EACH ROW EXECUTE FUNCTION app.test_reject_stock_line()');
   try {
-    await assert.rejects(createOrder({ ...orderInput(variant.id), items: [{ variantId: variant.id, quantity: 8 }, { variantId: second.id, quantity: 7 }] }), /test second stock line/);
+    await assert.rejects(updateOrder(pending.id, { status: 'CONFIRMADO' }), /test second stock line/);
     assert.deepEqual(await persistedOrderState(), before);
   } finally {
     await owner.$executeRawUnsafe('DROP TRIGGER test_stock_line ON app.inventory_levels');
@@ -348,8 +349,9 @@ for (const role of [null, 'CUSTOMER', 'STAFF', 'ADMIN']) test(`O1: ${role ?? 'gu
 for (const failure of ['missing variant', 'missing inventory', 'insufficient stock']) test(`O3: ${failure} rejects without partial persistence`, async () => {
   const { variant } = await catalogFixture({ onHand: 14 });
   if (failure === 'missing inventory') await prisma.inventoryLevel.delete({ where: { variantId: variant.id } });
+  const pending = failure === 'missing variant' ? null : await createOrder(orderInput(variant.id));
   const before = await persistedOrderState();
-  await assert.rejects(createOrder(orderInput(failure === 'missing variant' ? 'missing' : variant.id)), {
+  await assert.rejects(pending ? updateOrder(pending.id, { status: 'CONFIRMADO' }) : createOrder(orderInput('missing')), {
     code: { 'missing variant': 'INVALID_VARIANT', 'missing inventory': 'MISSING_INVENTORY', 'insufficient stock': 'INSUFFICIENT_STOCK' }[failure],
   });
   assert.deepEqual(await persistedOrderState(), before);

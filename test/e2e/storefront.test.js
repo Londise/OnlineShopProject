@@ -53,7 +53,7 @@ for (const viewport of [{ width: 375, height: 812 }, { width: 1440, height: 900 
     expect(saved).toHaveLength(1);
     expect(saved[0].items[0].quantity).toBe(15);
     expect(saved[0].totalCents).toBe(viewport.width > 1000 ? 39690 : 37500);
-    expect((await shop.prisma.inventoryLevel.findFirst()).reserved).toBe(15);
+    expect((await shop.prisma.inventoryLevel.findFirst()).reserved).toBe(0);
     const link = page.getByRole('link', { name: 'Abrir WhatsApp', exact: true });
     const href = await link.getAttribute('href');
     expect(new URL(href, shop.origin).searchParams.get('text')).toContain(saved[0].publicNumber);
@@ -84,10 +84,16 @@ test('E3: registration, order ownership, account reload and logout work across b
   await page.getByRole('button', { name: 'Entrar', exact: true }).click();
   await page.getByRole('button', { name: 'Ainda não tenho conta', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Criar conta', exact: true });
-  await dialog.getByRole('textbox', { name: 'Nome', exact: true }).fill('Ana Silva');
   await dialog.getByRole('textbox', { name: 'E-mail', exact: true }).fill('ana@example.test');
-  await dialog.getByLabel('Senha', { exact: true }).fill('correct-horse-42');
   await dialog.getByRole('button', { name: 'Criar conta', exact: true }).click();
+  await expect(dialog.getByRole('status')).toContainText('receberá um link');
+  expect(await shop.prisma.authSession.count()).toBe(0);
+  const message = shop.verificationMessages.find(item => item.email === 'ana@example.test');
+  expect(message).toBeTruthy();
+  await page.goto(`${shop.origin}/verify-email#token=${message.token}`);
+  await page.getByRole('textbox', { name: 'Nome', exact: true }).fill('Ana Silva');
+  await page.getByLabel('Nova senha', { exact: true }).fill('correct-horse-42');
+  await page.getByRole('button', { name: 'Verificar e entrar', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Olá, Ana.', exact: true })).toBeVisible();
   await buildCart(page, shop);
   await submitGuestOrder(page);
@@ -119,7 +125,7 @@ test('E2: reduced-motion keyboard navigation stays inside dialogs and returns fo
   await login.click();
   await expect(page.getByRole('dialog').getByRole('button', { name: 'Fechar', exact: true })).toBeFocused();
   await traverseDialog(page, page.getByRole('dialog'));
-  // The last control switches mode; the new name field must participate too.
+  // The last control switches mode; registration must also trap focus.
   await page.keyboard.press('Enter');
   await expect(page.getByRole('dialog', { name: 'Criar conta', exact: true })).toBeVisible();
   await page.keyboard.press('Tab');
@@ -156,6 +162,35 @@ test('E4: administrator adjustment, confirmation, cancellation and archive agree
   expect(saved.archivedAt).not.toBeNull();
   expect((await shop.prisma.inventoryLevel.findFirst()).reserved).toBe(0);
   expect(await shop.prisma.auditLog.count({ where: { actorId: admin.user.id, orderId: order.id } })).toBeGreaterThanOrEqual(3);
+});
+
+test('commercial WhatsApp edits replace a waiting item and consume stock only on admin confirmation', async ({ page, context, shop }) => {
+  const admin = await shop.sessionFixture();
+  await context.addCookies([{ name: 'ferchu_session', value: admin.cookie.split('=')[1], url: shop.origin }]);
+  const original = await shop.prisma.productVariant.findFirst();
+  const size = await shop.prisma.size.create({ data: { code: 'G' } });
+  const added = await shop.prisma.productVariant.create({ data: { productOptionId: original.productOptionId,
+    sizeId: size.id, sku: 'LINHO-PRETO-G', inventory: { create: { onHand: 40 } } } });
+  const { createOrder } = await import('../../server/src/services/order.service.js');
+  const order = await createOrder(shop.orderInput(original.id));
+  await page.goto(`${shop.origin}/management`);
+  const card = page.getByRole('article').filter({ has: page.getByText(order.publicNumber, { exact: true }) });
+  await card.getByRole('button', { name: 'Editar pedido', exact: true }).click();
+  const selector = card.getByRole('combobox', { name: 'Adicionar variação ao pedido', exact: true });
+  await expect(selector).toBeEnabled();
+  await selector.selectOption(added.id);
+  await card.getByRole('spinbutton', { name: 'Calça Linho – Preto / M', exact: true }).fill('0');
+  await card.getByRole('spinbutton', { name: 'Calça Linho – Preto / G', exact: true }).fill('20');
+  await card.getByRole('textbox', { name: 'Observações do pedido', exact: true }).fill('Troca combinada no WhatsApp');
+  await card.getByRole('button', { name: 'Salvar alterações', exact: true }).click();
+  await expect(card.getByRole('button', { name: 'Editar pedido', exact: true })).toBeVisible();
+  const saved = await shop.prisma.order.findUnique({ where: { id: order.id }, include: { items: true } });
+  expect(saved.note).toBe('Troca combinada no WhatsApp');
+  expect(saved.items.map(item => [item.productVariantId, item.quantity])).toEqual([[added.id, 20]]);
+  expect((await shop.prisma.inventoryLevel.findUnique({ where: { variantId: added.id } })).onHand).toBe(40);
+  await card.getByRole('combobox', { name: `Status do pedido ${order.publicNumber}`, exact: true }).selectOption('CONFIRMADO');
+  await expect.poll(async () => (await shop.prisma.inventoryLevel.findUnique({ where: { variantId: added.id } })).onHand).toBe(20);
+  expect((await shop.prisma.inventoryLevel.findUnique({ where: { variantId: original.id } })).onHand).toBe(60);
 });
 
 test('E5: image upload and cover replacement reach the storefront without destroying historical order media', async ({ page, context, shop }) => {

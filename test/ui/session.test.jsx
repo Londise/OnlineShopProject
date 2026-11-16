@@ -7,16 +7,25 @@ import AuthDialog from '../../src/components/AuthDialog';
 import { respond, deferred, json, requests } from '../support/network';
 import { customer } from '../support/fixtures';
 
-test.each(['login', 'register'])('S7: an older session refresh cannot overwrite a successful %s', async method => {
+test.each(['login', 'verifyEmail'])('S7: an older session refresh cannot overwrite a successful %s', async method => {
   const pending = deferred();
   respond('GET', '/api/v1/auth/me', () => pending.promise);
-  respond('POST', `/api/v1/auth/${method}`, { user: customer });
+  respond('POST', `/api/v1/auth/${method === 'verifyEmail' ? 'verify-email' : method}`, { user: customer });
   const { result } = renderHook(() => useAuth());
   await act(async () => { await result.current[method]({ name: customer.name, email: customer.email, password: 'test-password-42' }); });
   expect(result.current.user).toEqual(customer);
   await act(async () => pending.resolve(json({ user: null })));
   expect(result.current.user).toEqual(customer);
   expect(result.current.loading).toBe(false);
+});
+
+test('registration acceptance never grants a client session before mailbox verification', async () => {
+  respond('GET', '/api/v1/auth/me', { user: null });
+  respond('POST', '/api/v1/auth/register', { message: 'Confira seu e-mail' });
+  const { result } = renderHook(() => useAuth());
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  await act(async () => { await result.current.register({ email: customer.email }); });
+  expect(result.current.user).toBeNull();
 });
 
 test('S7: a refresh started before logout cannot restore the logged-out user', async () => {

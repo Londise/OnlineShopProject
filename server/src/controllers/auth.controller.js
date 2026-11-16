@@ -3,9 +3,9 @@ import {
   authenticate,
   createSession,
   publicUser,
-  registerCustomer,
   revokeSession,
 } from "../services/session.service.js";
+import { registerCustomer, registrationNotice, verifyRegistration } from "../services/registration.service.js";
 
 const cookieOptions = {
   httpOnly: true,
@@ -18,10 +18,14 @@ const setSessionCookie = (res, token) =>
   res.cookie(env.SESSION_COOKIE_NAME, token, cookieOptions);
 
 export const register = async (req, res) => {
-  const user = await registerCustomer(req.body);
-  const token = await createSession(user.id);
+  await registerCustomer(req.body, { mailer: req.app.locals.verificationMailer ?? undefined });
+  res.status(202).json({ message: registrationNotice });
+};
+
+export const verifyEmail = async (req, res) => {
+  const { user, token } = await verifyRegistration(req.body);
   setSessionCookie(res, token);
-  res.status(201).json({ user: publicUser(user) });
+  res.json({ user: publicUser(user) });
 };
 
 export const login = async (req, res) => {

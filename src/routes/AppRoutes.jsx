@@ -10,6 +10,7 @@ import Home from "../pages/Home";
 import Checkout from "../pages/Checkout";
 import Management from "../pages/Management";
 import Account from "../pages/Account";
+import VerifyEmail from "../pages/VerifyEmail";
 import AppLayout from "../layouts/AppLayout";
 
 import { AuthProvider, useAuthContext } from "../contexts/AuthContext";
@@ -49,6 +50,7 @@ export default function AppRoutes() {
               <Route path="/checkout" element={<Checkout />} />
 
               <Route path="/account" element={<Account />} />
+              <Route path="/verify-email" element={<VerifyEmail />} />
 
               <Route
                 path="/management"

@@ -2,9 +2,9 @@ import { prisma } from "../db/prisma.js";
 import { lockInventories } from "../db/inventory.js";
 import { serializableTransaction } from "../db/transaction.js";
 import { MAX_ORDER_QUANTITY, MIN_ORDER_QUANTITY } from "../config/business.js";
-import { AppError, notFound } from "../lib/errors.js";
+import { AppError, forbidden, notFound } from "../lib/errors.js";
 import { logInfo } from "../lib/logger.js";
-import { publicOrderNumber } from "../lib/security.js";
+import { hashSessionToken, publicOrderNumber } from "../lib/security.js";
 import { volumeLabel } from "./shipping.service.js";
 import { defaultShippingQuoter } from "./melhor-envio.service.js";
 import { writeAudit } from "./audit.service.js";
@@ -164,33 +164,26 @@ async function moveForStatus(
 ) {
   if (currentStatus === nextStatus) return;
   assertTransition(currentStatus, nextStatus);
+  if (!((currentStatus === "NOVO" && nextStatus === "CONFIRMADO")
+    || (currentStatus === "CONFIRMADO" && nextStatus === "CANCELADO"))) return;
   for (const item of items) {
     const level = stock.get(item.productVariantId);
+    if (!level) throw new AppError(409, "MISSING_INVENTORY", "Estoque de uma variação não foi configurado.");
     let next = { ...level };
     let delta = { onHand: 0, reserved: 0 };
     let type;
     if (currentStatus === "NOVO" && nextStatus === "CONFIRMADO") {
       next = {
         onHand: level.onHand - item.quantity,
-        reserved: level.reserved - item.quantity,
+        reserved: level.reserved,
       };
-      delta = { onHand: -item.quantity, reserved: -item.quantity };
+      delta = { onHand: -item.quantity, reserved: 0 };
       type = "ORDER_CONSUME";
-    }
-    if (currentStatus === "NOVO" && nextStatus === "CANCELADO") {
-      next.reserved -= item.quantity;
-      delta.reserved = -item.quantity;
-      type = "ORDER_RELEASE";
     }
     if (currentStatus === "CONFIRMADO" && nextStatus === "CANCELADO") {
       next.onHand += item.quantity;
       delta.onHand = item.quantity;
       type = "ORDER_RESTORE";
-    }
-    if (currentStatus === "CANCELADO" && nextStatus === "NOVO") {
-      next.reserved += item.quantity;
-      delta.reserved = item.quantity;
-      type = "ORDER_RESERVE";
     }
     if (type) {
       await writeInventory(
@@ -248,25 +241,33 @@ async function resolveShippingQuote(delivery, pieces, quoteShipping) {
   };
 }
 
-export async function createOrder(input, user, { quoteShipping } = {}) {
+function replaySubmission(submission, requestHash) {
+  if (submission.requestHash !== requestHash)
+    throw new AppError(409, "IDEMPOTENCY_CONFLICT", "Este envio já foi usado com outro pedido. Inicie um novo envio.");
+  return submission.responseJson;
+}
+
+export async function createOrder(input, user, { quoteShipping, idempotencyKey } = {}) {
+  const keyHash = idempotencyKey ? hashSessionToken(`${user?.id ?? "guest"}:${idempotencyKey}`) : null;
+  const requestHash = hashSessionToken(JSON.stringify(input));
+  if (keyHash) {
+    const existing = await prisma.orderSubmission.findUnique({ where: { keyHash } });
+    if (existing) return replaySubmission(existing, requestHash);
+  }
   const items = aggregateItems(input.items);
   const pieces = assertPieceRange(items);
   // Consulta externa fora da transação: falhas de frete nunca seguram estoque.
   const quote = await resolveShippingQuote(input.delivery, pieces, quoteShipping);
-  const order = await serializableTransaction(
+  let result;
+  try {
+  result = await serializableTransaction(
     prisma,
     async (tx) => {
+      if (keyHash) {
+        const existing = await tx.orderSubmission.findUnique({ where: { keyHash } });
+        if (existing) return { order: replaySubmission(existing, requestHash), replayed: true };
+      }
       const variants = await loadActiveVariants(tx, items);
-      const stock = await lockInventories(
-        tx,
-        items.map((item) => item.variantId),
-      );
-      if (stock.size !== items.length)
-        throw new AppError(
-          409,
-          "MISSING_INVENTORY",
-          "Estoque de uma variação ainda não foi configurado.",
-        );
       const snapshots = items.map((item) =>
         snapshotItem(variants.get(item.variantId), item.quantity),
       );
@@ -290,23 +291,6 @@ export async function createOrder(input, user, { quoteShipping } = {}) {
         },
         include: { items: true },
       });
-      for (const item of items) {
-        const level = stock.get(item.variantId);
-        const next = {
-          onHand: level.onHand,
-          reserved: level.reserved + item.quantity,
-        };
-        await writeInventory(
-          tx,
-          item.variantId,
-          next,
-          { onHand: 0, reserved: item.quantity },
-          "ORDER_RESERVE",
-          order.id,
-          user?.id,
-          "Reserva de pedido novo",
-        );
-      }
       await writeAudit(tx, {
         actorId: user?.id,
         orderId: order.id,
@@ -315,9 +299,22 @@ export async function createOrder(input, user, { quoteShipping } = {}) {
         action: "CREATED",
         afterJson: { status: "NOVO", publicNumber: order.publicNumber },
       });
-      return order;
+      if (keyHash) await tx.orderSubmission.create({ data: {
+        keyHash, requestHash, responseJson: JSON.parse(JSON.stringify(order)),
+      } });
+      return { order, replayed: false };
     },
   );
+  } catch (error) {
+    // Concurrent inserts of the same key may surface as a unique conflict.
+    // Never retry a different checkout or treat unrelated DB failures as success.
+    if (!keyHash || error.code !== "P2002") throw error;
+    const existing = await prisma.orderSubmission.findUnique({ where: { keyHash } });
+    if (!existing) throw error;
+    return replaySubmission(existing, requestHash);
+  }
+  const { order, replayed } = result;
+  if (replayed) return order;
   // Telemetria nunca pode quebrar o fluxo do pedido: acessos são defensivos.
   logInfo("order.created", `Pedido ${order?.publicNumber ?? order?.id ?? "novo"} criado`, {
     actorId: user?.id ?? null,
@@ -338,6 +335,8 @@ async function updateOrderInTransaction(tx, orderId, input, actor) {
     include: { items: true },
   });
   if (!order) throw notFound("Pedido não encontrado.");
+  if (input.status === "CONFIRMADO" && order.status !== "CONFIRMADO" && actor.role !== "ADMIN")
+    throw forbidden("Somente administradores podem confirmar o acordo comercial.");
   const before = {
     status: order.status,
     paidAmountCents: order.paidAmountCents,
@@ -376,7 +375,7 @@ async function updateOrderInTransaction(tx, orderId, input, actor) {
       const oldQuantity = oldByVariant.get(variantId)?.quantity ?? 0;
       const newQuantity = requestedByVariant.get(variantId) ?? 0;
       const delta = newQuantity - oldQuantity;
-      if (!delta || order.status === "CANCELADO") continue;
+      if (!delta || order.status !== "CONFIRMADO") continue;
       const level = stock.get(variantId);
       if (!level)
         throw new AppError(
@@ -384,22 +383,9 @@ async function updateOrderInTransaction(tx, orderId, input, actor) {
           "MISSING_INVENTORY",
           "Estoque de uma variação não foi configurado.",
         );
-      const inventoryNext =
-        order.status === "NOVO"
-          ? { onHand: level.onHand, reserved: level.reserved + delta }
-          : { onHand: level.onHand - delta, reserved: level.reserved };
-      const movementType =
-        delta > 0
-          ? order.status === "NOVO"
-            ? "ORDER_RESERVE"
-            : "ORDER_CONSUME"
-          : order.status === "NOVO"
-            ? "ORDER_RELEASE"
-            : "ORDER_RESTORE";
-      const movementDelta =
-        order.status === "NOVO"
-          ? { onHand: 0, reserved: delta }
-          : { onHand: -delta, reserved: 0 };
+      const inventoryNext = { onHand: level.onHand - delta, reserved: level.reserved };
+      const movementType = delta > 0 ? "ORDER_CONSUME" : "ORDER_RESTORE";
+      const movementDelta = { onHand: -delta, reserved: 0 };
       await writeInventory(
         tx,
         variantId,
@@ -420,6 +406,9 @@ async function updateOrderInTransaction(tx, orderId, input, actor) {
   }
 
   const targetStatus = input.status ?? order.status;
+  if (order.status === "NOVO" && targetStatus === "CONFIRMADO") {
+    await loadActiveVariants(tx, effectiveItems.map(item => ({ variantId: item.productVariantId })));
+  }
   const { subtotalCents, totalCents } = orderTotals(effectiveItems, order.shippingAmountCents);
   const paidAmountCents = orderInt(input.paidAmountCents ?? order.paidAmountCents);
   await moveForStatus(

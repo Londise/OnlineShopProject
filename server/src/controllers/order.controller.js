@@ -1,10 +1,15 @@
 import { prisma } from '../db/prisma.js';
-import { notFound } from '../lib/errors.js';
+import { AppError, notFound } from '../lib/errors.js';
 import { archiveOrder, createOrder, updateOrder } from '../services/order.service.js';
+import { z } from 'zod';
 
 const orderInclude = { items: true, user: { select: { id: true, name: true, email: true } } };
 export const create = async (req, res) => {
-  const order = await createOrder(req.body, req.user, { quoteShipping: req.app.locals.shippingQuote });
+  const key = z.string().uuid().safeParse(req.get('idempotency-key'));
+  if (!key.success) throw new AppError(422, 'IDEMPOTENCY_KEY_REQUIRED', 'Informe um identificador UUID para este envio.');
+  const order = await createOrder(req.body, req.user, {
+    quoteShipping: req.app.locals.shippingQuote, idempotencyKey: key.data,
+  });
   res.status(201).json({ order });
 };
 

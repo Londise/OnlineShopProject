@@ -25,6 +25,7 @@ import {
 } from "../utils/whatsapp";
 
 import { api } from "../services/api";
+import { acknowledgeSubmission, submissionKey } from "../utils/order-submission";
 
 /*
  * ============================================================
@@ -278,7 +279,7 @@ export default function Checkout() {
        * O BACKEND também precisa validar o mínimo.
        */
 
-      const { order } = await api.orders.create({
+      const payload = {
         customer: {
           ...customer,
           email: customer.email || undefined,
@@ -309,9 +310,12 @@ export default function Checkout() {
           variantId: line.variantId,
           quantity: line.quantity,
         })),
-      });
+      };
+      const key = await submissionKey(payload);
+      const { order } = await api.orders.create(payload, key);
 
       createdOrder.current = order;
+      acknowledgeSubmission(key);
       // O servidor recota o frete. Preserva os itens/modalidade enviados,
       // mas usa o importe confirmado na resposta, inclusive zero ou null.
       const message = buildOrderMessage({
@@ -424,6 +428,7 @@ export default function Checkout() {
         <section className="review" aria-labelledby="confirmed-title">
           <h1 id="confirmed-title">Pedido recebido</h1>
           <p role="status">Seu pedido {confirmed.number} foi criado. As peças enviadas foram retiradas do carrinho.</p>
+          <p>O pedido está em espera, sem reserva de estoque. A disponibilidade será confirmada pela loja após a conversa no WhatsApp.</p>
           <p>Continue a conversa sem criar outro pedido:</p>
           <a className="button primary" href={confirmed.url} target="_blank" rel="noopener noreferrer">
             Abrir WhatsApp <Send size={18} />

@@ -14,6 +14,8 @@ export const api = {
       request("/auth/login", { method: "POST", body: JSON.stringify(body) }),
     register: (body) =>
       request("/auth/register", { method: "POST", body: JSON.stringify(body) }),
+    verifyEmail: (body) =>
+      request("/auth/verify-email", { method: "POST", body: JSON.stringify(body) }),
     logout: () => request("/auth/logout", { method: "POST" }),
   },
 
@@ -25,8 +27,8 @@ export const api = {
   },
 
   orders: {
-    create: (body) =>
-      request("/orders", { method: "POST", body: JSON.stringify(body) }),
+    create: (body, idempotencyKey = globalThis.crypto.randomUUID()) =>
+      request("/orders", { method: "POST", headers: { "Idempotency-Key": idempotencyKey }, body: JSON.stringify(body) }),
     mine: () => request("/orders/me"),
   },
 

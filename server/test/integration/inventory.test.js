@@ -2,7 +2,7 @@ import test, { after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { prisma, owner, resetDatabase, closeDatabase, serve, sessionFixture, catalogFixture, orderInput } from '../../test-support/integration.js';
 import { behindLock } from '../../test-support/concurrency.js';
-import { createOrder } from '../../src/services/order.service.js';
+import { createOrder, updateOrder } from '../../src/services/order.service.js';
 
 beforeEach(resetDatabase);
 after(closeDatabase);
@@ -11,6 +11,7 @@ const adjustment = (cookie, delta) => ({ method: 'POST', headers: { cookie, 'con
 test('O13: manual delta preserves reservations and persists movement/audit with the returned availability', async t => {
   const { variant } = await catalogFixture();
   await createOrder(orderInput(variant.id));
+  await owner.inventoryLevel.update({ where: { variantId: variant.id }, data: { reserved: 15 } });
   const admin = await sessionFixture(); const api = await serve(); t.after(api.close);
   const response = await api.request(`/api/v1/admin/inventory/${variant.id}/adjust`, adjustment(admin.cookie, -10));
   assert.equal(response.status, 200);
@@ -25,6 +26,7 @@ test('O13: manual delta preserves reservations and persists movement/audit with 
 test('O13: zero/invalid/over-reserved and nonexistent adjustments leave stock and business history untouched', async t => {
   const { variant } = await catalogFixture();
   await createOrder(orderInput(variant.id));
+  await owner.inventoryLevel.update({ where: { variantId: variant.id }, data: { reserved: 15 } });
   const admin = await sessionFixture(); const api = await serve(); t.after(api.close);
   const before = await prisma.inventoryLevel.findUnique({ where: { variantId: variant.id } });
   const movements = await prisma.inventoryMovement.count(), audits = await prisma.auditLog.count();
@@ -53,11 +55,12 @@ test('O13: failed adjustment audit rolls back both the physical delta and moveme
   }
 });
 
-test('O13: adjustment racing a reservation cannot remove newly committed stock', async t => {
+test('O13: adjustment racing commercial confirmation cannot remove newly committed stock', async t => {
   const { variant } = await catalogFixture({ onHand: 20 });
   const admin = await sessionFixture(); const api = await serve(); t.after(api.close);
+  const pending = await createOrder(orderInput(variant.id));
   const results = await behindLock(tx => tx.$queryRaw`SELECT variant_id FROM app.inventory_levels WHERE variant_id = ${variant.id} FOR UPDATE`, [
-    () => createOrder(orderInput(variant.id)),
+    () => updateOrder(pending.id, { status: 'CONFIRMADO' }, admin.user),
     () => api.request(`/api/v1/admin/inventory/${variant.id}/adjust`, adjustment(admin.cookie, -10)),
   ]);
   const order = results[0], adjustmentResponse = results[1];
@@ -66,7 +69,7 @@ test('O13: adjustment racing a reservation cannot remove newly committed stock',
   const level = await prisma.inventoryLevel.findUnique({ where: { variantId: variant.id } });
   if (order.status === 'fulfilled') {
     assert.equal(response.status, 409);
-    assert.deepEqual([level.onHand, level.reserved], [20, 15]);
+    assert.deepEqual([level.onHand, level.reserved], [5, 0]);
   } else {
     assert.equal(order.reason.code, 'INSUFFICIENT_STOCK');
     assert.equal(response.status, 200);

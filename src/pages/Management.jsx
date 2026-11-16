@@ -301,11 +301,15 @@ export default function Management() {
     }
   };
 
-  const beginOrderEdit = (order) => {
+  const beginOrderEdit = async (order) => {
     const items = getOrderItems(order);
 
     setEditingOrder({
       id: order.id,
+      items,
+      catalog: [],
+      catalogLoading: true,
+      note: order.note ?? "",
 
       paidAmount: (Number(order.paidAmountCents ?? 0) / 100).toFixed(2),
 
@@ -313,6 +317,17 @@ export default function Management() {
         items.map((item) => [item.productVariantId, item.quantity]),
       ),
     });
+    try {
+      const { products } = await api.admin.products();
+      if (!isCurrentView()) return;
+      setEditingOrder(current => current?.id === order.id
+        ? { ...current, catalog: products ?? [], catalogLoading: false } : current);
+    } catch (error) {
+      if (isCurrentView()) {
+        setError(error.message || "Não foi possível carregar as variações.");
+        setEditingOrder(current => current?.id === order.id ? { ...current, catalogLoading: false } : current);
+      }
+    }
   };
 
   const saveOrderEdit = async (order) => {
@@ -329,17 +344,19 @@ export default function Management() {
       return;
     }
 
-    const items = getOrderItems(order)
-      .map((item) => ({
-        variantId: item.productVariantId,
-        quantity: Number(editingOrder.quantities[item.productVariantId]) || 0,
-      }))
+    const items = Object.entries(editingOrder.quantities)
+      .map(([variantId, quantity]) => ({ variantId, quantity: Number(quantity) }))
       .filter((item) => item.quantity > 0);
+    if (!items.length || items.some(item => !Number.isSafeInteger(item.quantity))) {
+      setError("Informe quantidades inteiras e mantenha ao menos um item.");
+      return;
+    }
 
     try {
       await api.admin.updateOrder(order.id, {
         paidAmountCents: Math.round(paidAmount * 100),
         items,
+        note: editingOrder.note || null,
       });
 
       if (!isCurrentView()) return;
@@ -840,16 +857,18 @@ export default function Management() {
                       </div>
 
                       <select
+                        aria-label={`Status do pedido ${order.publicNumber}`}
                         value={order.status}
                         onChange={(event) =>
                           changeStatus(order, event.target.value)
                         }
                       >
-                        <option value="NOVO">NOVO</option>
+                        <option value="NOVO">EM ESPERA</option>
                         <option value="CONFIRMADO">CONFIRMADO</option>
                         <option value="CANCELADO">CANCELADO</option>
                         <option value="CONCLUIDO">CONCLUÍDO</option>
                       </select>
+                      {order.status === "NOVO" && <small>Sem reserva de estoque. Confirme após o acordo no WhatsApp.</small>}
 
                       <div className="order-actions">
                         <button
@@ -889,8 +908,13 @@ export default function Management() {
                             />
                           </label>
 
-                          {orderItems.map((item) => (
-                            <label key={item.id}>
+                          <label>
+                            Observações do pedido
+                            <textarea maxLength={2000} value={editingOrder.note}
+                              onChange={event => setEditingOrder(current => ({ ...current, note: event.target.value }))} />
+                          </label>
+                          {editingOrder.items.map((item) => (
+                            <label key={item.productVariantId}>
                               {item.productNameSnapshot} –{" "}
                               {item.optionNameSnapshot} / {item.sizeSnapshot}
                               <input
@@ -915,6 +939,31 @@ export default function Management() {
                               />
                             </label>
                           ))}
+
+                          <label>
+                            Adicionar variação ao pedido
+                            <select value="" disabled={editingOrder.catalogLoading}
+                              onChange={event => {
+                                const variantId = event.target.value;
+                                const choices = editingOrder.catalog.flatMap(product => product.options.flatMap(option =>
+                                  option.variants.map(variant => ({ product, option, variant }))));
+                                const choice = choices.find(item => item.variant.id === variantId);
+                                if (!choice) return;
+                                setEditingOrder(current => ({ ...current,
+                                  quantities: { ...current.quantities, [variantId]: 1 },
+                                  items: [...current.items, { productVariantId: variantId, productNameSnapshot: choice.product.name,
+                                    optionNameSnapshot: choice.option.name, sizeSnapshot: choice.variant.size }],
+                                }));
+                              }}>
+                              <option value="">{editingOrder.catalogLoading ? "Carregando variações…" : "Selecione produto, cor e tamanho"}</option>
+                              {editingOrder.catalog.filter(product => product.active).flatMap(product =>
+                                product.options.filter(option => option.active).flatMap(option =>
+                                  option.variants.filter(variant => variant.active && !(variant.id in editingOrder.quantities))
+                                    .map(variant => <option key={variant.id} value={variant.id}>
+                                      {product.name} – {option.name} / {variant.size}
+                                    </option>)))}
+                            </select>
+                          </label>
 
                           <button
                             className="button dark"
