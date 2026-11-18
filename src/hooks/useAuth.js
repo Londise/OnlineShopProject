@@ -45,11 +45,13 @@ export default function useAuth() {
     return api.auth.register(data);
   };
 
-  const verifyEmail = async (data) => {
+  const verifyEmail = useCallback(async (data) => {
     const result = await api.auth.verifyEmail(data);
-    acceptUser(result.user);
-    return result.user;
-  };
+    // Verification changes the current account, but is never a magic login.
+    // Read the real session instead of manufacturing one from the email link.
+    await refreshSession();
+    return result;
+  }, [refreshSession]);
 
   const logout = async () => {
     await api.auth.logout();

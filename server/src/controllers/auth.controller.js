@@ -5,7 +5,7 @@ import {
   publicUser,
   revokeSession,
 } from "../services/session.service.js";
-import { registerCustomer, registrationNotice, verifyRegistration } from "../services/registration.service.js";
+import { registerCustomer, registrationNotice, verifyRegistration, resendVerification, verificationNotice } from "../services/registration.service.js";
 
 const cookieOptions = {
   httpOnly: true,
@@ -16,18 +16,29 @@ const cookieOptions = {
 };
 const setSessionCookie = (res, token) =>
   res.cookie(env.SESSION_COOKIE_NAME, token, cookieOptions);
+const proofCookie = `${env.SESSION_COOKIE_NAME}_verification`;
+const setProofCookie = (res, proof) =>
+  res.cookie(proofCookie, proof, { ...cookieOptions, maxAge: 30 * 60_000 });
 
 export const register = async (req, res) => {
-  await registerCustomer(req.body, { mailer: req.app.locals.verificationMailer ?? undefined });
+  const result = await registerCustomer(req.body, { mailer: req.app.locals.verificationMailer ?? undefined,
+    proof: req.cookies?.[proofCookie] });
+  setProofCookie(res, result.proof);
   res.status(202).json({ message: registrationNotice });
 };
 
 export const verifyEmail = async (req, res) => {
-  const { user, token } = await verifyRegistration(req.body);
-  setSessionCookie(res, token);
-  res.json({ user: publicUser(user) });
+  const result = await verifyRegistration(req.body, { user: req.user, sessionId: req.authSessionId,
+    proof: req.cookies?.[proofCookie] });
+  res.clearCookie(proofCookie, { ...cookieOptions, maxAge: undefined });
+  res.json(result);
 };
 
+export const resendEmail = async (req, res) => {
+  const result = await resendVerification(req.user, { mailer: req.app.locals.verificationMailer ?? undefined });
+  if (result.proof) setProofCookie(res, result.proof);
+  res.status(202).json({ message: result.alreadyVerified ? 'Seu e-mail já está verificado.' : verificationNotice });
+};
 export const login = async (req, res) => {
   const user = await authenticate(req.body);
   const token = await createSession(user.id);

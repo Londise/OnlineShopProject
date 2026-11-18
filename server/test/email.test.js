@@ -16,6 +16,8 @@ test('verification email uses fixed Resend HTTPS endpoint, fragment link, idempo
   assert.deepEqual(body.to, ['owner@example.test']);
   assert.equal(body.reply_to, config.EMAIL_REPLY_TO);
   assert.ok(body.text.includes(`https://staging.example.test/verify-email#token=${'A'.repeat(43)}`));
+  assert.ok(body.text.includes('seu nome e sua senha continuam os mesmos'));
+  assert.ok(!body.text.includes('nova senha'));
   assert.ok(!request.body.includes(config.RESEND_API_KEY));
 });
 test('missing email configuration and provider/network/redirect failures never expose tokens or diagnostics', async () => {

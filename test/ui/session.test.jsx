@@ -7,25 +7,51 @@ import AuthDialog from '../../src/components/AuthDialog';
 import { respond, deferred, json, requests } from '../support/network';
 import { customer } from '../support/fixtures';
 
-test.each(['login', 'verifyEmail'])('S7: an older session refresh cannot overwrite a successful %s', async method => {
+test('S7: an older session refresh cannot overwrite a successful login', async () => {
   const pending = deferred();
   respond('GET', '/api/v1/auth/me', () => pending.promise);
-  respond('POST', `/api/v1/auth/${method === 'verifyEmail' ? 'verify-email' : method}`, { user: customer });
+  respond('POST', '/api/v1/auth/login', { user: customer });
   const { result } = renderHook(() => useAuth());
-  await act(async () => { await result.current[method]({ name: customer.name, email: customer.email, password: 'test-password-42' }); });
+  await act(async () => { await result.current.login({ email: customer.email, password: 'test-password-42' }); });
   expect(result.current.user).toEqual(customer);
   await act(async () => pending.resolve(json({ user: null })));
   expect(result.current.user).toEqual(customer);
   expect(result.current.loading).toBe(false);
 });
 
-test('registration acceptance never grants a client session before mailbox verification', async () => {
+test('verification refreshes the real session rather than granting a magic login from the link', async () => {
+  respond('GET', '/api/v1/auth/me', { user: null });
+  respond('POST', '/api/v1/auth/verify-email', { verified: true, user: customer });
+  const { result } = renderHook(() => useAuth());
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  await act(async () => { await result.current.verifyEmail({ token: 'A'.repeat(43) }); });
+  expect(result.current.user).toBeNull();
+});
+
+test('registration acceptance creates no automatic login; unverified customers may sign in normally', async () => {
   respond('GET', '/api/v1/auth/me', { user: null });
   respond('POST', '/api/v1/auth/register', { message: 'Confira seu e-mail' });
   const { result } = renderHook(() => useAuth());
   await waitFor(() => expect(result.current.loading).toBe(false));
   await act(async () => { await result.current.register({ email: customer.email }); });
   expect(result.current.user).toBeNull();
+});
+
+test('signup asks for name and password up front and submits them only to registration', async () => {
+  respond('GET', '/api/v1/auth/me', { user: null });
+  respond('POST', '/api/v1/auth/register', { message: 'Confira seu e-mail' });
+  render(<SignIn />);
+  await userEvent.click(screen.getByRole('button', { name: 'Ainda não tenho conta', exact: true }));
+  const dialog = screen.getByRole('dialog', { name: 'Criar conta', exact: true });
+  await userEvent.type(screen.getByRole('textbox', { name: 'Nome', exact: true }), customer.name);
+  await userEvent.type(screen.getByRole('textbox', { name: 'E-mail', exact: true }), customer.email);
+  await userEvent.type(screen.getByLabelText('Senha', { exact: true }), 'signup-password-42');
+  await userEvent.click(screen.getByRole('button', { name: 'Criar conta', exact: true }));
+  expect(await screen.findByRole('status')).toHaveTextContent('Confira seu e-mail');
+  expect(dialog).toBeVisible();
+  const submitted = requests.filter(r => r.method === 'POST');
+  expect(submitted).toHaveLength(1);
+  expect(JSON.parse(submitted[0].body)).toEqual({ name: customer.name, email: customer.email, password: 'signup-password-42' });
 });
 
 test('S7: a refresh started before logout cannot restore the logged-out user', async () => {

@@ -248,6 +248,8 @@ function replaySubmission(submission, requestHash) {
 }
 
 export async function createOrder(input, user, { quoteShipping, idempotencyKey } = {}) {
+  if (user?.role === "CUSTOMER" && !user.emailVerifiedAt)
+    throw new AppError(403, "EMAIL_NOT_VERIFIED", "Verifique seu e-mail para enviar pedidos pela sua conta.");
   const keyHash = idempotencyKey ? hashSessionToken(`${user?.id ?? "guest"}:${idempotencyKey}`) : null;
   const requestHash = hashSessionToken(JSON.stringify(input));
   if (keyHash) {

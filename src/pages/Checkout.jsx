@@ -127,6 +127,7 @@ export default function Checkout() {
   const [sending, setSending] = useState(false);
 
   const [orderError, setOrderError] = useState("");
+  const unverified = user?.role === "CUSTOMER" && !user.emailVerifiedAt;
   const [confirmed, setConfirmed] = useState(null);
   const submitting = useRef(false);
   const createdOrder = useRef(null);
@@ -199,6 +200,7 @@ export default function Checkout() {
     setOrderError("");
 
     try {
+      if (unverified) throw new Error("Verifique seu e-mail para enviar pedidos pela sua conta.");
       /*
        * Defesa adicional no frontend.
        *
@@ -835,6 +837,7 @@ export default function Checkout() {
               !selectedDelivery ||
               qtyTotal < MIN_ORDER_QUANTITY ||
               qtyTotal > MAX_ORDER_QUANTITY ||
+              unverified ||
               sending
             }
             onClick={handleWhatsApp}
@@ -846,6 +849,7 @@ export default function Checkout() {
             <Send size={18} />
           </button>
 
+          {unverified && <p className="checkout-error">Confirme seu e-mail pelo link recebido para enviar este pedido. Seu carrinho está guardado.</p>}
           {orderError && (
             <p
               className="form-error checkout-error"

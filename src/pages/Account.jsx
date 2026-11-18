@@ -14,11 +14,17 @@ export default function Account() {
   const navigate = useNavigate();
 
   const { user, logout } = useAuthContext();
+  const unverified = user?.role === "CUSTOMER" && !user.emailVerifiedAt;
 
   const [orders, setOrders] = useState([]);
   const [error, setError] = useState("");
 
   useEffect(() => {
+    if (!user || (user.role === "CUSTOMER" && !user.emailVerifiedAt)) {
+      setOrders([]);
+      setError("");
+      return;
+    }
     let cancelled = false;
 
     async function loadOrders() {
@@ -44,7 +50,7 @@ export default function Account() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [user?.id, user?.emailVerifiedAt, user?.role]);
 
   async function handleLogout() {
     await logout();
@@ -98,28 +104,29 @@ export default function Account() {
           Sair da conta
         </button>
 
-        <button
+        {user?.role === "ADMIN" && <button
           type="button"
           onClick={handleManagement}
         >
           <PackageCheck size={18} />
           Ir para o Gestor de Estoque
-        </button>
+        </button>}
 
         <section className="account-orders">
           <h2>Meus pedidos</h2>
 
+          {unverified && <p>Confirme seu e-mail para liberar o histórico e enviar pedidos pela sua conta.</p>}
           {error && (
             <p className="account-error">
               {error}
             </p>
           )}
 
-          {!error && orders.length === 0 && (
+          {!unverified && !error && orders.length === 0 && (
             <p>Nenhum pedido encontrado.</p>
           )}
 
-          {orders.length > 0 && (
+          {user && !unverified && orders.length > 0 && (
             <div className="orders-list">
               {orders.map((order) => (
                 <article

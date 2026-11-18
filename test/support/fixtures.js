@@ -1,4 +1,4 @@
-export const customer = { id: 'customer-1', name: 'Ana Silva', email: 'ana@example.test', role: 'CUSTOMER' };
+export const customer = { id: 'customer-1', name: 'Ana Silva', email: 'ana@example.test', role: 'CUSTOMER', emailVerifiedAt: '2026-11-18T00:00:00.000Z' };
 export const admin = { id: 'admin-1', name: 'Gestora', email: 'admin@example.test', role: 'ADMIN' };
 export const cartLine = (overrides = {}) => ({
   key: 'variant-1', variantId: 'variant-1', productId: 'product-1',

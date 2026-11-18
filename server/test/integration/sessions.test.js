@@ -9,28 +9,28 @@ beforeEach(resetDatabase);
 after(closeDatabase);
 const body = (data, cookie) => ({ method: 'POST', headers: { 'content-type': 'application/json', ...(cookie ? { cookie } : {}) }, body: JSON.stringify(data) });
 
-test('S1/S3: pending registration grants no session; verified ownership normalizes email and forbids role escalation', async t => {
+test('S1/S3: signup stores unverified credentials, then normal login and token-only verification preserve identity without role escalation', async t => {
   const api = await serve(); t.after(api.close);
   const response = await api.request('/api/v1/auth/register', body({ name: 'Ana Silva', email: ' Ana@Example.test ', password: 'correct-horse-42', role: 'ADMIN' }));
   assert.equal(response.status, 202);
   const accepted = await response.json();
-  assert.equal(response.headers.get('set-cookie'), null);
-  assert.equal(await prisma.user.count(), 0);
+  assert.match(response.headers.get('set-cookie'), /ferchu_session_verification=/);
+  assert.doesNotMatch(response.headers.get('set-cookie'), /ferchu_session=/);
+  assert.equal(await prisma.user.count(), 1);
   assert.equal(await prisma.authSession.count(), 0);
   const pending = await prisma.pendingRegistration.findUnique({ where: { email: 'ana@example.test' } });
   assert.equal(pending.tokenHash, createHash('sha256').update(verificationMessages[0].token).digest('hex'));
-  const verified = await api.request('/api/v1/auth/verify-email', body({ token: verificationMessages[0].token,
-    name: 'Ana Silva', password: 'correct-horse-42', role: 'ADMIN' }));
-  assert.equal(verified.status, 200);
-  const data = await verified.json();
+  const login = await api.request('/api/v1/auth/login', body({ email: 'ANA@example.test', password: 'correct-horse-42' }));
+  assert.equal(login.status, 200);
+  const data = await login.json();
   assert.equal(data.user.email, 'ana@example.test');
   assert.equal(data.user.role, 'CUSTOMER');
   assert.equal(data.user.passwordHash, undefined);
   const user = await prisma.user.findUnique({ where: { id: data.user.id } });
   assert.notEqual(user.passwordHash, 'correct-horse-42');
   assert.equal(await argon2.verify(user.passwordHash, 'correct-horse-42'), true);
-  assert.ok(user.emailVerifiedAt);
-  const cookie = verified.headers.get('set-cookie');
+  assert.equal(user.emailVerifiedAt, null);
+  const cookie = login.headers.get('set-cookie');
   assert.match(cookie, /HttpOnly/i); assert.match(cookie, /SameSite=Lax/i); assert.match(cookie, /Path=\//i);
   assert.doesNotMatch(cookie, /Domain=/i);
   const rawCookie = cookie.split(';')[0];
@@ -38,12 +38,19 @@ test('S1/S3: pending registration grants no session; verified ownership normaliz
   const session = await prisma.authSession.findFirst({ where: { userId: user.id } });
   assert.equal(session.tokenHash, createHash('sha256').update(token).digest('hex'));
   assert.notEqual(session.tokenHash, token);
+  const verified = await api.request('/api/v1/auth/verify-email', body({ token: verificationMessages[0].token,
+    name: 'Injected name', password: 'injected-password-42', role: 'ADMIN' }, rawCookie));
+  assert.equal(verified.status, 200);
+  assert.deepEqual(await verified.json(), { verified: true });
+  const confirmed = await prisma.user.findUnique({ where: { id: user.id } });
+  assert.ok(confirmed.emailVerifiedAt);
+  assert.equal(confirmed.name, user.name); assert.equal(confirmed.passwordHash, user.passwordHash);
   const me = await api.request('/api/v1/auth/me', { headers: { cookie: rawCookie } });
   assert.equal((await me.json()).user.id, user.id);
   const duplicate = await api.request('/api/v1/auth/register', body({ name: 'Outra Ana', email: 'ANA@example.test', password: 'correct-horse-42' }));
   assert.equal(duplicate.status, 202);
   assert.deepEqual(await duplicate.json(), accepted);
-  assert.equal(duplicate.headers.get('set-cookie'), null);
+  assert.match(duplicate.headers.get('set-cookie'), /ferchu_session_verification=/);
   assert.equal(await prisma.user.count(), 1);
 });
 

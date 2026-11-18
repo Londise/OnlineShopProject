@@ -18,7 +18,7 @@ export default function AuthDialog({ auth, onClose, onAuthenticated }) {
     try {
       if (mode === "login") onAuthenticated(await auth.login(form));
       else {
-        const result = await auth.register({ email: form.email });
+        const result = await auth.register(form);
         setNotice(result.message);
       }
     } catch (err) {
@@ -46,9 +46,14 @@ export default function AuthDialog({ auth, onClose, onAuthenticated }) {
         <p>
           {mode === "login"
             ? "Acompanhe seus pedidos quando quiser."
-            : "Verifique seu e-mail para escolher seu nome e senha com segurança."}
+            : "Escolha seus dados agora. Depois, confirme seu e-mail para liberar todos os recursos."}
         </p>
         <form onSubmit={submit}>
+          {mode === "register" && <label>
+            Nome
+            <input required minLength={2} maxLength={120} autoComplete="name" value={form.name}
+              onChange={event => setForm({ ...form, name: event.target.value })} />
+          </label>}
           <label>
             E-mail
             <input
@@ -61,7 +66,7 @@ export default function AuthDialog({ auth, onClose, onAuthenticated }) {
               }
             />
           </label>
-          {mode === "login" && <label>
+          <label>
             Senha
             <input
               required
@@ -69,13 +74,14 @@ export default function AuthDialog({ auth, onClose, onAuthenticated }) {
               autoComplete={
                 mode === "login" ? "current-password" : "new-password"
               }
-              minLength="10"
+              minLength={mode === "register" ? 10 : undefined}
+              maxLength={128}
               value={form.password}
               onChange={(event) =>
                 setForm({ ...form, password: event.target.value })
               }
             />
-          </label>}
+          </label>
           {notice && <p role="status">{notice}</p>}
           {error && (
             <p className="form-error" role="alert">

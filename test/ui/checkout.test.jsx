@@ -6,7 +6,7 @@ import Checkout from '../../src/pages/Checkout';
 import Cart from '../../src/components/Cart';
 import { renderPage } from '../support/render';
 import { respond, requests, deferred, json } from '../support/network';
-import { cartLine, order } from '../support/fixtures';
+import { cartLine, order, customer } from '../support/fixtures';
 
 const quoteOptions = (price = 21.9) => ({
   originPostalCode: '03031000', pieces: 15, options: [
@@ -15,9 +15,9 @@ const quoteOptions = (price = 21.9) => ({
   ],
 });
 
-function openCheckout(lines = [cartLine()], extra = null) {
+function openCheckout(lines = [cartLine()], extra = null, user = null) {
   localStorage.setItem('ferchu-cart', JSON.stringify(lines));
-  respond('GET', '/api/v1/auth/me', { user: null });
+  respond('GET', '/api/v1/auth/me', { user });
   respond('GET', '/api/v1/products', { products: [] });
   return renderPage(<><Checkout />{extra}</>, { path: '/checkout' });
 }
@@ -32,6 +32,18 @@ async function quoteFreight(cep) {
   await userEvent.type(screen.getByRole('textbox', { name: 'Seu CEP', exact: true }), cep);
   await userEvent.click(screen.getByRole('button', { name: 'Calcular estimativa', exact: true }));
 }
+
+test('unverified signed-in accounts keep their cart but cannot submit an order', async () => {
+  openCheckout([cartLine()], null, { ...customer, emailVerifiedAt: null });
+  await screen.findByText('Confirme seu e-mail pelo link recebido para enviar este pedido. Seu carrinho está guardado.', { exact: true });
+  await fillCustomer();
+  await userEvent.click(screen.getByRole('button', { name: 'Excursão Sem necessidade de CEP', exact: true }));
+  const submit = screen.getByRole('button', { name: 'Enviar pedido pelo WhatsApp', exact: true });
+  expect(submit).toBeDisabled();
+  await userEvent.click(submit);
+  expect(posts()).toHaveLength(0);
+  expect(JSON.parse(localStorage.getItem('ferchu-cart'))[0].quantity).toBe(15);
+});
 
 test('Q1: a direct checkout visit with 9 pieces returns to the store', async () => {
   openCheckout([cartLine({ quantity: 9 })]);

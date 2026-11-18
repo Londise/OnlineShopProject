@@ -16,6 +16,7 @@ export const api = {
       request("/auth/register", { method: "POST", body: JSON.stringify(body) }),
     verifyEmail: (body) =>
       request("/auth/verify-email", { method: "POST", body: JSON.stringify(body) }),
+    resendVerification: () => request("/auth/resend-verification", { method: "POST" }),
     logout: () => request("/auth/logout", { method: "POST" }),
   },
 

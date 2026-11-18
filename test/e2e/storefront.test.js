@@ -84,16 +84,30 @@ test('E3: registration, order ownership, account reload and logout work across b
   await page.getByRole('button', { name: 'Entrar', exact: true }).click();
   await page.getByRole('button', { name: 'Ainda não tenho conta', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Criar conta', exact: true });
+  await dialog.getByRole('textbox', { name: 'Nome', exact: true }).fill('Ana Silva');
   await dialog.getByRole('textbox', { name: 'E-mail', exact: true }).fill('ana@example.test');
+  await dialog.getByLabel('Senha', { exact: true }).fill('correct-horse-42');
   await dialog.getByRole('button', { name: 'Criar conta', exact: true }).click();
-  await expect(dialog.getByRole('status')).toContainText('receberá um link');
+  await expect(dialog.getByRole('status')).toContainText('sua conta foi criada');
   expect(await shop.prisma.authSession.count()).toBe(0);
+  const unverified = await shop.prisma.user.findUnique({ where: { email: 'ana@example.test' } });
+  expect(unverified.emailVerifiedAt).toBeNull();
+  await dialog.getByRole('button', { name: 'Já tenho uma conta', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Entrar', exact: true }).getByRole('button', { name: 'Entrar', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Olá, Ana.', exact: true })).toBeVisible();
+  await page.goto(`${shop.origin}/account`);
+  await expect(page.getByRole('complementary', { name: 'Verificação de e-mail', exact: true })).toBeVisible();
+  await expect(page.getByText('Confirme seu e-mail para liberar o histórico e enviar pedidos pela sua conta.', { exact: true })).toBeVisible();
+  await page.screenshot({ path: 'test-results/unverified-account.png', fullPage: true });
   const message = shop.verificationMessages.find(item => item.email === 'ana@example.test');
   expect(message).toBeTruthy();
   await page.goto(`${shop.origin}/verify-email#token=${message.token}`);
-  await page.getByRole('textbox', { name: 'Nome', exact: true }).fill('Ana Silva');
-  await page.getByLabel('Nova senha', { exact: true }).fill('correct-horse-42');
-  await page.getByRole('button', { name: 'Verificar e entrar', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'E-mail verificado!', exact: true })).toBeVisible();
+  await page.screenshot({ path: 'test-results/verified-email.png', fullPage: true });
+  expect(new URL(page.url()).hash).toBe('');
+  await expect(page.getByRole('complementary', { name: 'Verificação de e-mail', exact: true })).not.toBeVisible();
+  await expect(page.getByLabel('Nova senha', { exact: true })).toHaveCount(0);
+  await page.getByRole('link', { name: 'Ir para minha conta', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Olá, Ana.', exact: true })).toBeVisible();
   await buildCart(page, shop);
   await submitGuestOrder(page);
@@ -109,6 +123,84 @@ test('E3: registration, order ownership, account reload and logout work across b
   expect((await shop.prisma.authSession.findFirst()).revokedAt).not.toBeNull();
   await page.goto(`${shop.origin}/management`);
   await expect(page).toHaveURL(`${shop.origin}/`);
+});
+
+async function signUp(page, shop, email) {
+  await page.goto(shop.origin);
+  await page.getByRole('button', { name: 'Entrar', exact: true }).click();
+  await page.getByRole('button', { name: 'Ainda não tenho conta', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Criar conta', exact: true });
+  await dialog.getByRole('textbox', { name: 'Nome', exact: true }).fill('Ana Silva');
+  await dialog.getByRole('textbox', { name: 'E-mail', exact: true }).fill(email);
+  await dialog.getByLabel('Senha', { exact: true }).fill('correct-horse-42');
+  await dialog.getByRole('button', { name: 'Criar conta', exact: true }).click();
+  await expect(dialog.getByRole('status')).toContainText('sua conta foi criada');
+  return dialog;
+}
+
+test('same-browser confirmation uses only the mail token and browser proof, without an automatic login or new password', async ({ page, context, shop }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  const dialog = await signUp(page, shop, 'proof@example.test');
+  const before = await shop.prisma.user.findUnique({ where: { email: 'proof@example.test' } });
+  expect(before.emailVerifiedAt).toBeNull();
+  expect((await context.cookies()).some(cookie => cookie.name === 'ferchu_session_verification' && cookie.httpOnly)).toBe(true);
+  await dialog.getByRole('button', { name: 'Fechar', exact: true }).click();
+  await expect(page.getByRole('complementary', { name: 'Verificação de e-mail', exact: true })).toHaveCount(0);
+  const message = shop.verificationMessages.find(item => item.email === 'proof@example.test');
+  await page.goto(`${shop.origin}/verify-email#token=${message.token}`);
+  await expect(page.getByRole('heading', { name: 'E-mail verificado!', exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({ path: 'test-results/verified-email-mobile.png', fullPage: true });
+  await expect(page.getByLabel('Nova senha', { exact: true })).toHaveCount(0);
+  expect(await shop.prisma.authSession.count()).toBe(0);
+  const after = await shop.prisma.user.findUnique({ where: { id: before.id } });
+  expect(after.passwordHash).toBe(before.passwordHash);
+  expect(after.name).toBe(before.name);
+  expect(after.emailVerifiedAt).not.toBeNull();
+});
+
+test('a link opened in a different browser requires the original account login, then verifies without changing credentials', async ({ page, browser, shop }) => {
+  await signUp(page, shop, 'cross-browser@example.test');
+  const before = await shop.prisma.user.findUnique({ where: { email: 'cross-browser@example.test' } });
+  const message = shop.verificationMessages.find(item => item.email === before.email);
+  const other = await browser.newContext();
+  try {
+    await other.route('**/*', route => ['127.0.0.1', 'localhost'].includes(new URL(route.request().url()).hostname)
+      ? route.continue() : route.abort());
+    const second = await other.newPage();
+    await second.goto(`${shop.origin}/verify-email#token=${message.token}`);
+    await expect(second.getByRole('heading', { name: 'Só falta entrar na sua conta', exact: true })).toBeVisible();
+    expect((await shop.prisma.user.findUnique({ where: { id: before.id } })).emailVerifiedAt).toBeNull();
+    await second.getByRole('button', { name: 'Entrar na minha conta', exact: true }).click();
+    const login = second.getByRole('dialog', { name: 'Entrar', exact: true });
+    await login.getByRole('textbox', { name: 'E-mail', exact: true }).fill(before.email);
+    await login.getByLabel('Senha', { exact: true }).fill('correct-horse-42');
+    await login.getByRole('button', { name: 'Entrar', exact: true }).click();
+    await expect(second.getByRole('heading', { name: 'E-mail verificado!', exact: true })).toBeVisible();
+    const after = await shop.prisma.user.findUnique({ where: { id: before.id } });
+    expect(after.passwordHash).toBe(before.passwordHash);
+    expect(await shop.prisma.auditLog.count({ where: { action: 'EMAIL_VERIFIED' } })).toBe(1);
+  } finally { await other.close(); }
+});
+
+test('an expired link offers authenticated resend and the new link verifies while preserving the original password', async ({ page, shop }) => {
+  const dialog = await signUp(page, shop, 'resend@example.test');
+  await dialog.getByRole('button', { name: 'Já tenho uma conta', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Entrar', exact: true }).getByRole('button', { name: 'Entrar', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Olá, Ana.', exact: true })).toBeVisible();
+  await page.goto(`${shop.origin}/account`);
+  const first = shop.verificationMessages.find(item => item.email === 'resend@example.test');
+  await shop.owner.pendingRegistration.updateMany({ data: { createdAt: new Date(0), expiresAt: new Date(0) } });
+  await page.goto(`${shop.origin}/verify-email#token=${first.token}`);
+  const verification = page.getByRole('region', { name: 'Vamos tentar de novo?', exact: true });
+  await expect(verification.getByRole('alert')).toContainText('vencido');
+  await verification.getByRole('button', { name: 'Reenviar e-mail', exact: true }).click();
+  await expect(verification.getByRole('status')).toContainText('Enviamos um link');
+  const resent = shop.verificationMessages.filter(item => item.email === 'resend@example.test').at(-1);
+  expect(resent.token).not.toBe(first.token);
+  await page.goto(`${shop.origin}/verify-email#token=${resent.token}`);
+  await expect(page.getByRole('heading', { name: 'E-mail verificado!', exact: true })).toBeVisible();
+  await expect(page.getByRole('complementary', { name: 'Verificação de e-mail', exact: true })).toHaveCount(0);
 });
 
 test('E2: reduced-motion keyboard navigation stays inside dialogs and returns focus on Escape', async ({ page, shop }) => {

@@ -5,12 +5,12 @@ const password = z
   .min(10, "A senha deve ter ao menos 10 caracteres.")
   .max(128);
 export const registerSchema = z.object({
+  name: z.string().trim().min(2).max(120),
   email: z.string().trim().email().max(191),
+  password,
 });
 export const verifyEmailSchema = z.object({
   token: z.string().regex(/^[A-Za-z0-9_-]{43}$/),
-  name: z.string().trim().min(2).max(120),
-  password,
 });
 export const loginSchema = z.object({
   email: z.string().trim().email().max(191),

@@ -75,6 +75,7 @@ export function createApp({ config = env, database = prisma, attachSession = att
   app.use('/api/v1/auth/login', limiter());
   app.use('/api/v1/auth/register', limiter());
   app.use('/api/v1/auth/verify-email', limiter());
+  app.use('/api/v1/auth/resend-verification', limiter());
   app.use('/api/v1/auth', authRouter);
   app.use('/api/v1/orders', limiter(), orderRouter);
   const shippingLimiter = () => rateLimit({

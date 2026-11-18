@@ -47,6 +47,69 @@ img {
     display: block
 }
 
+.email-verification-notice {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 6px 12px;
+    padding: 9px 20px;
+    background: #fbefdf;
+    color: #654623;
+    border-bottom: 1px solid #eddbc4;
+    font-size: 12px;
+    line-height: 1.5;
+}
+.email-verification-notice > svg { flex: 0 0 auto; }
+.verification-resend { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px 12px; }
+.verification-resend .text-button { padding: 4px; color: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+.verification-resend button:disabled { cursor: default; opacity: .65; }
+.verification-resend [role="status"], .verification-resend [role="alert"] { max-width: 48ch; font-size: 12px; }
+.verification-page {
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 28px;
+    padding: 40px 20px;
+    background: radial-gradient(ellipse at top, #f6e7e9 0, var(--cream) 55%, var(--white) 100%);
+}
+.verification-brand { color: var(--wine); font: 700 30px 'Playfair Display', serif; text-align: center; }
+.verification-brand small { display: block; font: 500 10px 'DM Sans', sans-serif; letter-spacing: .34em; margin-top: 4px; }
+.verification-card {
+    width: min(100%, 490px);
+    padding: 40px clamp(22px, 5vw, 44px);
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    background: var(--white);
+    box-shadow: var(--shadow);
+    text-align: center;
+}
+.verification-icon {
+    display: grid;
+    place-items: center;
+    width: 84px;
+    height: 84px;
+    margin: 0 auto 24px;
+    border-radius: 50%;
+    background: #f6e7eb;
+    color: var(--wine);
+}
+.verified .verification-icon { background: #e8f3e9; color: #346144; }
+.verification-icon.checking { animation: verification-spin 1.6s linear infinite; }
+.verification-card .eyebrow { font-size: 10px; letter-spacing: .15em; }
+.verification-card h1 { margin: 14px 0; font: 600 clamp(27px, 6vw, 36px)/1.15 'Playfair Display', serif; }
+.verification-card p { color: var(--muted); line-height: 1.7; }
+.verification-detail { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 24px 0; font-size: 12px; color: var(--wine); }
+.verification-detail svg { flex: 0 0 auto; }
+.verification-card .button { display: inline-flex; justify-content: center; margin-top: 10px; }
+.verification-card .verification-hint { font-size: 12px; margin-bottom: 0; }
+.verification-back { display: block; margin-top: 24px; font-size: 13px; text-decoration: underline; text-underline-offset: 4px; }
+.verification-footer { color: var(--muted); font-size: 12px; text-align: center; }
+@keyframes verification-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .verification-icon.checking { animation: none; } }
+
 .storefront-header {
     height: 76px;
     display: flex;

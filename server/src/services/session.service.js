@@ -16,11 +16,11 @@ const sessionExpiry = () =>
 
 export async function authenticate({ email, password }) {
   await reserveLoginAttempt(email);
-  const user = await prisma.user.findUnique({
-    where: { email: normalizeEmail(email) },
+  const user = await prisma.user.findFirst({
+    where: { email: { equals: normalizeEmail(email), mode: "insensitive" } },
   });
   const passwordMatches = await argon2.verify(user?.passwordHash ?? await dummyPasswordHash, password);
-  if (!user?.active || !passwordMatches || (user.role === "CUSTOMER" && !user.emailVerifiedAt)) {
+  if (!user?.active || !passwordMatches) {
     // Sem distinguir usuário inexistente de senha errada; o e-mail é redigido pelo logger.
     logWarn("auth.login_failed", "Tentativa de login falhou", {
       data: { email, reason: "invalid_credentials" },
@@ -56,4 +56,5 @@ export const publicUser = (user) => ({
   name: user.name,
   email: user.email,
   role: user.role,
+  emailVerifiedAt: user.emailVerifiedAt,
 });

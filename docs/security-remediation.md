@@ -29,18 +29,39 @@ No se aplicaron migraciones ni despliegues a la tienda de producción.
   independiente de IP/proceso: 10 intentos por ventana de 15 minutos, con
   demora progresiva a partir del sexto. Un login correcto limpia su contador.
   Se purgan por lotes acotados contadores ajenos de más de un día.
-- El registro público responde `202` con el mismo mensaje y sin sesión tanto
-  para direcciones nuevas como existentes. No consulta usuarios para decidir
-  su respuesta ni acepta una contraseña elegida por el solicitante inicial.
-- El dueño del correo elige nombre y contraseña después de recibir un enlace
-  de 30 minutos y un solo uso. Abrir el enlace no activa la cuenta. El token
-  viaja en el fragmento del enlace y se retira del URL al abrir la página.
+- El registro pide nombre, correo y contraseña; guarda inmediatamente una cuenta
+  `CUSTOMER` activa pero **sin verificar**, con Argon2id. Un registro repetido no
+  sustituye nombre, contraseña ni rol de una cuenta existente.
+- La respuesta pública sigue siendo `202` con el mismo mensaje, sin inicio de
+  sesión automático ni revelación de si el correo ya existía. Siempre establece
+  una cookie opaca de prueba de navegador (HttpOnly/SameSite Lax/Secure en HTTPS),
+  distinta de la cookie de sesión; solo el creador legítimo recibe una prueba válida.
+- Las cuentas no verificadas pueden iniciar sesión y preparar el carrito. La
+  API impide enviar pedidos desde esas cuentas y leer su historial hasta que
+  verifiquen. La interfaz replica el límite sin perder el carrito; los invitados
+  conservan el flujo de pedidos existente. ADMIN/STAFF administrados no cambian.
+- Un aviso compacto aparece únicamente para un CUSTOMER conectado sin verificar.
+  Incluye reenvío autenticado, con un presupuesto persistente de un envío por
+  minuto por cuenta, además del límite IP independiente. Cambiar de proceso/IP
+  o recargar la pantalla no reinicia el presupuesto.
+- El enlace dura 30 minutos y confirma solamente el correo, sin pedir nombre o
+  contraseña nuevos, sin crear una sesión y sin cambiar las credenciales.
+  La pantalla de éxito permanece visible. El token viaja en el fragmento y se
+  retira del URL al abrir la página.
+- Para evitar apropiación por pre-registro, la confirmación exige la prueba
+  HttpOnly del navegador del registro o una sesión autenticada de esa misma
+  cuenta. En otro navegador se pide entrar con la contraseña ya elegida, no
+  restablecerla. Un correo inesperado, sin esa prueba, no confirma contraseñas
+  elegidas por otra persona.
 - Las solicitudes repetidas conservan el enlace vigente y usan idempotencia
   también en Resend. La base guarda un hash del token; el secreto independiente
   para reconstruirlo permanece únicamente en el servidor.
-- Verificar una cuenta antigua no verificada conserva su ID/pedidos y revoca
-  sesiones anteriores. No permite sobrescribir cuentas ya verificadas,
-  reactivar cuentas deshabilitadas ni modificar ADMIN/STAFF.
+- Verificar conserva ID, nombre, contraseña y propiedad de pedidos, y revoca
+  las sesiones previas salvo la sesión autenticada que confirma. No permite
+  sobrescribir cuentas verificadas, reactivar deshabilitados ni modificar ADMIN/STAFF.
+- El formato nuevo vincula token y prueba a la identidad, credenciales y nonce,
+  usando HMAC con propósitos separados. Los enlaces del flujo anterior ya no
+  son válidos y se recuperan desde el reenvío de la cuenta.
 
 ## Migración y compatibilidad
 
@@ -60,11 +81,13 @@ endpoint de creación devuelve `422 IDEMPOTENCY_KEY_REQUIRED`.
 No aplicar esta migración a producción sin aprobación y respaldo previo.
 
 `20261115110000_email_verification` no marca falsamente correos antiguos como
-verificados. Al aprobar el despliegue, los clientes existentes deberán
-verificar el correo y elegir una contraseña nueva; sus sesiones anteriores
-se revocarán. ADMIN y STAFF administrados no están afectados por ese corte.
+verificados y revoca sus sesiones anteriores una vez, al aplicarse.
+La revisión del flujo permite entrar con la contraseña existente, pero exige
+confirmación antes de consultar pedidos o enviarlos desde la cuenta. No obliga
+a cambiarla y conserva los IDs/pedidos. ADMIN y STAFF no sufren ese corte.
+La revisión no cambia el esquema ni modifica migraciones ya aplicadas.
 
-## Verificación local
+## Verificación local anterior (antes de la revisión del registro)
 
 - Unidades frontend: 67 aprobadas.
 - Unidades backend, HTTP y recursos: 70 aprobadas.
@@ -81,7 +104,32 @@ finalizaron correctamente. Se corrigió una dependencia de prueba: reiniciar
 la API E2E debe conservar el capturador local de correo en vez de intentar
 usar el proveedor real sin configurar.
 
-## Verificación remota de staging (17/11/2026, hora local)
+## Regresiones de la revisión del registro
+
+- Unidades frontend: 67 aprobadas.
+- Unidades backend/HTTP: 70 aprobadas.
+- Integración completa con PostgreSQL desechable: 163 aprobadas.
+- Interfaz: 117 aprobadas (incluye header condicional, reenvío y confirmación).
+- Navegador completo: 23 aprobadas. Incluye prueba HttpOnly sin login, confirmación
+  desde otro navegador con la contraseña original, y recuperación de un enlace
+  caducado con reenvío en la misma pestaña.
+- Build aislado aprobado; sin canarios de secretos en los assets del navegador.
+- No se añadieron dependencias ni cambios de esquema. Las pruebas aíslan sus
+  instalaciones/Prisma en un worktree; no usan la base de producción.
+- La primera ronda detectó dos navegaciones de prueba antes de completar login,
+  corregidas esperando el estado autenticado. También se observó un arranque
+  frío con imports locales de Vite pendientes. La segunda detectó un fallo real
+  de la pantalla: un enlace reenviado por hash reutilizaba el token anterior.
+  Se corrigió la captura de enlaces nuevos y se añadió regresión de interfaz.
+  La última ronda completa pasó sin elevar timeouts ni añadir retries.
+
+La instalación también detectó cinco avisos `high` de `npm audit` en dependencias
+de desarrollo existentes (`picomatch`, `fdir`, `tinyglobby`, `vite`, `vitest`).
+El backend no reportó avisos. Se deja constancia sin ejecutar `audit fix --force`
+ni aceptar las rebajas/cambios de versión sugeridos automáticamente, fuera del
+alcance de esta revisión del registro.
+
+## Verificación remota anterior de staging (17/11/2026, hora local)
 
 - Código desplegado: `555fb931ddf87f66a134aa437a4595ea893ba023`.
   La rama se publicó en GitHub sin modificar `main`.
@@ -122,10 +170,12 @@ usar el proveedor real sin configurar.
 
 ## Pendiente, no presentado como resuelto
 
-- Confirmación humana de recepción y finalización del enlace de verificación.
-  La pestaña sigue en el login de Vercel; no se accedió al buzón ni se eligió
-  una contraseña en nombre del usuario. Si pasan 30 minutos, solicitar otro
-  enlace desde el registro de staging, sin compartir tokens en el chat.
+- El usuario confirmó recepción del correo anterior y que el enlace había
+  caducado. La pantalla y flujo anteriores se sustituyen por el registro
+  convencional y confirmación sin contraseña nueva descritos arriba.
+- Ejecutar las regresiones y validar remotamente esta revisión antes de dar por
+  actualizado el staging. No confundir pruebas del despliegue anterior con las
+  del nuevo comportamiento.
 - Staging no tiene bucket de imágenes, proveedor de cotización ni destino
   WhatsApp propios configurados. Esos flujos no se presentan como validados
   remotamente; no se copiaron secretos de producción.
