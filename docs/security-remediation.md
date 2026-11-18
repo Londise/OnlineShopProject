@@ -162,20 +162,44 @@ alcance de esta revisión del registro.
   creado el `2026-11-18T00:16:12Z`, con remitente
   `noreply@send.ferchumodas.shop` y Reply-To `ferchumodas461@gmail.com`.
   Esto prueba entrega al servidor destinatario, no lectura ni ubicación en inbox.
+  Posteriormente el usuario confirmó recepción, pero abrió el enlace después
+  de caducar; ese flujo anterior ya fue sustituido por la revisión descrita arriba.
 - El acceso temporal de automatización creado por `vercel curl` se revocó
   después de las pruebas. Se verificaron cero bypasses y protección SSO `all`;
   el token revocado vuelve a recibir redirección al acceso de Vercel.
 - Se eliminó el archivo temporal de conexiones owner del bootstrap. Las
   credenciales runtime permanecen privadas, fuera del repositorio y del bundle.
 
+## Verificación remota del registro revisado (18/11/2026 UTC)
+
+- Código probado y desplegado: `dc5273ee651159e8b7075e280535884131c47641`.
+- Backend de staging: `dep-dbugh19srm7s73eq3jv0`, estado `live`, sobre el mismo
+  servicio gratuito `srv-dbueog67bikc739o5pqg`. No se ejecutaron migraciones,
+  seeds ni cambios de acceso externo.
+- Frontend de staging: `dpl_BrQV7CuuQn2WUvNEsE6eGC3hsj4T`, estado `READY`,
+  despliegue Preview. Se verificó que el alias
+  https://ferchumodas-security-staging.vercel.app apunta a ese despliegue
+  dentro del proyecto `prj_5KQHSlEp8RpaQ8IWaNd5FBtTOuGD`.
+- Seis grupos de navegador remoto aprobaron:
+  1. Registro real sin login automático ni aviso para visitantes desconectados.
+  2. Login con la contraseña original, aviso de cuenta sin verificar, rechazo
+     de pedidos/historial y cooldown del reenvío.
+  3. Envío real mediante Resend a una dirección oficial de pruebas
+     `delivered+registration-…@resend.dev`, sin otro correo al buzón del usuario.
+  4. Rechazo de confirmación en un navegador ajeno sin sesión/prueba de registro.
+  5. Confirmación sin credenciales nuevas, pantalla de éxito en escritorio/móvil,
+     desaparición del aviso y habilitación del historial.
+  6. Login posterior con la misma contraseña y logout, sin excepciones JavaScript.
+- La cuenta sintética de pruebas quedó verificada; no se crearon pedidos en
+  este recorrido. No se copiaron datos ni credenciales de producción.
+- La automatización usó un OIDC temporal del mismo proyecto, limitado al origen
+  de staging. No creó bypasses persistentes ni amplió Trusted Sources.
+  Se verificaron cero bypasses, SSO `all` y redirección `302` sin autenticar.
+- La base continúa `available`, en plan gratuito y con acceso externo bloqueado.
+- Vercel no informó errores runtime en la ventana consultada de una hora.
+
 ## Pendiente, no presentado como resuelto
 
-- El usuario confirmó recepción del correo anterior y que el enlace había
-  caducado. La pantalla y flujo anteriores se sustituyen por el registro
-  convencional y confirmación sin contraseña nueva descritos arriba.
-- Ejecutar las regresiones y validar remotamente esta revisión antes de dar por
-  actualizado el staging. No confundir pruebas del despliegue anterior con las
-  del nuevo comportamiento.
 - Staging no tiene bucket de imágenes, proveedor de cotización ni destino
   WhatsApp propios configurados. Esos flujos no se presentan como validados
   remotamente; no se copiaron secretos de producción.

@@ -32,5 +32,9 @@ La comprobación con Resend terminó correctamente. El 17/11/2026 (hora local),
 el registro real desde staging respondió `202` y Resend confirmó `delivered`
 para el único mensaje de prueba autorizado. El remitente fue
 `noreply@send.ferchumodas.shop` y Reply-To `ferchumodas461@gmail.com`.
-La confirmación humana de recepción y la finalización del enlace siguen
-pendientes: el evento del proveedor no demuestra lectura ni ubicación en inbox.
+El evento del proveedor por sí solo no demuestra lectura ni ubicación en inbox.
+En este caso, el propietario confirmó después que recibió el mensaje, pero abrió el
+enlace después de caducar. El nuevo flujo registra nombre/contraseña antes del
+envío y el enlace solo confirma el correo. Su recorrido completo ya se probó
+en staging con un destinatario oficial de pruebas de Resend; no se envió otro
+mensaje al buzón real del propietario.
