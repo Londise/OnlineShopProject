@@ -15,10 +15,10 @@
 <body>
 <a class="skip" href="#contenido">Saltar al contenido</a>
 <header id="inicio">
-  <p class="small">FERCHU MODAS · REFERENCIA DEL REPOSITORIO · 16/10/2026</p>
+  <p class="small">FERCHU MODAS · MANUAL DEL PROYECTO · REVISADO EL 18/11/2026</p>
   <h1>Documentación del proyecto</h1>
   <p>Guía única de la tienda, su API y su operación. Explica tanto el recorrido de un clic como los comandos, las reglas de negocio y los cuidados necesarios para mantener datos reales.</p>
-  <div class="warning"><strong>Alcance:</strong> contenido contrastado con archivos locales, sin consultar servicios ni ejecutar operaciones remotas. Las referencias históricas de pruebas no certifican disponibilidad, configuración ni seguridad actuales. Los ejemplos con marcadores no contienen credenciales reales. Este HTML se puede leer sin conexión, sin JavaScript, fuentes, imágenes ni estilos externos.</div>
+  <div class="note"><strong>Cómo leer esta guía:</strong> empieza por arquitectura y pedidos para entender la tienda; desarrollo y configuración explican cómo trabajar en ella; despliegue y diagnóstico sirven para operarla. Describe el código vigente; las comprobaciones remotas se identifican aparte y no garantizan disponibilidad futura. Este HTML funciona sin conexión y no contiene credenciales.</div>
 </header>
 <div class="layout">
 <nav aria-label="Índice de documentación">
@@ -35,7 +35,7 @@
     <li><a href="#despliegue">9. Render y Vercel</a></li>
     <li><a href="#logs">10. Logs y auditoría</a></li>
     <li><a href="#operacion">11. Diagnóstico y verificación</a></li>
-    <li><a href="#historial">12. Antecedentes y fuentes</a></li>
+    <li><a href="#historial">12. Pruebas y referencias</a></li>
   </ol>
 </nav>
 <main id="contenido" tabindex="-1">
@@ -45,20 +45,31 @@
   → Vercel: frontend + proxy /api/*
   → Render: Node 22 / Express 5
   → Prisma 6.19.3 → PostgreSQL, schema privado app
-  → Supabase Storage: archivos del bucket storefront-images</pre>
+  → Supabase Storage: archivos del bucket storefront-images
+  → Resend: verificación de correo
+  → Melhor Envio: cálculo de envío (no compra de etiquetas)</pre>
   <p>En producción el navegador solicita datos al mismo dominio de la tienda, por ejemplo <code>/api/v1/products</code>. Vercel autentica el salto hacia Render; Express valida la solicitud, consulta PostgreSQL y devuelve JSON. El navegador sí puede descargar imágenes directamente del bucket público: no consulta directamente las tablas ni debe conocer secretos del servidor.</p>
   <p>Supabase aloja PostgreSQL y Storage; no se usa Supabase Auth ni Edge Functions. El SDK de Storage se utiliza exclusivamente en el backend. Localmente se puede usar PostgreSQL propio y llamar a Express en <code>http://localhost:3001</code>.</p>
   <div class="table"><table><caption>Responsabilidades y archivos</caption><thead><tr><th scope="col">Área</th><th scope="col">Ubicación</th><th scope="col">Función</th></tr></thead><tbody>
     <tr><td>Entrada frontend</td><td><code>src/main.jsx → src/App.jsx → src/routes/AppRoutes.jsx</code></td><td>Router, layout y proveedores de sesión/carrito.</td></tr>
-    <tr><td>Páginas</td><td><code>src/pages/</code></td><td>Home (<code>/</code>), Checkout (<code>/checkout</code>), Account (<code>/account</code>), Management (<code>/management</code>).</td></tr>
+    <tr><td>Páginas</td><td><code>src/pages/</code></td><td>Home (<code>/</code>), Checkout (<code>/checkout</code>), Account (<code>/account</code>), VerifyEmail (<code>/verify-email</code>), Management (<code>/management</code>).</td></tr>
     <tr><td>Estado y UI</td><td><code>src/contexts/</code>, <code>src/hooks/</code>, <code>src/components/</code></td><td>AuthContext, CartContext, hooks y componentes; LogsPanel contiene la consulta de logs.</td></tr>
     <tr><td>Cliente HTTP</td><td><code>src/services/api.js</code>, <code>src/services/http.js</code></td><td>Adaptador por módulos, cookies, errores, trazas, timeout y reintentos de lecturas.</td></tr>
     <tr><td>Composición HTTP</td><td><code>server/src/app.js</code></td><td>Middlewares y routers; no abre un puerto al importarse.</td></tr>
     <tr><td>Proceso</td><td><code>server/src/server.js</code>, <code>server/src/lib/shutdown.js</code></td><td>Escucha en 0.0.0.0, señales, cierre HTTP, logs y Prisma.</td></tr>
-    <tr><td>API</td><td><code>server/src/routes/</code>, <code>controllers/</code>, <code>schemas/</code>, <code>services/</code></td><td>Rutas, handlers, validación Zod y negocio. Servicios: sesión, pedidos, envío, Storage y auditoría.</td></tr>
+    <tr><td>API</td><td><code>server/src/routes/</code>, <code>controllers/</code>, <code>schemas/</code>, <code>services/</code></td><td>La ruta elige la operación; el schema valida su entrada; el controller traduce HTTP; el servicio aplica reglas de sesión, registro, pedidos, envío, Storage y auditoría.</td></tr>
     <tr><td>Datos</td><td><code>server/src/db/</code>, <code>server/prisma/</code></td><td>Prisma, bloqueos y transacciones; schema, migraciones, seed y manifiesto de imágenes.</td></tr>
     <tr><td>Infraestructura</td><td><code>middleware.js</code>, <code>vercel.mjs</code>, <code>deploy/vercel-config.js</code>, <code>render.yaml</code></td><td>Proxy autenticado, reescrituras, caché y receta opcional de Render.</td></tr>
   </tbody></table></div>
+  <h3>Dónde cambiar cada cosa</h3>
+  <ul>
+    <li><strong>Interfaz:</strong> páginas para pantallas completas, components para piezas reutilizables y <code>src/styles.css</code> para estilos. Los textos de la tienda están en portugués; este manual está en español.</li>
+    <li><strong>Sesión:</strong> <code>AuthContext</code> comparte <code>useAuth</code>; <code>EmailVerificationNotice</code>, <code>ResendVerification</code> y <code>VerifyEmail</code> presentan el estado de verificación.</li>
+    <li><strong>Carrito:</strong> <code>CartContext</code> y utilidades de <code>src/utils/</code>. Se conserva en localStorage; la sesión no se guarda allí. <code>order-submission.js</code> conserva solo clave y digest del envío en sessionStorage.</li>
+    <li><strong>Regla comercial:</strong> cambiarla en el servicio del servidor y reflejarla en UI y pruebas. Ocultar un botón no protege una operación de API.</li>
+    <li><strong>Estructura de datos:</strong> <code>schema.prisma</code> y una migración nueva; el cliente generado en node_modules no se edita.</li>
+    <li><strong>Pruebas:</strong> <code>test/</code> para frontend, <code>server/test/</code> para backend y <code>server/test-support/</code> para el entorno descartable. <code>scripts/</code> contiene comprobación del build y sensibilidad.</li>
+  </ul>
   <h3>Organización del estado</h3>
   <p>El estado y su lógica deben permanecer lo más cerca posible del componente que los necesita. Compartir sesión y carrito mediante contextos tiene sentido porque los consumen varias pantallas; no convertir detalles de un modal o filtro en estado global sin necesidad.</p>
   <p>Los handlers son funciones async nativas: Express 5 deriva sus rechazos al middleware central de errores. Se retiró el envoltorio manual redundante; un test HTTP verifica tanto errores inesperados como errores de negocio, JSON y contexto de traza.</p>
@@ -109,19 +120,33 @@
 DATABASE_URL="postgresql://LOGIN_RESTRINGIDO:CLAVE_CODIFICADA@HOST:5432/postgres?schema=app&amp;sslmode=require&amp;connection_limit=5"
 DIRECT_URL="postgresql://LOGIN_OWNER:CLAVE_CODIFICADA@HOST:5432/postgres?schema=app&amp;sslmode=require"</code></pre>
   <p><code>DATABASE_URL</code> pertenece al login miembro de <code>ferchu_backend</code>, no a <code>postgres</code>. <code>DIRECT_URL</code> es la conexión owner usada por Prisma Migrate y debe quedar fuera del runtime productivo. Si Prisma generate requiere DIRECT_URL en Render, repetir allí la URL restringida de runtime: no ejecutar migraciones con ella.</p>
-  <p>El pool limita conexiones abiertas, no cantidad de visitantes. El README anterior citaba 60 conexiones directas y 200 clientes de pooler para Nano/Micro: son cifras históricas orientativas, no límites garantizados del proyecto actual. Consultar Compute and Disk y Observability → Database del proveedor antes de dimensionar. Auth, Storage y PostgREST también pueden consumir conexiones directas. Si el pooler se agota puede rechazar nuevas conexiones hasta que se liberen; aumentar compute cambia límites, pero no reemplaza controlar el pool.</p>
+  <p>El pool limita conexiones abiertas, no cantidad de visitantes. Los servicios de Supabase también consumen conexiones; comprobar el uso real antes de dimensionar. Si el pool se agota, puede rechazar conexiones. Mantener un límite pequeño por proceso; cualquier recurso con coste exige aprobación previa.</p>
   <div class="table"><table><caption>Variables del backend, según server/src/config/env.js</caption><thead><tr><th scope="col">Variable</th><th scope="col">Valor predeterminado / requisito</th></tr></thead><tbody>
     <tr><td><code>NODE_ENV</code></td><td>development; admite test y production.</td></tr>
     <tr><td><code>PORT</code></td><td>3001 local; Render asigna su propia PORT.</td></tr>
     <tr><td><code>FRONTEND_ORIGIN</code></td><td>http://localhost:5173 local; en producción origen HTTPS exacto, sin ruta ni barra final.</td></tr>
     <tr><td><code>ORIGIN_PROXY_SECRET</code></td><td>Obligatorio en producción, token aleatorio de 32–256 caracteres alfanuméricos, guion o guion bajo. Igual en Render y Vercel.</td></tr>
     <tr><td><code>SESSION_COOKIE_NAME</code> / <code>SESSION_TTL_DAYS</code></td><td>ferchu_session / 14 días (rango 1–90).</td></tr>
+    <tr><td><code>RESEND_API_KEY</code></td><td>Solo backend; clave de envío restringida al dominio verificado. Sin configuración válida el correo falla, no se simula entrega.</td></tr>
+    <tr><td><code>EMAIL_FROM</code> / <code>EMAIL_REPLY_TO</code></td><td><code>noreply@send.ferchumodas.shop</code> / <code>ferchumodas461@gmail.com</code>. No requieren la contraseña de Gmail.</td></tr>
+    <tr><td><code>EMAIL_VERIFICATION_SECRET</code></td><td>Secreto independiente aleatorio, 32–256 caracteres alfanuméricos, guion o guion bajo. Rotarlo invalida enlaces pendientes; se recuperan mediante reenvío.</td></tr>
+    <tr><td><code>WHATSAPP_NUMBER</code></td><td>Destino de la tienda: solo dígitos de país, DDD y número. Sin él, el enlace de contacto no está disponible.</td></tr>
+    <tr><td><code>MELHOR_ENVIO_TOKEN</code> / <code>MELHOR_ENVIO_BASE_URL</code></td><td>Token solo backend; origen predeterminado <code>https://melhorenvio.com.br</code>. Sin token la cotización devuelve 503.</td></tr>
+    <tr><td><code>SHIPPING_ORIGIN_POSTAL_CODE</code> / <code>SHIPPING_QUOTE_CONCURRENCY</code></td><td>03031000 / 4 (rango 1–8); CEP de salida y consultas completas simultáneas por proceso.</td></tr>
     <tr><td><code>SUPABASE_URL</code> / <code>SUPABASE_SECRET_KEY</code></td><td>Storage del backend; clave secreta con prefijo sb_secret_. No son URLs PostgreSQL. Sin ellas no se configura correctamente la capacidad de uploads.</td></tr>
     <tr><td><code>ADMIN_EMAIL</code> / <code>ADMIN_PASSWORD</code></td><td>Solo seed de desarrollo, no credenciales para el despliegue habitual.</td></tr>
     <tr><td><code>MEDIA_UPLOAD_CONCURRENCY</code></td><td>1 (rango 1–4), límite de uploads completos concurrentes.</td></tr>
     <tr><td><code>LOG_*</code></td><td>Ver <a href="#logs">tabla de logs</a>; límites y descartes forman parte de la operación normal.</td></tr>
   </tbody></table></div>
   <p>En Vercel, <code>RENDER_BACKEND_URL</code> es el origen HTTPS real del backend, sin credenciales, ruta, query, hash ni puerto explícito; <code>ORIGIN_PROXY_SECRET</code> es server-only. <code>VITE_API_URL=/api/v1</code> es público por diseño. <strong>Lo que nunca puede tener prefijo VITE_ es un secreto</strong>; no es correcto decir que ninguna variable puede usarlo. Las claves publicables y variables VITE_SUPABASE_* no sustituyen una conexión PostgreSQL.</p>
+  <h3 id="correo">Correo y DNS</h3>
+  <p>Resend envía desde <code>send.ferchumodas.shop</code>; no aloja un buzón de Gmail. Las respuestas van al Reply-To. El DNS del dominio se administra en el proveedor que usa <code>dns1.registrar-servers.com</code> y <code>dns2.registrar-servers.com</code>, no en Vercel. Registros verificados al preparar staging:</p>
+  <div class="table"><table><thead><tr><th>Tipo</th><th>Host relativo a ferchumodas.shop</th><th>Contenido / destino</th></tr></thead><tbody>
+    <tr><td>TXT</td><td><code>resend._domainkey.send</code></td><td>Valor DKIM público mostrado por Resend; copiarlo del panel, no inventarlo.</td></tr>
+    <tr><td>CNAME</td><td><code>rsend.send</code></td><td><code>rsend.forge.rmta.net</code></td></tr>
+    <tr><td>CNAME</td><td><code>send.send</code></td><td><code>send.forge.rmta.net</code></td></tr>
+  </tbody></table></div>
+  <p>Si Resend cambia sus requisitos, contrastar los valores en su panel antes de modificar DNS; no borrar registros de correo ajenos. El estado delivered indica entrega al servidor destinatario, no lectura ni bandeja principal. Para automatización usar las direcciones oficiales de prueba <code>delivered+etiqueta@resend.dev</code>, no bombardear el correo del propietario. Conservar el plan gratuito y consultar antes de cualquier coste.</p>
 </section>
 <section id="sesiones">
   <h2>4. Recorrido de una petición y sesión</h2>
@@ -142,13 +167,24 @@ DIRECT_URL="postgresql://LOGIN_OWNER:CLAVE_CODIFICADA@HOST:5432/postgres?schema=
   → publicUser(req.user) o null
   → JSON { user: ... }
   → api.auth.me() → AuthContext → React actualiza la interfaz</code></pre>
-  <p><strong>Corrección de las notas originales:</strong> el cookie no contiene el objeto del usuario ni su rol. El servidor recupera esos datos desde la base. PublicUser devuelve solo id, name, email y role, nunca passwordHash ni tokenHash. Una visita a /me sin sesión válida devuelve <code>{"user":null}</code>, no equivale necesariamente a un error de conexión.</p>
-  <p>El registro crea cuentas CUSTOMER; las contraseñas se almacenan con Argon2id. Login valida usuario activo y hash, sin diferenciar públicamente entre cuenta inexistente y contraseña incorrecta. Las sesiones guardan solo el hash del token. El cookie es HttpOnly, SameSite=Lax, path=/ y Secure en producción, con plazo configurado (14 días por defecto). Logout revoca la sesión en la base y borra el cookie; responde 204.</p>
+  <p>El cookie contiene un token opaco, no el objeto del usuario ni su rol. El servidor recupera esos datos desde la base. PublicUser devuelve id, name, email, role y emailVerifiedAt, nunca passwordHash ni tokenHash. Una visita a /me sin sesión válida devuelve <code>{"user":null}</code>. Un fallo de conexión no demuestra que la sesión haya terminado.</p>
+  <p>Login valida usuario activo y contraseña Argon2id, sin diferenciar públicamente cuenta inexistente de contraseña incorrecta. Las sesiones guardan solo el hash del token. El cookie es HttpOnly, SameSite=Lax, path=/ y Secure en producción, con plazo configurado (14 días por defecto). Logout revoca la sesión y borra el cookie; responde 204.</p>
+  <h3>Registro y verificación, paso a paso</h3>
+  <ol>
+    <li><code>POST /auth/register</code> recibe nombre, correo y contraseña (10–128 caracteres). Normaliza el correo y crea una cuenta CUSTOMER activa, con contraseña hasheada y <code>emailVerifiedAt=null</code>. No inicia sesión. Un registro repetido no sobrescribe los datos de una cuenta existente.</li>
+    <li>La aceptación pública responde 202 con mensaje uniforme, exista o no la cuenta. Establece una cookie HttpOnly de prueba de navegador, separada de la sesión. Resend recibe un enlace de 30 minutos y un solo uso.</li>
+    <li>La cuenta sin verificar puede entrar y preparar carrito. Solo mientras está conectada aparece el aviso compacto con reenvío. No puede enviar pedidos desde esa cuenta ni leer su historial; la API impone el límite y la UI conserva el carrito.</li>
+    <li><code>/verify-email#token=…</code> retira el fragmento del URL y envía solo el token a <code>POST /auth/verify-email</code>. No vuelve a pedir nombre ni contraseña, ni crea una sesión. Muestra una pantalla de éxito y mantiene las credenciales originales.</li>
+    <li>Para evitar que alguien registre un correo ajeno y se apropie de la cuenta, confirmar exige la prueba del navegador del registro o una sesión de esa misma cuenta. En otro navegador pide entrar con la contraseña existente, no crear otra.</li>
+    <li>La verificación conserva ID/pedidos y revoca otras sesiones previas; conserva la sesión autenticada que confirma. ADMIN/STAFF no se verifican mediante el registro público.</li>
+    <li><code>POST /auth/resend-verification</code> exige sesión; tiene cooldown persistente de un minuto por cuenta y límite IP separado. El reenvío emite un enlace nuevo e invalida el anterior. Abrirlo en la misma pestaña también se procesa.</li>
+  </ol>
+  <p>El secreto HMAC separa los propósitos correo/navegador y vincula el reto a identidad, credenciales y nonce. La base guarda el hash del token, no el enlace en claro. El registro repetido conserva un reto vigente y la idempotencia del envío. Si falla el proveedor, puede quedar una cuenta sin verificar: entrar con su contraseña y reenviar, no crear otra identidad.</p>
   <h3>Permisos reales</h3>
   <ul>
     <li>Públicos: catálogo, banners y site-media; POST /orders admite pedido invitado. El proxy no vuelve privado el catálogo para usuarios de la tienda.</li>
-    <li>Autenticado: GET /orders/me devuelve pedidos asociados a la cuenta. Un pedido invitado no se vincula automáticamente por compartir email.</li>
-    <li>STAFF o ADMIN: API administrativa de pedidos e inventario.</li>
+    <li>CUSTOMER verificado: puede enviar pedidos desde su cuenta y GET /orders/me devuelve sus pedidos no archivados. Un pedido invitado no se vincula automáticamente por compartir email.</li>
+    <li>STAFF o ADMIN: API administrativa de pedidos e inventario; <strong>solo ADMIN confirma el acuerdo comercial</strong>.</li>
     <li>Solo ADMIN: gestión de catálogo, categorías, opciones, staff, imágenes, banners y logs.</li>
     <li>El frontend <code>/management</code> exige ADMIN. Que la API permita ciertas operaciones a STAFF no significa que esa página les dé acceso.</li>
   </ul>
@@ -159,34 +195,35 @@ DIRECT_URL="postgresql://LOGIN_OWNER:CLAVE_CODIFICADA@HOST:5432/postgres?schema=
   <h2>5. Dominio: catálogo, carrito, pedidos y stock</h2>
   <h3>Catálogo y medios</h3>
   <p>Una categoría agrupa productos; un producto tiene opciones de color o estampa (COLOR/PRINT); cada combinación de opción y talle crea una variante con SKU y stock propio. El precio de variante puede sobrescribir el del producto. Las cantidades monetarias usan centavos enteros y los pesos, gramos. El catálogo, sus galerías y categorías vienen de la base; Home carga banners y favicon desde la API. Si falla la carga se muestra error/placeholder, no productos ficticios locales.</p>
-  <p>Tablas modeladas: users, auth_sessions, media_assets, categories, products, variant_options, product_options, sizes, product_variants, inventory_levels, orders, order_items, inventory_movements, product_images, site_banners y audit_logs. Los logs operativos se agregan por SQL y no forman parte del schema Prisma.</p>
+  <p>Modelos de datos: usuarios/sesiones, retos de verificación (<code>pending_registrations</code>), límites de login (<code>auth_throttles</code>), catálogo/variantes/medios, inventario/movimientos, pedidos/ítems, idempotencia (<code>order_submissions</code>) y auditoría. Los logs operativos se crean por SQL y no forman parte del schema Prisma.</p>
   <p>Listado y detalle públicos filtran categorías, productos, opciones globales, opciones de producto, variantes y talles activos. La administración puede consultar registros inactivos para gestionarlos; no confundir ocultar de la tienda con borrar historial.</p>
   <h3>Stock y carrito no son lo mismo</h3>
-  <p><code>disponible = onHand − reserved</code>. El carrito del navegador no reserva stock en la base. Para el modal, además se descuentan las unidades de esa variante que ya están en el carrito: si el disponible publicado es 10 y el carrito contiene 2, puede agregar otras 8. Si el 10 fuese stock físico con reservas pendientes, primero habría que descontar esas reservas. El dato de pantalla es orientativo y puede quedar desactualizado; el backend siempre vuelve a validar al crear el pedido. Los carritos persistidos reconcilian imágenes, sin inventar productos de respaldo.</p>
+  <p><code>disponible = onHand − reserved</code>. Ni el carrito ni un pedido en espera reservan stock. El modal descuenta además lo que ya está en el carrito: con 10 disponibles y 2 seleccionadas permite agregar otras 8. Es orientación, no garantía de disponibilidad. Crear el pedido valida variantes activas, pero <strong>el stock se comprueba y descuenta al confirmar comercialmente</strong>. El campo reserved permanece por compatibilidad e invariantes; el flujo nuevo no genera reservas.</p>
   <h3>Creación de pedidos</h3>
   <p>El carrito persistido valida cada línea y rechaza cantidades no enteras seguras o datos corruptos. La selección usa talles del catálogo y el precio de cada variante. Una entrada vacía de inventario no significa cero: se rechaza también al pulsar Enter. Las respuestas de una pestaña administrativa abandonada no pueden sobrescribir la pestaña actual.</p>
-  <p>Después de recibir la confirmación de creación, Checkout muestra el número del pedido, retira del carrito las cantidades enviadas y ofrece un enlace normal para abrir WhatsApp; abrirlo no crea otro pedido ni depende de un popup tras una espera. Si se agregaron otras piezas durante la espera, no se borra todo el carrito. La protección contra doble envío vale durante ese montaje, no es idempotencia durable: una respuesta perdida sigue requiriendo conciliación antes de repetir la compra. Cambiar CEP o cantidad de piezas invalida la estimación anterior.</p>
+  <p>Después de crear el pedido, Checkout muestra su número, retira solo las cantidades enviadas y ofrece un enlace normal para abrir WhatsApp: abrirlo no crea otro pedido ni confirma stock. La tienda negocia disponibilidad y detalles por WhatsApp y luego un ADMIN confirma desde la web. Cambiar CEP o cantidad de piezas invalida la estimación anterior.</p>
+  <p><strong>Idempotencia durable:</strong> POST /orders exige <code>Idempotency-Key</code> UUID. Misma clave, identidad y contenido devuelve el pedido original; contenido diferente devuelve 409. La respuesta guardada es inmutable y no revela notas/ediciones posteriores. Checkout conserva UUID y digest (sin contacto) en sessionStorage ante respuesta incierta, incluso tras recargar esa pestaña; al reconocer el éxito libera la clave. No borrar ese estado ni cambiar arbitrariamente la clave para repetir una compra incierta: primero conciliar el resultado. Si el navegador bloquea Storage, la persistencia entre recargas no está garantizada.</p>
   <ol>
     <li>Validar entrada y agrupar líneas repetidas de una misma variante.</li>
     <li>Exigir mínimo total de <strong>10 piezas</strong> y máximo de <strong>400 piezas</strong>, único rango de negocio, también al editar ítems.</li>
-    <li>Cargar variantes activas, opciones/productos/talles activos y bloquear inventarios en orden determinístico.</li>
+    <li>Cargar variantes, opciones, productos, categorías y talles activos.</li>
     <li>Calcular precios, peso y envío en servidor, no aceptar los totales del carrito como autoridad.</li>
-    <li>Crear pedido NOVO con snapshots de nombre, opción, talle, URL de imagen, precio y peso; registrar reserva y auditoría dentro de la misma transacción.</li>
+    <li>Crear pedido <code>NOVO</code>, mostrado como <strong>EM ESPERA</strong>, con snapshots de nombre, opción, talle, URL de imagen, precio y peso; guardar auditoría e idempotencia en la misma transacción, sin mover stock.</li>
   </ol>
   <p>Se asocia userId si quien compra es CUSTOMER; para invitado o personal no se crea esa asociación de cliente. Las transacciones Serializable tienen como máximo tres intentos ante conflictos reintentables; no introducir llamadas externas ni efectos irreversibles dentro de su función. Los constraints impiden onHand/reserved negativos y reserved mayor que onHand.</p>
   <p>Crear y editar pedidos validan también la aritmética agregada: cantidades repetidas, importes de línea, subtotal, peso, envío, total y pagos deben ser enteros seguros dentro de <code>0…2147483647</code>. Un desborde responde <code>422 ORDER_AMOUNT_OVERFLOW</code> antes de las escrituras; no se amplían columnas ni se reescriben migraciones para aceptar importes inválidos.</p>
-  <h3>Decisiones comerciales que requieren confirmación</h3>
-  <ul><li>Al editar artículos, el subtotal se recalcula pero la cotización de envío existente se conserva. Si cambia el peso, puede dejar de coincidir con la estimación actual: decidir si se debe recotizar o tratarla como precio acordado antes de cambiar esta regla.</li><li>Los pedidos invitados reservan stock sin caducidad automática. Definir vencimiento, conciliación y comunicación al cliente antes de añadir cancelaciones automáticas; por ahora liberar mediante el flujo administrativo de cancelación.</li><li>Un timeout de creación puede ocultar un pedido ya guardado. La prevención de doble clic no reemplaza una futura política de idempotencia y recuperación.</li></ul>
+  <h3>Acuerdo comercial y estados</h3>
+  <p>Dos pedidos pueden esperar por las mismas piezas sin bloquearlas. El administrador puede agregar variantes, quitar líneas con cantidad cero en el editor y guardar notas del acuerdo. Al confirmar, el servicio verifica variantes activas y bloquea inventarios en orden determinístico dentro de una transacción Serializable: dos confirmaciones no pueden consumir las mismas piezas si no alcanzan. La API recibe la lista final de líneas positivas, entre 10 y 400 piezas.</p>
   <div class="table"><table><caption>Transiciones y movimientos por cada cantidad q</caption><thead><tr><th scope="col">Cambio</th><th scope="col">Efecto</th></tr></thead><tbody>
-    <tr><td>Crear NOVO</td><td>reserved += q (ORDER_RESERVE).</td></tr>
-    <tr><td>NOVO → CONFIRMADO</td><td>onHand -= q y reserved -= q (ORDER_CONSUME).</td></tr>
-    <tr><td>NOVO → CANCELADO</td><td>reserved -= q (ORDER_RELEASE).</td></tr>
+    <tr><td>Crear/editar NOVO (EM ESPERA)</td><td>No reserva ni descuenta.</td></tr>
+    <tr><td>NOVO → CONFIRMADO</td><td>Solo ADMIN; onHand -= q (ORDER_CONSUME), reserved no cambia.</td></tr>
+    <tr><td>NOVO → CANCELADO</td><td>Sin movimiento de inventario.</td></tr>
     <tr><td>CONFIRMADO → CANCELADO</td><td>onHand += q (ORDER_RESTORE).</td></tr>
-    <tr><td>CANCELADO → NOVO</td><td>Vuelve a reservar q si hay disponibilidad suficiente.</td></tr>
+    <tr><td>CANCELADO → NOVO</td><td>Reabre en espera, sin reservar.</td></tr>
     <tr><td>CONFIRMADO → CONCLUIDO</td><td>No mueve nuevamente stock. CONCLUIDO no tiene transición de salida.</td></tr>
   </tbody></table></div>
-  <p>Repetir el mismo estado no duplica el movimiento. Editar ítems ajusta reservas si está NOVO o existencia consumida si está CONFIRMADO; CANCELADO no mueve stock y CONCLUIDO no permite editar ítems. Se conservan los snapshots previos de variantes existentes; nuevas líneas toman datos vigentes. Cambiar el catálogo no reescribe pedidos históricos.</p>
-  <p>Archivar no borra el pedido: lo marca con archivedAt/archivedById y registra auditoría. Si estaba NOVO o CONFIRMADO se cancela, liberando/restaurando inventario; cancelación, movimientos, auditorías y archivo se confirman en una sola transacción Serializable. Ya no existe un intervalo entre dos confirmaciones donde otro operador pueda reabrirlo y dejar reservas en un pedido archivado. No se documenta como restauración reversible desde el panel: no hay aquí una ruta de desarchivado. Las pruebas nuevas de intercalado y rollback usan un adapter en memoria; no sustituyen una prueba de concurrencia del motor PostgreSQL.</p>
+  <p>Repetir el mismo estado no duplica movimientos. CONFIRMADO no vuelve directamente a NOVO y NOVO no pasa directamente a CONCLUIDO. Editar un CONFIRMADO consume/restaura solo la diferencia; NOVO/CANCELADO no mueven stock y CONCLUIDO no admite cambios de ítems. Los snapshots de líneas existentes se conservan; las nuevas toman datos vigentes. Cambiar catálogo no reescribe pedidos históricos.</p>
+  <p>Archivar no borra el pedido: lo marca con archivedAt/archivedById y audita. Si estaba NOVO o CONFIRMADO se cancela; solo el confirmado restaura inventario. Todo se confirma en una transacción Serializable y no hay ruta de desarchivado. La suite PostgreSQL comprueba concurrencia real y rollback de escrituras/auditoría.</p>
   <h3>Envíos y pagos: límites de lo implementado</h3>
   <p>CORREIOS valida CEP de 8 dígitos y cotiza en el Melhor Envio (solo cálculo, sin compra de etiquetas) usando volúmenes estimados desde referencias de embalaje de la tienda (10 piezas → 30×30×30 cm/2 kg, 20 → 35×35×35 cm/3 kg, 120 → 50×45×45 cm/35 kg), con interpolación y redondeo hacia arriba. Hasta 30 kg se cotiza un volumen para todas las transportadoras; por encima, Jadlog y sus servicios permiten uno o más volúmenes, con un máximo de 50 kg por volumen, y las demás se cotizan en embalajes de hasta 30 kg. Los precios de los volúmenes se suman solo cuando el mismo servicio atiende todos. Se descarta siempre LATAM Cargo y se muestran las dos opciones más baratas. El valor presentado es una estimativa; al crear el pedido el servidor recotiza y usa su propio precio, nunca el del navegador. La confirmación por WhatsApp utiliza el importe de envío devuelto por el pedido, no el de la estimación anterior. EXCURSAO deja el importe de envío en null para confirmarlo después; el total suma cero hasta que haya importe aplicable. El importe de envío se fija al crear; la edición de ítems no recalcula automáticamente ese envío.</p>
   <p><strong>Configuración y seguridad de la cotización:</strong> MELHOR_ENVIO_TOKEN vive solo en el backend; sin token el cálculo devuelve 503, sin precio ficticio. MELHOR_ENVIO_BASE_URL admite únicamente los orígenes HTTPS oficiales melhorenvio.com.br, www.melhorenvio.com.br y sandbox.melhorenvio.com.br (sin credenciales, rutas ni parámetros); HTTP de loopback se permite solo fuera de producción para fixtures locales. SHIPPING_ORIGIN_POSTAL_CODE exige 8 dígitos (predeterminado: 03031000). Las llamadas no siguen redirecciones y tienen un plazo de 8 segundos por volumen; no se registra ni se devuelve el cuerpo de errores del proveedor. La respuesta se limita a 512 KiB efectivos y 200 servicios; entradas malformadas, errores de transportadora y precios ausentes, inválidos o fuera del rango monetario se descartan sin convertirlos en cero. El endpoint admite 40 solicitudes por IP en 15 minutos y comparte con la recotización de pedidos un máximo de SHIPPING_QUOTE_CONCURRENCY consultas completas simultáneas por proceso (predeterminado 4, rango 1–8); al saturarse devuelve 503 SHIPPING_BUSY, sin cola. Estos controles en memoria no sustituyen una cuota distribuida ni garantizan disponibilidad frente a ataques. Las cotizaciones no se cachean. Cambiar CEP, cantidad o modalidad cancela la espera del navegador y descarta respuestas obsoletas; esto no garantiza cancelar el trabajo ya iniciado en el backend.</p>
@@ -201,6 +238,8 @@ DIRECT_URL="postgresql://LOGIN_OWNER:CLAVE_CODIFICADA@HOST:5432/postgres?schema=
     <tr><td><code>20261012000200_foreign_key_indexes</code></td><td>Índices explícitos de claves foráneas; PostgreSQL no crea automáticamente los índices que MySQL aportaba implícitamente.</td></tr>
     <tr><td><code>20261013000000_storage_media</code></td><td>Metadatos Storage, checksum, tamaño/MIME/propósito; unicidad de objetos e imágenes y una sola portada por producto. Bloquea si aún hay public_id externos antes de quitar esa columna.</td></tr>
     <tr><td><code>20261013100000_log_system</code></td><td>log_entry particionada, log_dead, índices, grants, RLS, función de mantenimiento y programación pg_cron opcional.</td></tr>
+    <tr><td><code>20261115100000_commercial_confirmation_security</code></td><td>auth_throttles y order_submissions privadas. Reconcilia, libera y audita las reservas NOVO anteriores; aborta ante discrepancias.</td></tr>
+    <tr><td><code>20261115110000_email_verification</code></td><td>email_verified_at y pending_registrations privadas. Revoca una vez sesiones CUSTOMER antiguas; conserva cuentas, contraseñas e IDs. El comentario histórico sobre elegir contraseña nueva no describe el flujo actual.</td></tr>
   </tbody></table></div>
   <p>Una instalación necesita <strong>toda la secuencia</strong>, no solamente init ni solamente las tablas que Prisma modela. <code>npm run prisma:deploy</code> aplica las pendientes versionadas. No editar una migración ya aplicada; generar una nueva para cada cambio. Toda tabla nueva necesita grants explícitos restringidos y RLS apropiado: los grants iniciales no cubren mágicamente tablas futuras.</p>
   <h3>Historia MySQL preservada</h3>
@@ -214,21 +253,21 @@ DIRECT_URL="postgresql://LOGIN_OWNER:CLAVE_CODIFICADA@HOST:5432/postgres?schema=
     <li>Pausar escrituras, copiar versión final, reconciliar y probar login/pedidos/inventario antes de cambiar la conexión publicada.</li>
     <li>Conservar origen hasta validar copia y respaldo. No desinstalar servicios que puedan alojar bases de otros proyectos. Las herramientas temporales de transferencia no pertenecen a dependencias del backend.</li>
   </ol>
-  <p>Volver a la conexión antigua después de nuevas ventas puede perder pedidos: un rollback exige copiar/reconciliar las nuevas escrituras. Las sesiones propias pueden sobrevivir si se preservan registros, token del navegador y las condiciones de cookie, origen y plazo. Ver <a href="#historial">antecedentes</a> para distinguir la migración documentada anteriormente de una comprobación actual.</p>
+  <p>Volver a una copia antigua después de nuevas ventas puede perder pedidos: un rollback exige reconciliar las nuevas escrituras. Preservar registros no garantiza conservar sesiones si una migración las revoca expresamente, como la de verificación de correo.</p>
 </section>
 <section id="imagenes">
   <h2>7. Imágenes en Supabase Storage</h2>
   <p>Bucket público <code>storefront-images</code>: lectura pública, escritura exclusivamente a través de Express con sesión ADMIN y controles de origen/proxy. No conceder escritura pública ni modificar objetos mediante SQL en el schema storage. SUPABASE_SECRET_KEY vive solo en secretos del backend.</p>
   <ul>
-    <li>Gestión → Imágenes permite subir para producto, categoría, banner o favicon, y ordenar/elegir portada.</li>
+    <li>Gestión → Imágenes permite subir para producto, categoría, banner, favicon o biblioteca, ordenar/elegir portada y borrar medios no referenciados.</li>
     <li>JPEG, PNG y WebP no animados; hasta 5 MB y 16 megapíxeles. Se decodifica el contenido, no se confía solo en la extensión/MIME declarado.</li>
     <li>POST <code>/api/v1/admin/uploads</code>: multipart con file, purpose, targetId cuando corresponda, optionId opcional para producto, primary, sortOrder y altText.</li>
     <li>GET <code>/api/v1/admin/media-assets</code> lista la biblioteca; PATCH <code>/api/v1/admin/product-images/:id</code> actualiza portada/orden.</li>
-    <li>Rutas de objetos inmutables: cambiar portada no sobrescribe archivos anteriores. No hay eliminación de objetos desde el panel. Una URL vieja puede estar en snapshots de pedidos: no borrarla ni sobrescribirla.</li>
+    <li><code>DELETE /api/v1/admin/media-assets/:id</code> rechaza imágenes ligadas a productos, categorías, banners o snapshots de pedidos. Los objetos usan rutas inmutables: cambiar portada no sobrescribe el archivo anterior. No borrar por fuera de esos controles.</li>
     <li><code>MEDIA_UPLOAD_CONCURRENCY=1</code> limita el trabajo completo para reducir memoria, especialmente en instancias de 512 MB. Exceso devuelve 503; no repetir automáticamente POST.</li>
   </ul>
   <h3>Manifiesto y transición de medios</h3>
-  <p><code>server/prisma/data/storage-images.json</code> conserva el mapa público sin claves. El registro anterior describe 27 imágenes originales migradas sin recompresión y verificadas por SHA-256; no equivale a una verificación hecha ahora. <code>npm run media:migrate -- --verify</code>, ejecutado desde server y con autorización para acceder al destino, vuelve a comprobar descargas y registros.</p>
+  <p><code>server/prisma/data/storage-images.json</code> conserva el mapa público de imágenes importadas sin claves. <code>npm run media:migrate -- --verify</code>, desde server y con acceso autorizado, comprueba descargas y registros; no demuestra que el bucket carezca de objetos ajenos al manifiesto.</p>
   <p>El importador admite <code>--assets-dir=&lt;ruta&gt;</code> y <code>--manifest=&lt;ruta&gt;</code> (rutas relativas al directorio de ejecución o absolutas); conserva los valores predeterminados si se omiten. Comprueba los originales requeridos antes de acceder a Storage. Las pruebas usan directorios temporales, una base descartable y Storage HTTP local: estos argumentos no autorizan usar datos reales. Un conflicto revierte los vínculos y no publica el manifiesto; no promete eliminar objetos nuevos huérfanos.</p>
   <p><code>server/scripts/migrate-images.js</code> necesita los archivos originales para importar; tras retirarlos de los assets locales se utiliza --verify. No borrar objetos existentes si una importación falla. Cloudinary no es dependencia del runtime ni el importador local migra automáticamente una cuenta Cloudinary.</p>
   <div class="warning">Antes de aplicar storage_media en otro ambiente, inspeccionar media_assets.public_id. Si existen identificadores externos, la migración aborta para evitar pérdida: primero copiar/verificar archivos, conservar IDs y relaciones y actualizar referencias en una transición específica. No quitar el bloqueo ni marcar la migración como aplicada sin hacer esa transición.</div>
@@ -243,13 +282,14 @@ DIRECT_URL="postgresql://LOGIN_OWNER:CLAVE_CODIFICADA@HOST:5432/postgres?schema=
   <ul>
     <li>CORS permite el origen exacto configurado con credenciales; no equivale a autenticación. La comprobación de Origin tiene el alcance descrito en <a href="#sesiones">el pipeline</a>.</li>
     <li>Cookies HttpOnly/Secure/SameSite, contraseñas Argon2id, sesiones revocables y autorización Express por CUSTOMER/STAFF/ADMIN.</li>
-    <li>Limitadores independientes sobre /api/v1/auth y /api/v1/orders: 20 requests por 15 minutos por clave de cliente en cada montaje, no solo 20 contraseñas erróneas. Son memoria del proceso, no una cuota distribuida persistente.</li>
+    <li>Login, registro, verificación y reenvío tienen cada uno presupuesto IP independiente de 20 solicitudes por 15 minutos. /me y logout no lo consumen. Orders tiene otro límite de 20; consultas de envío 40 y mutaciones administrativas 60 por 15 minutos. Son límites en memoria por proceso.</li>
+    <li>Login añade un contador persistente atómico por correo normalizado: 10 intentos en 15 minutos, demora progresiva desde el sexto, sin bloqueo permanente; un login correcto limpia el contador. Cambiar IP/proceso no reinicia este presupuesto. Reenvío tiene además cooldown persistente por cuenta.</li>
     <li>Validación Zod, límites JSON y de medios, SQL parametrizado y transacciones con invariantes de inventario.</li>
     <li>Cuenta PostgreSQL técnica restringida, schema privado, revocaciones a roles de navegador y RLS como defensa adicional. ferchu_backend no es un usuario CUSTOMER/STAFF/ADMIN: la autorización por persona queda en Express, no en auth.uid().</li>
     <li>No cachear respuestas /api. No exponer secretos, URLs con contraseña, cookies ni hashes en frontend, documentación, screenshots o logs.</li>
   </ul>
   <h3>Dependencias</h3>
-  <p>La revisión local del 16/10/2026 ejecutó <code>npm audit</code> en ambos paquetes: cero avisos después de corregir la dependencia transitiva deepmerge-ts. Prisma y su cliente permanecen en 6.19.3; un override acotado a <code>@prisma/config</code> fija <code>deepmerge-ts 8.0.2</code>. El harness nuevo valida/genera el cliente y aplica las migraciones sobre una base descartable; no prueba el algoritmo de merge de una dependencia. Revisar este override cuando Prisma incorpore la corrección. No usar <code>npm audit fix --force</code> ciegamente: puede proponer un downgrade incompatible. Ausencia de avisos, tests y build no sustituyen una auditoría exhaustiva ni certifican seguridad de producción.</p>
+  <p>Ambos paquetes tienen lockfile: instalar con npm ci y revisar npm audit por separado. La instalación revisada en noviembre reportó cinco avisos high en herramientas de desarrollo del frontend (picomatch, fdir, tinyglobby, vite y vitest), y cero en backend; no se presentan como corregidos. No ejecutar audit fix --force ciegamente: puede proponer versiones incompatibles. Prisma/client siguen en 6.19.3, con override acotado de deepmerge-ts bajo @prisma/config. Pruebas, build o ausencia de avisos no equivalen a auditoría exhaustiva.</p>
 </section>
 <section id="despliegue">
   <h2>9. Despliegue: Render + Vercel</h2>
@@ -264,13 +304,16 @@ DIRECT_URL="postgresql://LOGIN_OWNER:CLAVE_CODIFICADA@HOST:5432/postgres?schema=
   </tbody></table></div>
   <h3>Secuencia de publicación segura</h3>
   <ol>
-    <li>Revisar backups, compatibilidad y migraciones pendientes. Aplicarlas separadamente con owner protegido antes del deploy compatible; no durante start/build ni con el login runtime. Render Free no dispone de pre-deploy command.</li>
+    <li>Identificar el proyecto por el dominio productivo y la base por su conexión, no por el enlace local de Vercel (puede apuntar a staging). Registrar versión y configuración vigentes. Obtener un respaldo recuperable y comprobar que puede restaurarse antes de migrar.</li>
+    <li>Para esta entrega, detener escritores antiguos antes de aplicar commercial_confirmation_security: cambia la semántica de NOVO. Comparar reserved con los ítems de NOVO activos; si difieren, revisar manualmente. La migración aborta completa, no corrige diferencias a ciegas. Aplicar pendientes con owner fuera del runtime, sin seed.</li>
     <li>Configurar NODE_ENV=production, DATABASE_URL restringida, FRONTEND_ORIGIN HTTPS exacto (dominio histórico: <code>https://ferchumodas.shop</code>), secreto compartido y claves de Storage en Render. No copiar PORT=3001: Render provee la suya.</li>
     <li>Si el tooling lo necesita, configurar DIRECT_URL con la misma URL restringida solo para generate. Mantener la URL owner fuera del proceso.</li>
     <li>Configurar RENDER_BACKEND_URL con el origen real en Vercel y el mismo ORIGIN_PROXY_SECRET. El navegador usa VITE_API_URL=/api/v1; revisar valores por Production/Preview/Development según el entorno, no asumir que todos comparten origen.</li>
-    <li>Publicar las versiones correspondientes; si auto-deploy está desactivado, publicar backend manualmente. Verificar las políticas reales de integración Git antes de asumir que main publica automáticamente.</li>
-    <li>Comprobar con una lista controlada health, catálogo, cookies, login/refresh/logout, permisos, no-store e IPs; coordinar toda prueba que cree pedidos o medios.</li>
+    <li>Preservar WhatsApp, envío y Storage; agregar correo y secreto de verificación propios de producción. No copiar conexión ni credenciales de staging. Render no debe ejecutar migraciones en build/start.</li>
+    <li>Publicar API nueva y frontend correspondiente antes de reabrir tráfico. El cliente nuevo necesita UUID de idempotencia; el viejo recibe 422 si intenta crear sin él. Verificar integración Git/auto-deploy real y usar publicación manual si está desactivada.</li>
+    <li>Comprobar health, catálogo, registro/correo/verificación, cookies, login/refresh/logout, permisos, stock solo al confirmar y no-store. Usar datos controlados; no cambiar stock ni imágenes comerciales para probar.</li>
   </ol>
+  <div class="warning">La migración de correo revoca sesiones CUSTOMER antiguas una vez. Los clientes pueden volver a entrar con su contraseña existente y reenviar la verificación; no pierden sus pedidos, pero necesitan verificar antes de consultarlos o enviar desde su cuenta. ADMIN/STAFF no sufren ese corte. No reactivar una API antigua contra el esquema nuevo como rollback: detener tráfico, evaluar compatibilidad y reconciliar cualquier escritura posterior al respaldo.</div>
   <p><code>vercel.mjs</code> delega a deploy/vercel-config.js. La configuración exige origen backend válido y secreto: sin ellos el nuevo deploy falla antes de reemplazar el frontend vigente. Genera dist, reescribe /api hacia Render y las demás rutas a index.html para React Router. No introducir rutas legacy que salten el middleware.</p>
   <p>Al rotar el secreto guardar el mismo valor en los dos proveedores y publicar versiones coherentes en ambos; contemplar una ventana de indisponibilidad mientras no coincidan. Nunca enviar la clave al navegador para probarla ni registrar sus valores.</p>
   <h3>Disponibilidad, memoria y apagado</h3>
@@ -280,7 +323,7 @@ DIRECT_URL="postgresql://LOGIN_OWNER:CLAVE_CODIFICADA@HOST:5432/postgres?schema=
 <section id="logs">
   <h2>10. Logs operativos y auditoría</h2>
   <p>La telemetría describe salud HTTP, errores y eventos; la auditoría en <code>audit.service.js</code>/<code>app.audit_logs</code> registra actor, entidad y acción, con datos anteriores/posteriores cuando el comando los aporta. No todas las modificaciones guardan una copia completa del antes/después. Son sistemas distintos: no reemplazar auditoría transaccional por un log asíncrono.</p>
-  <p>Las escrituras de categorías, opciones globales, productos, opciones/variantes/imágenes de producto y creación de STAFF se confirman junto con su auditoría en una única transacción. Una falla al registrar auditoría aborta también ese cambio; no se responde con error después de haberlo confirmado fuera de la transacción. La suite de integración nueva verifica persistencia y rollback con PostgreSQL real; los dobles históricos se retiran a medida que se verifica su sustitución.</p>
+  <p>Las escrituras de categorías, opciones globales, productos, opciones/variantes/imágenes de producto y creación de STAFF se confirman junto con su auditoría en una única transacción. Una falla al registrar auditoría aborta también ese cambio. La suite de integración verifica persistencia y rollback con PostgreSQL real.</p>
   <h3>Usar Gestión → Logs (ADMIN)</h3>
   <ol>
     <li>Seleccionar nivel y servicio; se aplican al cambiar. La lista muestra primero los registros más nuevos.</li>
@@ -294,7 +337,7 @@ DIRECT_URL="postgresql://LOGIN_OWNER:CLAVE_CODIFICADA@HOST:5432/postgres?schema=
   <div class="table"><table><caption>Niveles numéricos estilo pino</caption><thead><tr><th scope="col">Nivel</th><th scope="col">Interpretación</th></tr></thead><tbody>
     <tr><td>10 trace</td><td>Detalle fino, solo si el mínimo lo permite; no justifica registrar payloads sensibles.</td></tr>
     <tr><td>20 debug</td><td>Diagnóstico sometido a muestreo. Con LOG_LEVEL=info se descarta todo debug antes de muestrear.</td></tr>
-    <tr><td>30 info</td><td>Operación normal: order.created, order.status_changed, auth.registered, api.started, http.request.</td></tr>
+    <tr><td>30 info</td><td>Operación normal: order.created, order.status_changed, order.archived, api.started, http.request. La verificación registra EMAIL_VERIFIED en auditoría, no un evento auth.registered.</td></tr>
     <tr><td>40 warn</td><td>Anomalía o 4xx, por ejemplo auth.login_failed.</td></tr>
     <tr><td>50 error</td><td>Falla/5xx, por ejemplo http.unhandled; consultar stack cuando exista.</td></tr>
     <tr><td>60 fatal</td><td>Gravedad extrema disponible para el emisor; no asumir un monitor automático de desconexión de base.</td></tr>
@@ -374,44 +417,49 @@ FROM app.log_dead ORDER BY failed_at DESC LIMIT 20;</code></pre>
     <tr><td>401 en administración</td><td>Sesión, expiración, revocación, cookie/origen y usuario activo.</td></tr>
     <tr><td>403 en Logs / sin pestaña</td><td>ADMIN requerido; STAFF no tiene acceso a logs. Distinguir autorización de usuario y protección de proxy.</td></tr>
     <tr><td>Catálogo tarda o devuelve HTML/502/503/504</td><td>Arranque del servicio, health, disponibilidad y logs del hosting. No reemplazar errores por catálogo vacío.</td></tr>
+    <tr><td>403 EMAIL_NOT_VERIFIED</td><td>Entrar y reenviar desde el aviso. Confirmar el enlace sin cambiar contraseña. No quitar el guard ni marcar correos como verificados por SQL para ocultar el problema.</td></tr>
+    <tr><td>Link inválido/vencido/usado</td><td>Dura 30 minutos y un solo uso. Reenviar con sesión; abrir el nuevo, no el anterior. Otro navegador requiere login existente.</td></tr>
+    <tr><td>Correo no llega</td><td>Dominio/DNS en Resend, límites del plan, estado de entrega, remitente, Reply-To, spam y configuración privada del backend. Un fallo de envío puede dejar la cuenta creada sin verificar.</td></tr>
+    <tr><td>422 IDEMPOTENCY_KEY_REQUIRED / 409 IDEMPOTENCY_CONFLICT</td><td>Cliente actualizado y UUID por envío; no reutilizar clave con otro contenido. Ante respuesta incierta conciliar antes de iniciar otra compra.</td></tr>
+    <tr><td>409 INSUFFICIENT_STOCK al confirmar</td><td>El pedido en espera no garantiza piezas. Revisar disponibilidad y acordar cambios por WhatsApp; no forzar stock negativo.</td></tr>
     <tr><td>Debug no aparece</td><td>LOG_LEVEL y muestreo, también saturación/descartes y destino. info bloquea debug incluso con sample=1.</td></tr>
     <tr><td>Logs faltantes</td><td>stdout, logger.queue_full/persistence_failed, log_dead, permisos/particiones y reinicios. Buffer asíncrono no garantiza entrega durable.</td></tr>
     <tr><td>Datos personales ocultos</td><td>Es intencional. Correlacionar por IDs autorizados, no desactivar la redacción para soporte.</td></tr>
   </tbody></table></div>
   <h3>Verificar una versión sin asumir resultados</h3>
   <ul>
-    <li>Ejecutar tests de ambos paquetes y build frontend en local; revisar por separado dependencias. La revisión del 16/10/2026 pasó 27 tests frontend, 105 backend y build, también repitiéndolos con Node 22.23.3 fijado para despliegue mediante <code>npm exec --yes --package=node@22.23.3 -- node</code>. Se validó el schema y generó el cliente Prisma sin conexión a una base real. El Node predeterminado local sigue siendo 22.11.0: esa ejecución temporal no cambia la instalación del sistema.</li>
+    <li>Instalar ambos paquetes, usar Node 22.23.4+ dentro de 22.x y ejecutar <code>npm run test:all</code>. Leer el resultado final de todas las etapas; un arranque interrumpido no cuenta como aprobación. Revisar dependencias por separado.</li>
     <li>En un entorno autorizado comprobar health y respuestas JSON de products/banners/site-media. No publicar conteos de catálogo como constantes del sistema.</li>
     <li>Probar registro/login/refresh/logout con cuentas de prueba, sin divulgar contraseñas; revisar HttpOnly/Secure/SameSite, /me y permisos por rol.</li>
     <li>Comprobar no-store en API y que cookie, secreto e IP privado no se filtren en respuestas. Intentos de falsificar headers no deben cambiar la identidad del rate limit.</li>
     <li>Verificar IPs distintos mediante conexiones realmente distintas y bloqueos autenticados; un header arbitrario no sustituye esa prueba.</li>
-    <li>Pedidos: solo con autorización, crear/cancelar en pruebas controladas, reconciliar reservas y snapshots. No repetir una compra por un timeout sin consultar su resultado.</li>
-    <li>Uploads: probar con una imagen útil autorizada o en un bucket de prueba, porque no hay borrado desde UI; preservar referencias históricas.</li>
+    <li>Pedidos: crear en espera, editar, confirmar como ADMIN, rechazar confirmación STAFF, cancelar/restaurar y archivar; comprobar snapshots, auditoría e idempotencia. No repetir una compra incierta con clave nueva.</li>
+    <li>Uploads: usar una imagen autorizada o bucket de pruebas; comprobar asociaciones y que el borrado rechace referencias históricas.</li>
     <li>Confirmar agenda de mantenimiento, límites de cola, dead-letter y comportamiento de apagado en un entorno seguro; revisar cold start al ocurrir naturalmente, sin pings de evasión.</li>
   </ul>
-  <p>Endpoints históricos para reconocer la instalación, <strong>no comprobados en esta tarea</strong>: tienda <code>https://ferchumodas.shop</code> y backend <code>https://ferchumodas-api.onrender.com</code>. Un health exitoso confirma consulta básica en ese instante, no toda la lógica de negocio, Storage ni la cadena completa de proxies.</p>
-  <p>Verificación de navegador local con métodos de transporte simulados, sin crear pedidos ni modificar stock remoto: doble clic produjo una sola llamada de creación, mostró confirmación y vació el carrito; Enter con dos campos de stock vacíos produjo cero ajustes; una respuesta tardía de Pedidos no sustituyó Inventario. Esto prueba interacción local, no el flujo productivo completo.</p>
+  <p>Producción: <code>https://ferchumodas.shop</code>; backend <code>https://ferchumodas-api.onrender.com</code>. Staging independiente: <code>https://ferchumodas-security-staging.vercel.app</code>. Un health exitoso confirma una consulta básica en ese instante, no todo el negocio, correo, Storage ni el proxy.</p>
 </section>
 <section id="historial">
-  <h2>12. Antecedentes, correcciones y fuentes</h2>
-  <p>Este documento integra el README del servidor (incluidas sus notas finales), las guías de Render y logs, y las notas de historia de Prisma. Sustituye esos cuatro archivos documentales; <strong>AGENTS.md sigue siendo el archivo de instrucciones del repositorio</strong>. La revisión también corrige código y agrega tests; no cambia ni ejecuta migraciones remotas.</p>
-  <h3>Registros históricos conservados, no revalidados</h3>
-  <ul>
-    <li>El README anterior registraba que se aplicaron migraciones PostgreSQL y se copiaron/confrontaron campo a campo las 16 tablas del origen, sin seed y con login restringido. Se conserva como antecedente, no como certificado sobre el destino actual.</li>
-    <li>Registraba 27 imágenes copiadas sin recompresión y cotejadas con SHA-256; el manifiesto y --verify permiten una nueva comprobación autorizada.</li>
-    <li>La guía anterior fechada 16/10/2026 reportaba catálogo con 8 productos, banners/site-media, login ADMIN, refresh de sesión, logs y logout; también acceso directo rechazado por secreto ausente/incorrecto.</li>
-    <li>Reportaba el pedido interno <code>FM-20261016-6EFA1E93</code>, 15 piezas, R$ 525,00, luego cancelado (reservado 15 → 0, disponible 25 → 40). Son datos del relato anterior; no se consultó ni modificó ese pedido ahora. No afirmar que hoy el stock tiene esos valores.</li>
-    <li>Incidentes documentados: configuración obligatoria ausente en Vercel, secreto desigual tras rotación e INVALID_PROXY_IP por cabeceras estándar reescritas en ingress. La solución arquitectónica registrada usa secreto consistente y x-ferchu-client-ip verificado, no relajar confianza.</li>
-    <li>Quedaban pendientes pruebas reales de upload, medición de cold start y separación del rate limit entre dos redes. La consolidación no las da por completadas.</li>
-    <li>El Blueprint declara backend manual y Free en Virginia; la guía reportaba frontend publicado desde main. Políticas reales, planes y regiones pueden haber cambiado fuera del repo y requieren confirmar en los paneles.</li>
-  </ul>
-  <h3>Actualización de seguridad — 26/10/2026</h3>
-  <p>Dependencias fijadas: Vite 6.4.5, Multer 2.5.0 y Zod 4.6.7 en ambos paquetes. Express 5.2.1 conserva su versión y resuelve body-parser 2.4.0 en el lockfile. El override de Zod bajo @vercel/cli-config elimina la resolución vulnerable 4.1.11 sin degradar @vercel/functions. Prisma y su override de deepmerge-ts no cambian.</p>
-  <p>Zod 4 comprueba límites de colecciones antes de validar elementos. Las variantes de una opción de producto tienen un máximo de 80; los pedidos conservan su máximo de 80 líneas. Los schemas PATCH de categorías, opciones y banners eliminan los defaults de creación antes de aplicar partial, para que un campo omitido no reactive registros ni restablezca su orden. El formato de errores 422 se conserva.</p>
-  <p>Las regresiones de HTTP se ejecutan en un proceso desechable limitado a loopback, sin persistencia real: cuerpos gzip/Brotli con bytes sobrantes, límite JSON después de descomprimir, uploads abortados, callbacks asíncronos de Multer tras un teardown y PATCH sin defaults. No enviar estos payloads a producción. Las pruebas se ejecutan con Node 22.23.4; usar una distribución temporal no actualiza el Node global del sistema.</p>
-  <p>Referencias primarias: <a href="https://nodejs.org/en/blog/vulnerability/october-2026-security-releases">Node.js, publicación del 21/10</a> · <a href="https://github.com/expressjs/body-parser/security/advisories/GHSA-27r3-jxmh-p828">body-parser</a> · <a href="https://github.com/expressjs/multer/security/advisories/GHSA-q7qp-rjg7-q26m">Multer</a> · <a href="https://github.com/advisories/GHSA-mrhx-c7xc-m3w5">Zod</a> · <a href="https://github.com/vitejs/vite/security/advisories/GHSA-8g5g-mxqh-grgj">Vite 6.4.5</a>. La configuración local actualizada no certifica que Render o Vercel ya ejecuten la revisión corregida; verificar despliegue y runtime real por separado.</p>
-  <h3>Correcciones importantes de interpretación</h3>
-  <p>Cookie de sesión es token, no datos del usuario; GET /auth/me lee usuario de la base. El carrito no reserva stock. La protección de proxy no sustituye permisos. Health incluye una consulta al banco. Archivar no se presenta como desarchivado disponible. La UI de trace no invierte su orden. No hay promesas de entrega durable de logs ni retención exacta de 90 días. Los ejemplos de pagos/webhooks de la vieja guía no acreditan integración real. El build correcto incluye <code>npm run prisma:generate</code> y dependencias de desarrollo. VITE_API_URL sí es una variable pública válida, los secretos no.</p>
+  <h2>12. Pruebas, estado verificado y referencias</h2>
+  <p>Este es el manual único de arquitectura y operación. No es un diario de cada corrección. <strong>AGENTS.md</strong> y <strong>test/AGENTS.md</strong> siguen siendo instrucciones para trabajar en el repositorio; el historial de código permanece en Git.</p>
+  <h3>Qué comprueba cada nivel</h3>
+  <div class="table"><table><thead><tr><th>Nivel y comando</th><th>Alcance</th></tr></thead><tbody>
+    <tr><td>Raíz: <code>test:unit</code></td><td>Lógica pura de carrito, transporte, configuración y utilidades, sin servicios remotos.</td></tr>
+    <tr><td>Raíz: <code>test:ui</code></td><td>React/Testing Library con páginas, hooks y providers reales; sustituye la frontera HTTP, no simula el resultado de una transacción comercial.</td></tr>
+    <tr><td>server/: <code>npm test</code></td><td>Unidades y entradas HTTP aisladas, incluidos payloads malformados. No lanzarlos contra una API pública.</td></tr>
+    <tr><td>server/: <code>test:harness</code></td><td>Fallo normal, deadline y cancelación cooperativa del launcher: salida no exitosa, puerto cerrado y directorio propio eliminado.</td></tr>
+    <tr><td>server/: <code>test:integration</code></td><td>Express, Prisma y PostgreSQL real descartable; constraints, RLS/roles, migraciones, concurrencia y rollback. Storage se sustituye en HTTP local.</td></tr>
+    <tr><td>Raíz: <code>test:e2e</code></td><td>Chromium → frontend → API → PostgreSQL; teclado, móvil, imágenes, cuentas y pedidos. Bloquea red externa y usa correo capturado, no Resend real.</td></tr>
+    <tr><td>Raíz: <code>test:build</code></td><td>Build aislado, referencias de assets y ausencia de canarios de secretos server-only.</td></tr>
+    <tr><td>Raíz: <code>test:sensitivity</code></td><td>Tres mutaciones en copias temporales para comprobar que las pruebas detectan regresiones de precio cero, repetición de mutaciones y upscale de imágenes. No está dentro de test:all.</td></tr>
+  </tbody></table></div>
+  <p>El launcher ignora URLs de base configuradas, crea credenciales/puerto/directorio propios y usa embedded-postgres solo en loopback. Aplica validate/generate/deploy y ejecuta el negocio como miembro restringido de ferchu_backend. No usa Docker ni un bucket real. Usar un usuario normal del sistema, nunca crear usuarios para hacer pasar pruebas.</p>
+  <div class="warning">No ejecutar test:harness, integración y E2E simultáneamente: generan el mismo cliente Prisma. El launcher admite <code>--startup-timeout-ms</code> (110000 por defecto), <code>--timeout-ms</code> (600000), señales cooperativas en POSIX e IPC <code>{type:'cancel'}</code> en Windows. No envolverlo en un hard-kill más corto: SIGKILL/TerminateProcess no pueden ejecutar limpieza. Una cancelación durante startup espera el paso nativo acotado en curso.</div>
+  <p>Preferir selectores por rol/nombre accesible exacto, acotados al diálogo o tarjeta; usar helpers de locators. No ocultar fallos con retries, selectores posicionales o timeouts crecientes. Para continuar tras login, esperar estado autenticado real en lugar de navegar inmediatamente o dormir un plazo fijo.</p>
+  <h3>Evidencia y límites de la entrega</h3>
+  <p>La revisión del registro pasó individualmente 67 unidades frontend, 117 UI, 70 backend/HTTP, 163 integraciones PostgreSQL, 23 E2E y build aislado. El código <code>dc5273e</code> se validó remotamente en staging el 18/11/2026: registro, login sin verificar, aviso/límites, correo real a dirección oficial de prueba de Resend, rechazo desde navegador ajeno, éxito responsive y misma contraseña después de verificar.</p>
+  <p>La confirmación comercial también se probó en staging con pedidos sintéticos cancelados/archivados. Staging está protegido con SSO de Vercel; las pruebas usaron OIDC temporal sin bypass permanente. Su base Render gratuita está separada de producción y la caducidad informada es <code>2026-12-16T01:18:07Z</code>: revisar antes de reutilizarla. Staging no valida remotamente Storage, Melhor Envio ni WhatsApp, pues no tiene sus secretos productivos.</p>
+  <p><strong>Producción:</strong> la publicación de esta entrega requiere completar el respaldo recuperable, corte de escritores, migraciones y verificación descritos en <a href="#despliegue">despliegue</a>. No confundir evidencia de staging con una publicación productiva terminada.</p>
   <h3>Fuentes locales de referencia</h3>
   <p>Estas rutas son texto para consulta dentro del repositorio, no dependencias para visualizar el HTML offline: <code>AGENTS.md</code>, <code>package.json</code>, <code>server/package.json</code>, <code>server/.env.example</code>, <code>server/src/config/env.js</code>, <code>server/src/app.js</code>, <code>server/src/middlewares/</code>, <code>server/src/services/</code>, <code>server/src/controllers/logs.controller.js</code>, <code>server/src/lib/logger.js</code>, <code>server/prisma/schema.prisma</code>, <code>server/prisma/migrations/</code>, <code>src/services/http.js</code>, <code>src/routes/AppRoutes.jsx</code>, <code>src/components/LogsPanel.jsx</code>, <code>render.yaml</code> y los archivos del proxy.</p>
   <h3>Referencias externas opcionales</h3>
@@ -420,6 +468,6 @@ FROM app.log_dead ORDER BY failed_at DESC LIMIT 20;</code></pre>
 </section>
 </main>
 </div>
-<footer>Ferchu Modas · documentación consolidada en español · mantener junto con los cambios del repositorio. No contiene secretos ni certifica estado remoto actual.</footer>
+<footer>Ferchu Modas · manual en español · actualizar reglas, configuración y pruebas junto con el código. Los resultados fechados no garantizan estado remoto futuro.</footer>
 </body>
 </html>

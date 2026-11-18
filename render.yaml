@@ -30,6 +30,24 @@ services:
         sync: false
       - key: SUPABASE_SECRET_KEY
         sync: false
+      - key: WHATSAPP_NUMBER
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: EMAIL_REPLY_TO
+        sync: false
+      - key: EMAIL_VERIFICATION_SECRET
+        sync: false
+      - key: MELHOR_ENVIO_TOKEN
+        sync: false
+      - key: MELHOR_ENVIO_BASE_URL
+        value: https://melhorenvio.com.br
+      - key: SHIPPING_ORIGIN_POSTAL_CODE
+        value: '03031000'
+      - key: SHIPPING_QUOTE_CONCURRENCY
+        value: '4'
       - key: LOG_LEVEL
         value: info
       - key: MEDIA_UPLOAD_CONCURRENCY
