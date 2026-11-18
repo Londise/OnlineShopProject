@@ -28,5 +28,9 @@ Remitente previsto: `noreply@send.ferchumodas.shop`.
 Dirección de respuesta: `ferchumodas461@gmail.com`.
 
 No se añadieron estos registros automáticamente: los configuró el propietario.
-La comprobación con Resend terminó correctamente. La entrega real todavía
-debe validarse desde staging; verificar el DNS no demuestra recepción en el buzón.
+La comprobación con Resend terminó correctamente. El 17/11/2026 (hora local),
+el registro real desde staging respondió `202` y Resend confirmó `delivered`
+para el único mensaje de prueba autorizado. El remitente fue
+`noreply@send.ferchumodas.shop` y Reply-To `ferchumodas461@gmail.com`.
+La confirmación humana de recepción y la finalización del enlace siguen
+pendientes: el evento del proveedor no demuestra lectura ni ubicación en inbox.

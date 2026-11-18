@@ -1,7 +1,7 @@
 # Seguridad y confirmación comercial
 
 Rama: `security/commercial-confirmation-and-auth-hardening`.
-No se aplicaron migraciones ni despliegues a producción.
+No se aplicaron migraciones ni despliegues a la tienda de producción.
 
 ## Implementado
 
@@ -81,10 +81,54 @@ finalizaron correctamente. Se corrigió una dependencia de prueba: reiniciar
 la API E2E debe conservar el capturador local de correo en vez de intentar
 usar el proveedor real sin configurar.
 
+## Verificación remota de staging (17/11/2026, hora local)
+
+- Código desplegado: `555fb931ddf87f66a134aa437a4595ea893ba023`.
+  La rama se publicó en GitHub sin modificar `main`.
+- Frontend: https://ferchumodas-security-staging.vercel.app
+  (`dpl_Cr2K2ur2pXW1t1Cq6zifpbCiroTq`, estado `READY`, Node 22.x).
+  Vercel denomina `production` al primer despliegue de cada proyecto: aquí
+  corresponde exclusivamente al proyecto independiente de staging, no a
+  `ferchumodas.shop`.
+- Backend: https://ferchumodas-security-staging-api.onrender.com
+  (`srv-dbueog67bikc739o5pqg`, despliegue `dep-dbueogm7bikc739o5qf0`).
+  Plan gratuito, Virginia, Node 22.23.4, auto-deploy desactivado y health check
+  `/health`. Sin migraciones ni seed en el arranque.
+- Cinco grupos de smoke HTTP aprobaron salud/base, autenticación del proxy,
+  rechazo CSRF, permisos de administración, atributos de cookie, idempotencia
+  persistente, edición sin reserva, confirmación única, cancelación/restitución,
+  archivo y revocación de sesión.
+- Cuatro grupos de navegador aprobaron checkout real a través de Vercel/Render,
+  edición y confirmación desde la interfaz de administración, restitución y
+  archivo, sesión/cookies y bloqueo de administración después del logout.
+  Sin excepciones JavaScript ni respuestas API fallidas durante ese recorrido.
+  Los dos pedidos sintéticos de estas pruebas quedaron cancelados y archivados;
+  el producto de prueba terminó con 60 unidades físicas y cero reservadas.
+- El smoke de navegador remoto espera `domcontentloaded` y luego controles
+  semánticos; esperar el evento global `load` había agotado el plazo antes de
+  iniciar el recorrido. No se elevaron timeouts ni se modificó la aplicación.
+- Vercel no informó errores runtime en la ventana consultada de una hora.
+- El registro solicitado a través del frontend respondió `202` sin cookie
+  de sesión. El usuario autorizó un único envío a `ferchumodas461@gmail.com`.
+  Resend informó `delivered` para `01a1ec02-d884-767d-95b9-ef182317d82e`,
+  creado el `2026-11-18T00:16:12Z`, con remitente
+  `noreply@send.ferchumodas.shop` y Reply-To `ferchumodas461@gmail.com`.
+  Esto prueba entrega al servidor destinatario, no lectura ni ubicación en inbox.
+- El acceso temporal de automatización creado por `vercel curl` se revocó
+  después de las pruebas. Se verificaron cero bypasses y protección SSO `all`;
+  el token revocado vuelve a recibir redirección al acceso de Vercel.
+- Se eliminó el archivo temporal de conexiones owner del bootstrap. Las
+  credenciales runtime permanecen privadas, fuera del repositorio y del bundle.
+
 ## Pendiente, no presentado como resuelto
 
-- Despliegue y validación remota del staging.
-- Entrega real del correo de verificación, ahora que el DNS está verificado.
+- Confirmación humana de recepción y finalización del enlace de verificación.
+  La pestaña sigue en el login de Vercel; no se accedió al buzón ni se eligió
+  una contraseña en nombre del usuario. Si pasan 30 minutos, solicitar otro
+  enlace desde el registro de staging, sin compartir tokens en el chat.
+- Staging no tiene bucket de imágenes, proveedor de cotización ni destino
+  WhatsApp propios configurados. Esos flujos no se presentan como validados
+  remotamente; no se copiaron secretos de producción.
 - Revisión final y autorización independiente para cualquier cambio en producción.
 
 ## Recursos aislados preparados
@@ -103,5 +147,6 @@ usar el proveedor real sin configurar.
   El proveedor confirmó los tres registros DNS como `verified`.
   La clave destinada al backend está restringida a envío en ese dominio.
 
-No se cargaron datos reales ni credenciales de producción en estos recursos.
-Todavía no se creó el backend remoto ni se desplegó el proyecto Vercel.
+No se copiaron catálogos, pedidos ni credenciales de producción. Los pedidos
+de prueba son sintéticos; únicamente se usó el correo real autorizado para
+comprobar entrega. Frontend y backend de staging ya están desplegados.
